@@ -1,0 +1,69 @@
+name: app
+description: "같이크자 - 우리 아이 또래 친구를 동네에서 쉽게 만나는 육아 모임 플랫폼"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # State management
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+
+  # Routing
+  go_router: ^14.8.1
+
+  # Network
+  dio: ^5.7.0
+
+  # Storage
+  flutter_secure_storage: ^9.2.4
+  shared_preferences: ^2.3.5
+
+  # Serialization
+  json_annotation: ^4.9.0
+  freezed_annotation: ^3.0.0
+
+  # Firebase
+  firebase_core: ^3.12.1
+  firebase_messaging: ^15.2.5
+
+  # UI
+  cached_network_image: ^3.4.1
+  shimmer: ^3.0.0
+  smooth_page_indicator: ^1.2.0+3
+  flutter_svg: ^2.0.17
+
+  # Utils
+  image_picker: ^1.1.2
+  intl: ^0.19.0
+  url_launcher: ^6.3.1
+
+  # Naver Map
+  flutter_naver_map: ^1.3.0
+
+  # Google Fonts (for Pretendard-like font)
+  google_fonts: ^6.2.1
+  socket_io_client: ^3.1.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  build_runner: ^2.4.14
+  json_serializable: ^6.9.4
+  freezed: ^3.1.0
+  riverpod_generator: ^2.6.5
+  custom_lint:
+  riverpod_lint:
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/

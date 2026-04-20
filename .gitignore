@@ -1,0 +1,118 @@
+# ===== Secrets & Keys =====
+*.pem
+*.p8
+*.p12
+*.key
+*.keystore
+*.jks
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Firebase / Google services configs
+google-services.json
+GoogleService-Info.plist
+**/google-services*.json
+**/GoogleService-Info*.plist
+
+# Local-only assets
+etc/
+
+# ===== OS / Editor =====
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+*.iml
+
+# ===== Node (server, admin) =====
+node_modules/
+dist/
+build/
+coverage/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnp
+.pnp.js
+.eslintcache
+.cache/
+.parcel-cache/
+.next/
+.turbo/
+.vite/
+
+# Playwright / test artifacts
+test-results/
+playwright-report/
+playwright/.cache/
+
+# PM2
+.pm2/
+ecosystem.config.local.*
+
+# ===== Flutter / Dart (app) =====
+app/.dart_tool/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/.packages
+app/.pub-cache/
+app/.pub/
+app/build/
+app/.metadata
+app/pubspec.lock.bak
+app/.fvm/
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+
+# ===== Android =====
+app/android/.gradle/
+app/android/captures/
+app/android/gradlew
+app/android/gradlew.bat
+app/android/local.properties
+app/android/**/GeneratedPluginRegistrant.java
+app/android/key.properties
+app/android/app/debug/
+app/android/app/profile/
+app/android/app/release/
+**/.gradle/
+**/local.properties
+
+# ===== iOS =====
+app/ios/Flutter/App.framework
+app/ios/Flutter/Flutter.framework
+app/ios/Flutter/Flutter.podspec
+app/ios/Flutter/Generated.xcconfig
+app/ios/Flutter/app.flx
+app/ios/Flutter/app.zip
+app/ios/Flutter/flutter_assets/
+app/ios/Flutter/flutter_export_environment.sh
+app/ios/ServiceDefinitions.json
+app/ios/Runner/GeneratedPluginRegistrant.*
+app/ios/Pods/
+app/ios/Podfile.lock
+app/ios/.symlinks/
+app/ios/fastlane/report.xml
+app/ios/fastlane/Preview.html
+app/ios/fastlane/screenshots
+app/ios/fastlane/test_output
+**/xcuserdata/
+**/DerivedData/
+*.xcworkspace/xcuserdata/
+
+# Symbolication
+*.dSYM.zip
+*.dSYM
+
+# ===== Misc =====
+tmp/
+temp/
+*.tmp

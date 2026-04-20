@@ -1,0 +1,22 @@
+{
+  "name": "kids",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "cd app && flutter run -t lib/main.dart -d 'iPhone 17'",
+    "start:app": "cd app && flutter run",
+    "start:server": "cd server && npm run start:dev",
+    "start:server:pm2": "cd server && pm2 start ecosystem.config.cjs",
+    "start:admin": "cd admin && npm run dev",
+    "start:all": "cd server && pm2 start ecosystem.config.cjs && cd ../admin && npm run dev & cd ../app && flutter run",
+    "stop:server": "cd server && pm2 stop all",
+    "build:server": "cd server && npm run build",
+    "build:admin": "cd admin && npm run build",
+    "clean": "cd app && flutter clean && flutter pub get",
+    "clean:all": "cd app && flutter clean && flutter pub get && cd ../server && rm -rf node_modules && npm install && cd ../admin && rm -rf node_modules && npm install",
+    "deploy:server": "cd server && ./deploy.sh",
+    "d": "cd app && ./deploy.sh",
+    "da": "cd app && ./deploy.sh android",
+    "di": "cd app && ./deploy.sh ios"
+  }
+}
