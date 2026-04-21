@@ -61,12 +61,22 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.transparent,
       body: Stack(
         children: [
           // Map placeholder (Naver Map would go here)
           Container(
-            color: AppColors.surfaceVariant,
+            decoration: const BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment(0, -0.3),
+                radius: 1.2,
+                colors: [
+                  Color(0xFFDDF5E6),
+                  Color(0xFFE0EEFF),
+                  Color(0xFFFFDCE8),
+                ],
+              ),
+            ),
             child: Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,

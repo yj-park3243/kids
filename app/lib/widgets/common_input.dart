@@ -62,41 +62,43 @@ class CommonInput extends StatelessWidget {
           textInputAction: textInputAction,
           onFieldSubmitted: onSubmitted,
           style: AppTextStyles.body1,
+          cursorColor: AppColors.pink500,
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: AppTextStyles.body1.copyWith(
-              color: AppColors.textHint,
-            ),
+            hintStyle: AppTextStyles.body1.copyWith(color: AppColors.ink300),
             errorText: errorText,
-            errorStyle: AppTextStyles.caption.copyWith(
-              color: AppColors.error,
-            ),
+            errorStyle: AppTextStyles.caption.copyWith(color: AppColors.error),
             suffixIcon: suffixIcon,
             prefixIcon: prefixIcon,
             filled: true,
-            fillColor: enabled ? AppColors.surface : AppColors.surfaceVariant,
+            fillColor: enabled
+                ? Colors.white.withValues(alpha: 0.7)
+                : AppColors.bg2,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
-              vertical: 14,
+              vertical: 16,
             ),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(14),
               borderSide: const BorderSide(color: AppColors.divider),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.divider),
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(
+                color: AppColors.pink100.withValues(alpha: 0.8),
+                width: 1,
+              ),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: AppColors.pink500, width: 1.5),
             ),
             errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(14),
               borderSide: const BorderSide(color: AppColors.error),
             ),
             focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(14),
               borderSide: const BorderSide(color: AppColors.error, width: 1.5),
             ),
           ),

@@ -8,6 +8,7 @@ import '../../../core/utils/date_utils.dart';
 import '../../../models/room.dart';
 import '../../../widgets/app_bar.dart';
 import '../../../widgets/common_button.dart';
+import '../../../widgets/design/pink_blobs.dart';
 import '../../../widgets/empty_state.dart';
 import '../../../widgets/loading.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -39,19 +40,22 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
 
     if (state.isLoading && state.room == null) {
       return const Scaffold(
-        backgroundColor: AppColors.background,
-        body: AppLoadingIndicator(),
+        backgroundColor: Colors.transparent,
+        body: PinkBlobsBackground(child: AppLoadingIndicator()),
       );
     }
 
     if (state.error != null && state.room == null) {
       return Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: Colors.transparent,
         appBar: const CustomAppBar(title: ''),
-        body: ErrorState(
-          message: state.error!,
-          onRetry: () =>
-              ref.read(roomDetailProvider(widget.roomId).notifier).loadRoom(),
+        extendBodyBehindAppBar: true,
+        body: PinkBlobsBackground(
+          child: ErrorState(
+            message: state.error!,
+            onRetry: () =>
+                ref.read(roomDetailProvider(widget.roomId).notifier).loadRoom(),
+          ),
         ),
       );
     }
@@ -62,7 +66,8 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
     final isPending = room.myStatus == 'PENDING';
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
       appBar: CustomAppBar(
         title: '',
         actions: [
@@ -93,8 +98,9 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
             ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.only(bottom: 100),
+      body: PinkBlobsBackground(
+        child: SingleChildScrollView(
+        padding: const EdgeInsets.only(top: kToolbarHeight + 20, bottom: 120),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -176,6 +182,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
             ],
           ],
         ),
+      ),
       ),
       bottomNavigationBar: _BottomBar(
         room: room,

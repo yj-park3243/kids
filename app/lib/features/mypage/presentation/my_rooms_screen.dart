@@ -5,6 +5,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../models/room.dart';
 import '../../../widgets/app_bar.dart';
+import '../../../widgets/design/pink_blobs.dart';
 import '../../../widgets/empty_state.dart';
 import '../../../widgets/loading.dart';
 import '../../home/presentation/widgets/room_card.dart';
@@ -74,50 +75,53 @@ class _MyRoomsScreenState extends ConsumerState<MyRoomsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: CustomAppBar(
-        title: '내 모임',
-      ),
-      body: Column(
-        children: [
-          // Tabs
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 20),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceVariant,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: TabBar(
-              controller: _tabController,
-              indicator: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(12),
+      backgroundColor: Colors.transparent,
+      appBar: const CustomAppBar(title: '내 모임'),
+      extendBodyBehindAppBar: true,
+      body: PinkBlobsBackground(
+        child: SafeArea(
+          top: false,
+          child: Column(
+            children: [
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.7),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: AppColors.pink200, width: 0.8),
+                ),
+                child: TabBar(
+                  controller: _tabController,
+                  indicator: BoxDecoration(
+                    gradient: AppColors.pinkGradient,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  labelColor: Colors.white,
+                  unselectedLabelColor: AppColors.ink500,
+                  labelStyle: AppTextStyles.body2Bold,
+                  unselectedLabelStyle: AppTextStyles.body2,
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  dividerColor: Colors.transparent,
+                  tabs: const [
+                    Tab(text: '예정된 모임'),
+                    Tab(text: '지난 모임'),
+                  ],
+                ),
               ),
-              labelColor: Colors.white,
-              unselectedLabelColor: AppColors.textSecondary,
-              labelStyle: AppTextStyles.body2Bold,
-              unselectedLabelStyle: AppTextStyles.body2,
-              indicatorSize: TabBarIndicatorSize.tab,
-              dividerColor: Colors.transparent,
-              tabs: const [
-                Tab(text: '예정된 모임'),
-                Tab(text: '지난 모임'),
-              ],
-            ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildRoomList(_upcomingRooms),
+                    _buildRoomList(_pastRooms),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
-
-          // List
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildRoomList(_upcomingRooms),
-                _buildRoomList(_pastRooms),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

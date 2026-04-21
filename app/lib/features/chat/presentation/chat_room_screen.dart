@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
@@ -5,6 +6,8 @@ import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../models/chat_message.dart';
 import '../../../widgets/app_bar.dart';
+import '../../../widgets/design/avatar.dart';
+import '../../../widgets/design/pink_blobs.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
 
@@ -21,7 +24,6 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
 
-  /// Newest-first list. History arrives via REST; live updates append (insert at 0).
   final List<ChatMessage> _messages = [];
   bool _loadingHistory = true;
 
@@ -77,16 +79,13 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
 
   void _handleIncoming(ChatMessage message) {
     if (_messages.any((m) => m.id == message.id)) return;
-    setState(() {
-      _messages.insert(0, message);
-    });
+    setState(() => _messages.insert(0, message));
   }
 
   @override
   Widget build(BuildContext context) {
     final userId = ref.watch(authProvider).user?.id ?? '';
 
-    // Bind live stream via ref.listen so rebuilds don't re-subscribe.
     ref.listen<AsyncValue<ChatMessage>>(
       chatMessageStreamProvider(widget.chatRoomId),
       (_, next) {
@@ -96,105 +95,133 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
     );
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.transparent,
       appBar: const CustomAppBar(title: '채팅'),
-      body: Column(
-        children: [
-          Expanded(
-            child: _loadingHistory
-                ? const Center(
-                    child: CircularProgressIndicator(
-                      color: AppColors.primary,
-                    ),
-                  )
-                : _messages.isEmpty
-                    ? Center(
-                        child: Text(
-                          '첫 번째 메시지를 보내보세요!',
-                          style: AppTextStyles.body2
-                              .copyWith(color: AppColors.textHint),
-                        ),
+      extendBodyBehindAppBar: true,
+      body: PinkBlobsBackground(
+        child: SafeArea(
+          top: false,
+          child: Column(
+            children: [
+              Expanded(
+                child: _loadingHistory
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                            color: AppColors.pink500),
                       )
-                    : ListView.builder(
-                        controller: _scrollController,
-                        reverse: true,
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        itemCount: _messages.length,
-                        itemBuilder: (context, index) {
-                          final message = _messages[index];
-                          final isMine = message.senderId == userId;
-
-                          if (message.isSystem) {
-                            return _SystemMessage(message: message);
-                          }
-                          return _ChatBubble(message: message, isMine: isMine);
-                        },
-                      ),
+                    : _messages.isEmpty
+                        ? Center(
+                            child: Text(
+                              '첫 번째 메시지를 보내보세요!',
+                              style: AppTextStyles.body2
+                                  .copyWith(color: AppColors.ink300),
+                            ),
+                          )
+                        : ListView.builder(
+                            controller: _scrollController,
+                            reverse: true,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
+                            itemCount: _messages.length,
+                            itemBuilder: (context, index) {
+                              final message = _messages[index];
+                              final isMine = message.senderId == userId;
+                              if (message.isSystem) {
+                                return _SystemMessage(message: message);
+                              }
+                              return _ChatBubble(
+                                  message: message, isMine: isMine);
+                            },
+                          ),
+              ),
+              _InputBar(
+                controller: _messageController,
+                onSend: _sendMessage,
+              ),
+            ],
           ),
-          Container(
-            padding: EdgeInsets.fromLTRB(
-              16,
-              8,
-              8,
-              MediaQuery.of(context).padding.bottom + 8,
-            ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InputBar extends StatelessWidget {
+  final TextEditingController controller;
+  final VoidCallback onSend;
+
+  const _InputBar({required this.controller, required this.onSend});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        12,
+        8,
+        12,
+        MediaQuery.of(context).padding.bottom + 12,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(8, 7, 7, 7),
             decoration: BoxDecoration(
-              color: AppColors.surface,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 4,
-                  offset: const Offset(0, -1),
-                ),
-              ],
+              color: Colors.white.withValues(alpha: 0.7),
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(
+                color: AppColors.glassBorder,
+                width: 0.5,
+              ),
             ),
             child: Row(
               children: [
                 Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: AppColors.background,
-                      borderRadius: BorderRadius.circular(24),
-                    ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
                     child: TextField(
-                      controller: _messageController,
-                      style: AppTextStyles.body2,
+                      controller: controller,
+                      style: AppTextStyles.body1,
+                      cursorColor: AppColors.pink500,
                       decoration: InputDecoration(
-                        hintText: '메시지를 입력하세요',
-                        hintStyle: AppTextStyles.body2
-                            .copyWith(color: AppColors.textHint),
+                        hintText: '메시지 보내기...',
+                        hintStyle: AppTextStyles.body1
+                            .copyWith(color: AppColors.ink300),
                         border: InputBorder.none,
+                        isCollapsed: true,
                         contentPadding:
                             const EdgeInsets.symmetric(vertical: 12),
                       ),
                       textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => _sendMessage(),
+                      onSubmitted: (_) => onSend(),
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
                 GestureDetector(
-                  onTap: _sendMessage,
+                  onTap: onSend,
                   child: Container(
                     width: 40,
                     height: 40,
-                    decoration: const BoxDecoration(
-                      color: AppColors.primary,
+                    decoration: BoxDecoration(
+                      gradient: AppColors.pinkGradient,
                       shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.pink500.withValues(alpha: 0.35),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
-                    child: const Icon(
-                      Icons.send_rounded,
-                      color: Colors.white,
-                      size: 18,
-                    ),
+                    child: const Icon(Icons.send_rounded,
+                        color: Colors.white, size: 18),
                   ),
                 ),
               ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -204,10 +231,7 @@ class _ChatBubble extends StatelessWidget {
   final ChatMessage message;
   final bool isMine;
 
-  const _ChatBubble({
-    required this.message,
-    required this.isMine,
-  });
+  const _ChatBubble({required this.message, required this.isMine});
 
   @override
   Widget build(BuildContext context) {
@@ -219,82 +243,97 @@ class _ChatBubble extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (!isMine) ...[
-            CircleAvatar(
-              radius: 16,
-              backgroundColor: AppColors.surfaceVariant,
-              child: Text(
-                message.senderNickname.isNotEmpty
-                    ? message.senderNickname[0]
-                    : '?',
-                style: AppTextStyles.caption.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textSecondary,
-                ),
-              ),
+            InitialAvatar(
+              label: message.senderNickname,
+              size: 30,
+              tone: AvatarTone
+                  .values[message.senderId.hashCode.abs() % AvatarTone.values.length],
             ),
             const SizedBox(width: 8),
           ],
-          Column(
-            crossAxisAlignment:
-                isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-            children: [
-              if (!isMine)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Text(
-                    message.senderNickname,
-                    style: AppTextStyles.caption.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  if (isMine) ...[
-                    Text(
-                      AppDateUtils.formatChatTime(message.createdAt),
-                      style: AppTextStyles.caption.copyWith(fontSize: 10),
-                    ),
-                    const SizedBox(width: 6),
-                  ],
-                  Container(
-                    constraints: BoxConstraints(
-                      maxWidth: MediaQuery.of(context).size.width * 0.65,
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: isMine
-                          ? AppColors.chatBubbleMine
-                          : AppColors.chatBubbleOther,
-                      borderRadius: BorderRadius.only(
-                        topLeft: const Radius.circular(16),
-                        topRight: const Radius.circular(16),
-                        bottomLeft:
-                            isMine ? const Radius.circular(16) : Radius.zero,
-                        bottomRight:
-                            isMine ? Radius.zero : const Radius.circular(16),
-                      ),
-                    ),
+          Flexible(
+            child: Column(
+              crossAxisAlignment:
+                  isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              children: [
+                if (!isMine)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4, left: 4),
                     child: Text(
-                      message.content,
-                      style: AppTextStyles.body2.copyWith(
-                        color: isMine ? Colors.white : AppColors.textPrimary,
+                      message.senderNickname,
+                      style: AppTextStyles.caption.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink700,
                       ),
                     ),
                   ),
-                  if (!isMine) ...[
-                    const SizedBox(width: 6),
-                    Text(
-                      AppDateUtils.formatChatTime(message.createdAt),
-                      style: AppTextStyles.caption.copyWith(fontSize: 10),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisAlignment: isMine
+                      ? MainAxisAlignment.end
+                      : MainAxisAlignment.start,
+                  children: [
+                    if (isMine) ...[
+                      Text(
+                        AppDateUtils.formatChatTime(message.createdAt),
+                        style: AppTextStyles.caption.copyWith(fontSize: 10),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    Flexible(
+                      child: Container(
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width * 0.65,
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          gradient: isMine ? AppColors.pinkGradient : null,
+                          color: isMine
+                              ? null
+                              : Colors.white.withValues(alpha: 0.85),
+                          borderRadius: BorderRadius.only(
+                            topLeft: const Radius.circular(20),
+                            topRight: const Radius.circular(20),
+                            bottomLeft: Radius.circular(isMine ? 20 : 6),
+                            bottomRight: Radius.circular(isMine ? 6 : 20),
+                          ),
+                          border: isMine
+                              ? null
+                              : Border.all(
+                                  color: AppColors.pink100
+                                      .withValues(alpha: 0.8),
+                                  width: 0.5,
+                                ),
+                          boxShadow: [
+                            BoxShadow(
+                              color:
+                                  AppColors.pink500.withValues(alpha: 0.08),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          message.content,
+                          style: AppTextStyles.body1.copyWith(
+                            color: isMine ? Colors.white : AppColors.ink900,
+                          ),
+                        ),
+                      ),
                     ),
+                    if (!isMine) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        AppDateUtils.formatChatTime(message.createdAt),
+                        style: AppTextStyles.caption.copyWith(fontSize: 10),
+                      ),
+                    ],
                   ],
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -304,7 +343,6 @@ class _ChatBubble extends StatelessWidget {
 
 class _SystemMessage extends StatelessWidget {
   final ChatMessage message;
-
   const _SystemMessage({required this.message});
 
   @override
@@ -315,8 +353,9 @@ class _SystemMessage extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
           decoration: BoxDecoration(
-            color: AppColors.textHint.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(12),
+            color: Colors.white.withValues(alpha: 0.6),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: AppColors.divider),
           ),
           child: Text(
             message.content,

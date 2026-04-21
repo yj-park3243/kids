@@ -6,6 +6,7 @@ import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../models/notification.dart';
 import '../../../widgets/app_bar.dart';
+import '../../../widgets/design/pink_blobs.dart';
 import '../../../widgets/empty_state.dart';
 import '../../../widgets/loading.dart';
 import '../data/notification_repository.dart';
@@ -102,7 +103,7 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.transparent,
       appBar: CustomAppBar(
         title: '알림',
         actions: [
@@ -110,12 +111,13 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
             onPressed: _markAllAsRead,
             child: Text(
               '모두 읽음',
-              style: AppTextStyles.caption.copyWith(color: AppColors.primary),
+              style: AppTextStyles.caption.copyWith(color: AppColors.pink500),
             ),
           ),
         ],
       ),
-      body: _buildBody(),
+      extendBodyBehindAppBar: true,
+      body: PinkBlobsBackground(child: _buildBody()),
     );
   }
 

@@ -5,6 +5,8 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/storage/secure_storage.dart';
 import '../../../widgets/common_button.dart';
+import '../../../widgets/design/baby_avatar.dart';
+import '../../../widgets/design/pink_blobs.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -19,20 +21,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   final _pages = const [
     _OnboardingPage(
-      icon: Icons.child_care_rounded,
-      iconColor: AppColors.primary,
+      tone: BabyAvatarTone.pink,
       title: '우리 아이 또래 친구를\n만나요',
       subtitle: '비슷한 개월수의 아이를 키우는\n부모님들과 쉽게 연결돼요',
     ),
     _OnboardingPage(
-      icon: Icons.map_rounded,
-      iconColor: AppColors.secondary,
+      tone: BabyAvatarTone.lilac,
       title: '동네에서 가까운\n모임을 찾아요',
       subtitle: '우리 동네에서 열리는\n다양한 육아 모임에 참여해 보세요',
     ),
     _OnboardingPage(
-      icon: Icons.favorite_rounded,
-      iconColor: AppColors.accent,
+      tone: BabyAvatarTone.mint,
       title: '안전하고 즐거운\n육아 모임',
       subtitle: '본인 인증된 부모님들과\n안심하고 모임을 즐겨요',
     ),
@@ -63,61 +62,54 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Skip button
-            Align(
-              alignment: Alignment.topRight,
-              child: TextButton(
-                onPressed: _completeOnboarding,
-                child: Text(
-                  '건너뛰기',
-                  style: AppTextStyles.body2.copyWith(
-                    color: AppColors.textSecondary,
+      backgroundColor: Colors.transparent,
+      body: PinkBlobsBackground(
+        child: SafeArea(
+          child: Column(
+            children: [
+              Align(
+                alignment: Alignment.topRight,
+                child: TextButton(
+                  onPressed: _completeOnboarding,
+                  child: Text(
+                    '건너뛰기',
+                    style: AppTextStyles.body2.copyWith(
+                      color: AppColors.ink500,
+                    ),
                   ),
                 ),
               ),
-            ),
-
-            // Pages
-            Expanded(
-              child: PageView.builder(
-                controller: _pageController,
-                itemCount: _pages.length,
-                onPageChanged: (index) {
-                  setState(() => _currentPage = index);
-                },
-                itemBuilder: (context, index) => _pages[index],
-              ),
-            ),
-
-            // Page indicator
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 24),
-              child: SmoothPageIndicator(
-                controller: _pageController,
-                count: _pages.length,
-                effect: ExpandingDotsEffect(
-                  activeDotColor: AppColors.primary,
-                  dotColor: AppColors.primary.withValues(alpha: 0.2),
-                  dotHeight: 8,
-                  dotWidth: 8,
-                  expansionFactor: 3,
+              Expanded(
+                child: PageView.builder(
+                  controller: _pageController,
+                  itemCount: _pages.length,
+                  onPageChanged: (index) => setState(() => _currentPage = index),
+                  itemBuilder: (context, index) => _pages[index],
                 ),
               ),
-            ),
-
-            // Button
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
-              child: PrimaryButton(
-                text: _currentPage == _pages.length - 1 ? '시작하기' : '다음',
-                onPressed: _onNext,
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: SmoothPageIndicator(
+                  controller: _pageController,
+                  count: _pages.length,
+                  effect: ExpandingDotsEffect(
+                    activeDotColor: AppColors.pink500,
+                    dotColor: AppColors.pink500.withValues(alpha: 0.2),
+                    dotHeight: 8,
+                    dotWidth: 8,
+                    expansionFactor: 3,
+                  ),
+                ),
               ),
-            ),
-          ],
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
+                child: PrimaryButton(
+                  text: _currentPage == _pages.length - 1 ? '시작하기' : '다음',
+                  onPressed: _onNext,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -125,14 +117,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 }
 
 class _OnboardingPage extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
+  final BabyAvatarTone tone;
   final String title;
   final String subtitle;
 
   const _OnboardingPage({
-    required this.icon,
-    required this.iconColor,
+    required this.tone,
     required this.title,
     required this.subtitle,
   });
@@ -140,34 +130,46 @@ class _OnboardingPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 40),
+      padding: const EdgeInsets.symmetric(horizontal: 36),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            width: 160,
-            height: 160,
-            decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              icon,
-              size: 80,
-              color: iconColor,
+          SizedBox(
+            height: 200,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Positioned(
+                  left: 30,
+                  top: 20,
+                  child: Transform.rotate(
+                    angle: -0.1,
+                    child: BabyAvatar(size: 80, tone: BabyAvatarTone.cream),
+                  ),
+                ),
+                BabyAvatar(size: 120, tone: tone),
+                Positioned(
+                  right: 20,
+                  top: 30,
+                  child: Transform.rotate(
+                    angle: 0.1,
+                    child: const BabyAvatar(size: 70, tone: BabyAvatarTone.lilac),
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 48),
           Text(
             title,
-            style: AppTextStyles.onboarding,
+            style: AppTextStyles.display.copyWith(fontSize: 28),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
           Text(
             subtitle,
             style: AppTextStyles.body1.copyWith(
-              color: AppColors.textSecondary,
+              color: AppColors.ink500,
               height: 1.6,
             ),
             textAlign: TextAlign.center,

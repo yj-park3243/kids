@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/storage/secure_storage.dart';
+import '../../../widgets/design/baby_avatar.dart';
+import '../../../widgets/design/pink_blobs.dart';
 import '../../auth/providers/auth_provider.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -88,63 +90,37 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     });
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Center(
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: ScaleTransition(
-            scale: _scaleAnimation,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Logo
-                Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [AppColors.primary, AppColors.primaryLight],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(30),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.3),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: const Center(
+      backgroundColor: Colors.transparent,
+      body: PinkBlobsBackground(
+        strong: true,
+        child: Center(
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: ScaleTransition(
+              scale: _scaleAnimation,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const BabyAvatar(size: 120, tone: BabyAvatarTone.pink),
+                  const SizedBox(height: 28),
+                  ShaderMask(
+                    shaderCallback: (bounds) =>
+                        AppColors.pinkTextGradient.createShader(bounds),
                     child: Text(
-                      '같이\n크자',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
+                      '같이크자',
+                      style: AppTextStyles.display.copyWith(
                         color: Colors.white,
-                        height: 1.2,
+                        fontSize: 34,
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  '같이크자',
-                  style: AppTextStyles.heading1.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w800,
+                  const SizedBox(height: 8),
+                  Text(
+                    '우리 아이 또래 친구를 만나요',
+                    style: AppTextStyles.body1.copyWith(color: AppColors.ink500),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '우리 아이 또래 친구를 만나요',
-                  style: AppTextStyles.body2.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

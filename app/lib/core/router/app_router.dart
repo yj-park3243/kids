@@ -85,6 +85,14 @@ final appRouter = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(
+              path: '/rooms',
+              builder: (context, state) => const HomeScreen(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
               path: '/chat',
               builder: (context, state) => const ChatListScreen(),
             ),

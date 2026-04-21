@@ -13,6 +13,7 @@ import '../../../providers/selected_child_provider.dart';
 import '../../../widgets/app_bar.dart';
 import '../../../widgets/common_button.dart';
 import '../../../widgets/common_input.dart';
+import '../../../widgets/design/pink_blobs.dart';
 import '../../../widgets/region_picker.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/room_detail_provider.dart';
@@ -307,9 +308,11 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.transparent,
       appBar: const CustomAppBar(title: '모임 만들기'),
-      body: SafeArea(
+      extendBodyBehindAppBar: true,
+      body: PinkBlobsBackground(
+        child: SafeArea(
         child: Form(
           key: _formKey,
           child: ListView(
@@ -674,6 +677,7 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }
