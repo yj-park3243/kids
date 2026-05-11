@@ -5,6 +5,7 @@ import '../../features/auth/presentation/email_login_screen.dart';
 import '../../features/auth/presentation/email_register_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/onboarding_screen.dart';
+import '../../features/auth/presentation/phone_verification_screen.dart';
 import '../../features/auth/presentation/profile_setup_screen.dart';
 import '../../features/chat/presentation/chat_list_screen.dart';
 import '../../features/chat/presentation/chat_room_screen.dart';
@@ -14,10 +15,15 @@ import '../../features/mypage/presentation/my_rooms_screen.dart';
 import '../../features/mypage/presentation/mypage_screen.dart';
 import '../../features/mypage/presentation/profile_edit_screen.dart';
 import '../../features/notification/presentation/notification_screen.dart';
+import '../../features/notification/presentation/notification_settings_screen.dart';
 import '../../features/room/presentation/join_request_screen.dart';
+import '../../features/room/presentation/photo_detail_screen.dart';
+import '../../features/room/presentation/photo_grid_screen.dart';
+import '../../features/room/presentation/photo_upload_screen.dart';
 import '../../features/room/presentation/room_create_screen.dart';
 import '../../features/room/presentation/room_detail_screen.dart';
 import '../../features/splash/presentation/splash_screen.dart';
+import '../../features/support/presentation/inquiry_screen.dart';
 import '../../widgets/bottom_nav.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -52,6 +58,10 @@ final appRouter = GoRouter(
       builder: (context, state) => const EmailRegisterScreen(),
     ),
     GoRoute(
+      path: '/phone-verification',
+      builder: (context, state) => const PhoneVerificationScreen(),
+    ),
+    GoRoute(
       path: '/profile-setup',
       builder: (context, state) => const ProfileSetupScreen(),
     ),
@@ -79,14 +89,6 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/map',
               builder: (context, state) => const MapScreen(),
-            ),
-          ],
-        ),
-        StatefulShellBranch(
-          routes: [
-            GoRoute(
-              path: '/rooms',
-              builder: (context, state) => const HomeScreen(),
             ),
           ],
         ),
@@ -131,6 +133,33 @@ final appRouter = GoRouter(
         return JoinRequestScreen(roomId: roomId);
       },
     ),
+    GoRoute(
+      path: '/rooms/:roomId/photos',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) =>
+          PhotoGridScreen(roomId: state.pathParameters['roomId']!),
+    ),
+    GoRoute(
+      path: '/rooms/:roomId/photos/upload',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) =>
+          PhotoUploadScreen(roomId: state.pathParameters['roomId']!),
+    ),
+    GoRoute(
+      path: '/rooms/:roomId/photos/:photoId',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) {
+        final extra = (state.extra as Map?) ?? const {};
+        final ids = (extra['photoIds'] as List?)?.cast<String>() ??
+            [state.pathParameters['photoId']!];
+        final idx = (extra['initialIndex'] as int?) ?? 0;
+        return PhotoDetailScreen(
+          roomId: state.pathParameters['roomId']!,
+          photoIds: ids,
+          initialIndex: idx,
+        );
+      },
+    ),
 
     // Chat room
     GoRoute(
@@ -148,6 +177,18 @@ final appRouter = GoRouter(
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) => const NotificationScreen(),
     ),
+    GoRoute(
+      path: '/notification-settings',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const NotificationSettingsScreen(),
+    ),
+
+    // 아이 추가 (마이페이지에서 진입 — child-setup 가입 흐름과 분리)
+    GoRoute(
+      path: '/child-add',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const ChildSetupScreen(popOnDone: true),
+    ),
 
     // My rooms
     GoRoute(
@@ -161,6 +202,13 @@ final appRouter = GoRouter(
       path: '/profile-edit',
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) => const ProfileEditScreen(),
+    ),
+
+    // Support — 1:1 문의
+    GoRoute(
+      path: '/inquiry',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const InquiryScreen(),
     ),
   ],
 );

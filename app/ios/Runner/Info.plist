@@ -13,7 +13,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>app</string>
+	<string>같이크자</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -42,7 +42,7 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>NMFClientId</key>
-	<string>539desbv96</string>
+	<string>vwcyomo2zx</string>
 	<key>NSCameraUsageDescription</key>
 	<string>프로필 사진을 촬영하기 위해 카메라 접근이 필요합니다.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
@@ -53,5 +53,30 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>kr.kids.app.kcp</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>kids</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>kr.kids.app.google</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.1078367126693-gbngn7b8mjuu29rtdd279vhsrie7rkuh</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

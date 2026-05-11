@@ -8,8 +8,9 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/validators.dart';
 import '../../../widgets/app_bar.dart';
 import '../../../widgets/common_button.dart';
+import '../../../core/constants/app_text_styles.dart';
+import '../../../widgets/address_search_sheet.dart';
 import '../../../widgets/common_input.dart';
-import '../../../widgets/region_picker.dart';
 import '../../auth/providers/auth_provider.dart';
 
 class ProfileEditScreen extends ConsumerStatefulWidget {
@@ -26,7 +27,6 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   String? _profileImagePath;
   String? _selectedSido;
   String? _selectedSigungu;
-  String? _selectedDong;
   bool _isLoading = false;
 
   @override
@@ -37,7 +37,16 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
     _introController = TextEditingController(text: user?.introduction ?? '');
     _selectedSido = user?.regionSido;
     _selectedSigungu = user?.regionSigungu;
-    _selectedDong = user?.regionDong;
+  }
+
+  Future<void> _selectAddress() async {
+    final result = await showAddressSearchSheet(context);
+    if (result == null) return;
+    setState(() {
+      // 큰 덩어리만 — 시/도 + 시/군/구. dong/도로명/건물명은 저장 안 함.
+      _selectedSido = result.sido;
+      _selectedSigungu = result.sigungu;
+    });
   }
 
   @override
@@ -161,17 +170,41 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                RegionPicker(
-                  initialSido: _selectedSido,
-                  initialSigungu: _selectedSigungu,
-                  initialDong: _selectedDong,
-                  onSelected: (sido, sigungu, dong) {
-                    setState(() {
-                      _selectedSido = sido;
-                      _selectedSigungu = sigungu;
-                      _selectedDong = dong;
-                    });
-                  },
+                // 지역 — 주소 검색 (Daum 우편번호). 큰 덩어리(시/도 + 시/군/구)만 저장.
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('지역', style: AppTextStyles.body2Bold),
+                ),
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: _selectAddress,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.divider),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.search_rounded, color: AppColors.textHint, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _selectedSido == null
+                              ? Text(
+                                  '주소 검색',
+                                  style: AppTextStyles.body2.copyWith(color: AppColors.textHint),
+                                )
+                              : Text(
+                                  '$_selectedSido ${_selectedSigungu ?? ''}'.trim(),
+                                  style: AppTextStyles.body1,
+                                ),
+                        ),
+                        const Icon(Icons.chevron_right_rounded, color: AppColors.textHint),
+                      ],
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 40),
 

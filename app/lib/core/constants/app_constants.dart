@@ -18,7 +18,7 @@ class AppConstants {
   static const int maxTags = 5;
   static const int maxTagLength = 10;
 
-  static const String naverMapClientId = '539desbv96';
+  static const String naverMapClientId = 'vwcyomo2zx';
 
   // Place types
   static const Map<String, String> placeTypes = {

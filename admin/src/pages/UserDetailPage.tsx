@@ -79,6 +79,21 @@ export default function UserDetailPage() {
     }
   };
 
+  const handleToggleVerify = async () => {
+    if (!id || !user) return;
+    const next = !user.isPhoneVerified;
+    try {
+      setActionLoading(true);
+      await usersApi.setPhoneVerified(id, next);
+      message.success(next ? '본인인증을 처리했습니다.' : '본인인증을 해제했습니다.');
+      fetchUser(id);
+    } catch {
+      message.error('처리 중 오류가 발생했습니다.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const childColumns = [
     {
       title: '별명',
@@ -167,11 +182,32 @@ export default function UserDetailPage() {
             {user.regionSido} {user.regionSigungu} {user.regionDong}
           </Descriptions.Item>
           <Descriptions.Item label="본인인증">
-            {user.isPhoneVerified ? (
-              <Tag color="green">완료</Tag>
-            ) : (
-              <Tag color="default">미완료</Tag>
-            )}
+            <Space>
+              {user.isPhoneVerified ? (
+                <Tag color="green">완료</Tag>
+              ) : (
+                <Tag color="default">미완료</Tag>
+              )}
+              <Popconfirm
+                title={
+                  user.isPhoneVerified
+                    ? '본인인증을 해제하시겠습니까?'
+                    : '본인인증을 수동 처리하시겠습니까?'
+                }
+                onConfirm={handleToggleVerify}
+                okText="확인"
+                cancelText="취소"
+              >
+                <Button
+                  size="small"
+                  type={user.isPhoneVerified ? 'default' : 'primary'}
+                  danger={user.isPhoneVerified}
+                  loading={actionLoading}
+                >
+                  {user.isPhoneVerified ? '인증 해제' : '인증 처리'}
+                </Button>
+              </Popconfirm>
+            </Space>
           </Descriptions.Item>
           <Descriptions.Item label="자기소개" span={2}>
             {user.introduction || '-'}

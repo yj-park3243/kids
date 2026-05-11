@@ -52,20 +52,22 @@ class Validators {
   }
 
   static String? roomTitle(String? value) {
-    if (value == null || value.isEmpty) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) {
       return '제목을 입력해 주세요';
     }
-    if (value.length < 2 || value.length > 30) {
+    if (v.length < 2 || v.length > 30) {
       return '제목은 2~30자로 입력해 주세요';
     }
     return null;
   }
 
   static String? roomDescription(String? value) {
-    if (value == null || value.isEmpty) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) {
       return '설명을 입력해 주세요';
     }
-    if (value.length < 10 || value.length > 500) {
+    if (v.length < 10 || v.length > 500) {
       return '설명은 10~500자로 입력해 주세요';
     }
     return null;

@@ -45,7 +45,9 @@ class _EmailRegisterScreenState extends ConsumerState<EmailRegisterScreen> {
     final authState = ref.watch(authProvider);
 
     ref.listen<AuthState>(authProvider, (previous, next) {
-      if (next.status == AuthStatus.profileSetup) {
+      if (next.status == AuthStatus.phoneVerification) {
+        context.go('/phone-verification');
+      } else if (next.status == AuthStatus.profileSetup) {
         context.go('/profile-setup');
       } else if (next.errorMessage != null) {
         ScaffoldMessenger.of(context).showSnackBar(

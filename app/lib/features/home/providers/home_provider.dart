@@ -41,7 +41,7 @@ class HomeState {
     String? nextCursor,
     String? error,
     DateFilter? dateFilter,
-    String? placeTypeFilter,
+    Object? placeTypeFilter = _unset,
     int? unreadCount,
   }) {
     return HomeState(
@@ -52,11 +52,16 @@ class HomeState {
       nextCursor: nextCursor ?? this.nextCursor,
       error: error,
       dateFilter: dateFilter ?? this.dateFilter,
-      placeTypeFilter: placeTypeFilter ?? this.placeTypeFilter,
+      // sentinel: 명시적으로 null 을 넘기면 필터 해제됨 (기존 ?? 패턴은 null 을 ignore 했음)
+      placeTypeFilter: identical(placeTypeFilter, _unset)
+          ? this.placeTypeFilter
+          : placeTypeFilter as String?,
       unreadCount: unreadCount ?? this.unreadCount,
     );
   }
 }
+
+const Object _unset = Object();
 
 class HomeNotifier extends StateNotifier<HomeState> {
   final HomeRepository _repository;

@@ -5,6 +5,7 @@ import {
   DashboardOutlined,
   UserOutlined,
   HomeOutlined,
+  FlagOutlined,
   SettingOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
@@ -41,6 +42,11 @@ export default function Layout() {
       label: '모임 관리',
     },
     {
+      key: '/reports',
+      icon: <FlagOutlined />,
+      label: '신고 관리',
+    },
+    {
       type: 'divider' as const,
     },
     {
@@ -72,7 +78,9 @@ export default function Layout() {
     ? '/users'
     : location.pathname.startsWith('/rooms')
       ? '/rooms'
-      : location.pathname;
+      : location.pathname.startsWith('/reports')
+        ? '/reports'
+        : location.pathname;
 
   return (
     <AntLayout style={{ minHeight: '100vh' }}>

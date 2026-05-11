@@ -1,8 +1,11 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../support/presentation/report_sheet.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../models/room.dart';
@@ -51,10 +54,12 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
         appBar: const CustomAppBar(title: ''),
         extendBodyBehindAppBar: true,
         body: PinkBlobsBackground(
-          child: ErrorState(
-            message: state.error!,
-            onRetry: () =>
-                ref.read(roomDetailProvider(widget.roomId).notifier).loadRoom(),
+          child: SafeArea(
+            child: ErrorState(
+              message: state.error!,
+              onRetry: () =>
+                  ref.read(roomDetailProvider(widget.roomId).notifier).loadRoom(),
+            ),
           ),
         ),
       );
@@ -71,36 +76,54 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
       appBar: CustomAppBar(
         title: '',
         actions: [
-          if (isHost)
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert_rounded,
-                  color: AppColors.textPrimary),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-              onSelected: (value) {
-                if (value == 'manage') {
-                  context.push('/rooms/${widget.roomId}/requests');
-                } else if (value == 'cancel') {
-                  _cancelRoom(room);
-                }
-              },
-              itemBuilder: (context) => [
-                if (room.isApprovalRequired)
-                  const PopupMenuItem(
-                    value: 'manage',
-                    child: Text('참여 관리'),
-                  ),
+          IconButton(
+            icon: const Icon(Icons.photo_library_outlined,
+                color: AppColors.textPrimary),
+            tooltip: '사진첩',
+            onPressed: () => context.push('/rooms/${widget.roomId}/photos'),
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert_rounded,
+                color: AppColors.textPrimary),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+            onSelected: (value) {
+              if (value == 'manage') {
+                context.push('/rooms/${widget.roomId}/requests');
+              } else if (value == 'cancel') {
+                _cancelRoom(room);
+              } else if (value == 'report') {
+                showReportSheet(context, targetRoomId: widget.roomId);
+              }
+            },
+            itemBuilder: (context) => [
+              if (isHost && room.isApprovalRequired)
+                const PopupMenuItem(
+                  value: 'manage',
+                  child: Text('참여 관리'),
+                ),
+              if (isHost)
                 const PopupMenuItem(
                   value: 'cancel',
-                  child: Text('모임 취소', style: TextStyle(color: AppColors.error)),
+                  child:
+                      Text('모임 취소', style: TextStyle(color: AppColors.error)),
                 ),
-              ],
-            ),
+              if (!isHost)
+                const PopupMenuItem(
+                  value: 'report',
+                  child: Text('신고하기',
+                      style: TextStyle(color: AppColors.error)),
+                ),
+            ],
+          ),
         ],
       ),
       body: PinkBlobsBackground(
         child: SingleChildScrollView(
-        padding: const EdgeInsets.only(top: kToolbarHeight + 20, bottom: 120),
+        padding: EdgeInsets.only(
+          top: kToolbarHeight + MediaQuery.of(context).padding.top + 12,
+          bottom: 120,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -126,12 +149,29 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                   ),
                   const SizedBox(height: 12),
                   Text(room.title, style: AppTextStyles.heading1),
-                  if (room.description != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      room.description!,
-                      style: AppTextStyles.body2
-                          .copyWith(color: AppColors.textSecondary),
+                  if (room.description != null && room.description!.trim().isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.04),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        room.description!,
+                        style: AppTextStyles.body2.copyWith(
+                          color: AppColors.textPrimary,
+                          height: 1.5,
+                        ),
+                      ),
                     ),
                   ],
                 ],
@@ -144,14 +184,9 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
 
             const SizedBox(height: 16),
 
-            // Map placeholder
+            // Map preview — 모임장 영역 자리. 탭하면 전체화면.
             if (room.latitude != null && room.longitude != null)
               _MapSection(room: room),
-
-            const SizedBox(height: 16),
-
-            // Host profile
-            _HostSection(host: room.host),
 
             const SizedBox(height: 16),
 
@@ -236,23 +271,22 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
   }
 
   Future<void> _cancelRoom(Room room) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showCupertinoModalPopup<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      builder: (ctx) => CupertinoActionSheet(
         title: const Text('모임 취소'),
-        content: const Text('정말로 이 모임을 취소하시겠습니까?\n참여자 전원에게 알림이 발송됩니다.'),
+        message: const Text('정말로 이 모임을 취소하시겠습니까?\n참여자 전원에게 알림이 발송됩니다.'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('아니요'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child:
-                const Text('취소하기', style: TextStyle(color: AppColors.error)),
+          CupertinoActionSheetAction(
+            isDestructiveAction: true,
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('모임 취소하기'),
           ),
         ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('닫기'),
+        ),
       ),
     );
 
@@ -387,113 +421,120 @@ class _MapSection extends StatelessWidget {
 
   const _MapSection({required this.room});
 
+  NLatLng get _target => NLatLng(room.latitude!, room.longitude!);
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      height: 160,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceVariant,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.map_rounded, size: 40, color: AppColors.textHint),
-            const SizedBox(height: 8),
-            Text(
-              room.placeAddress ?? '지도에서 위치 보기',
-              style: AppTextStyles.caption,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: GestureDetector(
+        onTap: () => _openFullscreen(context),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: SizedBox(
+            height: 180,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                AbsorbPointer(
+                  child: NaverMap(
+                    options: NaverMapViewOptions(
+                      initialCameraPosition:
+                          NCameraPosition(target: _target, zoom: 15),
+                      scrollGesturesEnable: false,
+                      zoomGesturesEnable: false,
+                      tiltGesturesEnable: false,
+                      rotationGesturesEnable: false,
+                      logoClickEnable: false,
+                    ),
+                    onMapReady: (controller) {
+                      controller.addOverlay(
+                        NMarker(id: 'room_${room.id}', position: _target),
+                      );
+                    },
+                  ),
+                ),
+                Positioned(
+                  right: 10,
+                  bottom: 10,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(Icons.fullscreen_rounded,
+                            color: Colors.white, size: 16),
+                        SizedBox(width: 4),
+                        Text(
+                          '크게 보기',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
-}
 
-class _HostSection extends StatelessWidget {
-  final RoomHost host;
-
-  const _HostSection({required this.host});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: AppColors.surfaceVariant,
-            backgroundImage: host.profileImageUrl != null
-                ? NetworkImage(host.profileImageUrl!)
-                : null,
-            child: host.profileImageUrl == null
-                ? const Icon(Icons.person_rounded,
-                    color: AppColors.textHint, size: 24)
-                : null,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(host.nickname, style: AppTextStyles.body1Bold),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppColors.accent.withValues(alpha: 0.3),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        '방장',
-                        style: AppTextStyles.caption.copyWith(
-                          fontSize: 10,
-                          color: AppColors.accentDark,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                if (host.regionSigungu != null)
-                  Text(host.regionSigungu!,
-                      style: AppTextStyles.caption),
-              ],
-            ),
-          ),
-        ],
+  void _openFullscreen(BuildContext context) {
+    Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => _FullscreenMap(target: _target, title: room.placeAddress ?? room.title),
       ),
     );
   }
 }
 
-class _MembersSection extends StatelessWidget {
+class _FullscreenMap extends StatelessWidget {
+  const _FullscreenMap({required this.target, required this.title});
+
+  final NLatLng target;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(title),
+        leading: IconButton(
+          icon: const Icon(Icons.close_rounded),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
+      body: NaverMap(
+        options: NaverMapViewOptions(
+          initialCameraPosition: NCameraPosition(target: target, zoom: 16),
+        ),
+        onMapReady: (controller) {
+          controller.addOverlay(NMarker(id: 'fs_marker', position: target));
+        },
+      ),
+    );
+  }
+}
+
+class _MembersSection extends ConsumerWidget {
   final Room room;
 
   const _MembersSection({required this.room});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final members = room.members ?? [];
+    final myId = ref.watch(authProvider).user?.id;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -505,7 +546,13 @@ class _MembersSection extends StatelessWidget {
             style: AppTextStyles.body1Bold,
           ),
           const SizedBox(height: 12),
-          ...members.map((member) => Container(
+          ...members.map((member) {
+            final isMe = member.id == myId;
+            return GestureDetector(
+              onLongPress: isMe
+                  ? null
+                  : () => showReportSheet(context, targetUserId: member.id),
+              child: Container(
                 margin: const EdgeInsets.only(bottom: 8),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -571,7 +618,9 @@ class _MembersSection extends StatelessWidget {
                     ),
                   ],
                 ),
-              )),
+              ),
+            );
+          }),
         ],
       ),
     );

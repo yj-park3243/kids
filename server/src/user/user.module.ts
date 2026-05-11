@@ -5,11 +5,12 @@ import { UserService } from './user.service';
 import { User } from './entities/user.entity';
 import { Child } from '../child/entities/child.entity';
 import { RoomMember } from '../room/entities/room-member.entity';
+import { AppleService } from '../auth/social/apple.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([User, Child, RoomMember])],
   controllers: [UserController],
-  providers: [UserService],
+  providers: [UserService, AppleService],
   exports: [UserService],
 })
 export class UserModule {}

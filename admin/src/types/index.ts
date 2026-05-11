@@ -124,13 +124,24 @@ export interface RoomMember {
 }
 
 // ============ Dashboard ============
+export interface TrendPoint {
+  date: string; // YYYY-MM-DD
+  count: number;
+}
+
 export interface DashboardStats {
   totalUsers: number;
-  totalRooms: number;
   todayUsers: number;
-  todayRooms: number;
-  activeRooms: number;
+  last7DaysSignups: number;
   bannedUsers: number;
+  currentOnline: number;
+  todayVisitors: number;
+  totalRooms: number;
+  activeRooms: number;
+  todayRooms: number;
+  signupTrend: TrendPoint[];
+  visitorTrend: TrendPoint[];
+  roomTrend: TrendPoint[];
 }
 
 // ============ Pagination ============
@@ -140,4 +151,29 @@ export interface PaginatedResponse<T> {
   page: number;
   limit: number;
   totalPages: number;
+}
+
+// ============ Reports ============
+export type ReportReason = 'SPAM' | 'ABUSE' | 'INAPPROPRIATE' | 'FRAUD' | 'OTHER';
+export type ReportStatus = 'OPEN' | 'REVIEWED' | 'RESOLVED' | 'DISMISSED';
+
+export interface ReportUserRef {
+  id: string;
+  nickname?: string;
+  email?: string | null;
+}
+
+export interface ReportListItem {
+  id: string;
+  reason: ReportReason | string;
+  status: ReportStatus | string;
+  detail: string | null;
+  createdAt: string;
+  reporter: ReportUserRef;
+  targetUser: ReportUserRef | null;
+  targetRoomId: string | null;
+}
+
+export interface ReportDetail extends ReportListItem {
+  targetRoom: { id: string; title: string } | null;
 }

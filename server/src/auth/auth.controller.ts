@@ -12,7 +12,6 @@ import { SocialLoginDto } from './dto/social-login.dto';
 import { EmailRegisterDto } from './dto/email-register.dto';
 import { EmailLoginDto } from './dto/email-login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
-import { ResetPasswordDto } from './dto/reset-password.dto';
 import { PhoneVerifyDto } from './dto/phone-verify.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { Public } from '../common/decorators/public.decorator';
@@ -45,14 +44,6 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async emailLogin(@Body() dto: EmailLoginDto) {
     return this.authService.emailLogin(dto);
-  }
-
-  @Post('email/reset-password')
-  @Public()
-  @ApiOperation({ summary: '비밀번호 재설정 메일 발송' })
-  @HttpCode(HttpStatus.OK)
-  async resetPassword(@Body() dto: ResetPasswordDto) {
-    return this.authService.requestPasswordReset(dto.email);
   }
 
   @Post('refresh')

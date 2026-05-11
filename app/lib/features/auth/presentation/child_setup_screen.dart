@@ -10,7 +10,10 @@ import '../../../widgets/common_input.dart';
 import '../providers/auth_provider.dart';
 
 class ChildSetupScreen extends ConsumerStatefulWidget {
-  const ChildSetupScreen({super.key});
+  const ChildSetupScreen({super.key, this.popOnDone = false});
+
+  /// true 면 가입 흐름이 아니라 마이페이지 진입 — 추가 완료 후 pop.
+  final bool popOnDone;
 
   @override
   ConsumerState<ChildSetupScreen> createState() => _ChildSetupScreenState();
@@ -77,7 +80,19 @@ class _ChildSetupScreenState extends ConsumerState<ChildSetupScreen> {
               gender: child.gender,
             );
       }
-      await ref.read(authProvider.notifier).completeChildSetup();
+      if (widget.popOnDone) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('아이를 추가했습니다'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          context.pop();
+        }
+      } else {
+        await ref.read(authProvider.notifier).completeChildSetup();
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -96,15 +111,20 @@ class _ChildSetupScreenState extends ConsumerState<ChildSetupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<AuthState>(authProvider, (previous, next) {
-      if (next.status == AuthStatus.authenticated) {
-        context.go('/home');
-      }
-    });
+    if (!widget.popOnDone) {
+      ref.listen<AuthState>(authProvider, (previous, next) {
+        if (next.status == AuthStatus.authenticated) {
+          context.go('/home');
+        }
+      });
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const CustomAppBar(title: '아이 정보 등록', showBack: false),
+      appBar: CustomAppBar(
+        title: widget.popOnDone ? '아이 추가' : '아이 정보 등록',
+        showBack: widget.popOnDone,
+      ),
       body: SafeArea(
         child: Column(
           children: [

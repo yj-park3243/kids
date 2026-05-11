@@ -3,12 +3,17 @@ class ApiConstants {
 
   // Base URLs
   static const String devBaseUrl = 'http://localhost:3000';
-  static const String prodBaseUrl = 'http://43.201.221.240:3000';
+  static const String prodBaseUrl = 'https://api.growtogether.kr';
 
-  // Use dev by default; switch via environment
+  static const String _environment = String.fromEnvironment(
+    'ENVIRONMENT',
+    defaultValue: 'development',
+  );
+
+  // API_BASE_URL이 주어지면 그것을 우선, 없으면 ENVIRONMENT로 분기
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: devBaseUrl,
+    defaultValue: _environment == 'production' ? prodBaseUrl : devBaseUrl,
   );
 
   // API version prefix
@@ -24,7 +29,7 @@ class ApiConstants {
   static const String emailRegister = '/auth/email/register';
   static const String refreshToken = '/auth/refresh';
   static const String logout = '/auth/logout';
-  static const String resetPassword = '/auth/email/reset-password';
+  static const String kcpForm = '/auth/kcp/form';
 
   // User
   static const String userProfile = '/users/profile';
@@ -46,6 +51,11 @@ class ApiConstants {
 
   // Upload
   static const String uploadImage = '/upload/image';
+
+  // Support
+  static const String errorLogs = '/error-logs';
+  static const String supportInquiry = '/support/inquiry';
+  static const String supportReport = '/support/report';
 
   // Chat
   static const String chatRooms = '/chat/rooms';

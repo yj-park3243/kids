@@ -19,7 +19,6 @@ class AuthInterceptor extends Interceptor {
       ApiConstants.emailLogin,
       ApiConstants.emailRegister,
       ApiConstants.refreshToken,
-      ApiConstants.resetPassword,
     ];
 
     if (!noAuthPaths.any((path) => options.path.contains(path))) {

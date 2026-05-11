@@ -45,27 +45,20 @@ class AuthRepository {
     return _handleAuthResponse(response.data);
   }
 
-  // Reset Password
-  Future<void> resetPassword(String email) async {
-    await _dio.post(ApiConstants.resetPassword, data: {
-      'email': email,
-    });
-  }
-
   // Setup Profile
   Future<User> setupProfile({
     required String nickname,
-    required String regionSido,
-    required String regionSigungu,
-    required String regionDong,
+    String? regionSido,
+    String? regionSigungu,
+    String? regionDong,
     String? profileImageUrl,
     String? introduction,
   }) async {
     final response = await _dio.post(ApiConstants.userProfile, data: {
       'nickname': nickname,
-      'regionSido': regionSido,
-      'regionSigungu': regionSigungu,
-      'regionDong': regionDong,
+      if (regionSido != null) 'regionSido': regionSido,
+      if (regionSigungu != null) 'regionSigungu': regionSigungu,
+      if (regionDong != null) 'regionDong': regionDong,
       'profileImageUrl': profileImageUrl,
       'introduction': introduction,
     });
@@ -139,8 +132,11 @@ class AuthRepository {
   // Helper
   Future<AuthResult> _handleAuthResponse(dynamic responseData) async {
     final data = responseData['data'] ?? responseData;
-    final accessToken = data['accessToken'] as String;
-    final refreshToken = data['refreshToken'] as String;
+    final accessToken = data['accessToken'] as String?;
+    final refreshToken = data['refreshToken'] as String?;
+    if (accessToken == null || refreshToken == null) {
+      throw Exception('서버 응답에 토큰이 없습니다.');
+    }
     final isNewUser = data['isNewUser'] as bool? ?? false;
     final user = User.fromJson(data['user']);
 

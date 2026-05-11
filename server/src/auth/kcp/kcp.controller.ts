@@ -1,0 +1,95 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Query,
+  Body,
+  Res,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
+  Logger,
+} from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import type { Response } from 'express';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { Public } from '../../common/decorators/public.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { KcpService } from './kcp.service';
+
+@ApiTags('Auth')
+@Controller('auth/kcp')
+export class KcpController {
+  private readonly logger = new Logger(KcpController.name);
+
+  constructor(private readonly kcpService: KcpService) {}
+
+  // ─── GET /auth/kcp/form — KCP 인증 HTML Form 생성 ───
+  @Get('form')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'KCP 본인인증 HTML Form 생성' })
+  async getForm(
+    @CurrentUser('id') userId: string,
+    @Query('returnUrl') returnUrl?: string,
+  ) {
+    const html = await this.kcpService.generateCertForm(userId, returnUrl);
+    return { html };
+  }
+
+  // ─── POST /auth/kcp/callback — KCP가 직접 호출하는 콜백 ───
+  // 인증 불필요. 결과를 처리해 앱 딥링크로 리다이렉트하는 HTML 응답.
+  @Post('callback')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'KCP 본인인증 콜백 (KCP → 서버)' })
+  async callback(
+    @Body() body: Record<string, any>,
+    @Query() query: Record<string, any>,
+    @Res() res: Response,
+  ) {
+    try {
+      this.logger.log(
+        `[KCP Callback] bodyKeys=${Object.keys(body || {})} queryKeys=${Object.keys(query || {})}`,
+      );
+
+      const { userId, kcpData } = await this.kcpService.handleCallback(
+        body || {},
+        query || {},
+      );
+      const result = await this.kcpService.verifyCert(userId, kcpData);
+      const appUrl = this.kcpService.buildSuccessRedirect(result);
+
+      const html = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>인증 완료</title></head>
+<body>
+<script>window.location.href = '${appUrl}';</script>
+<p>인증이 완료되었습니다. 앱으로 이동 중...</p>
+<a href="${appUrl}">앱으로 이동</a>
+</body></html>`;
+
+      res
+        .status(200)
+        .header('Content-Type', 'text/html; charset=utf-8')
+        .send(html);
+    } catch (err: any) {
+      this.logger.error(`[KCP Callback] ${err?.message}`);
+      const message =
+        err?.response?.message || err?.message || '인증에 실패했습니다.';
+      const appUrl = this.kcpService.buildErrorRedirect(String(message));
+
+      const html = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>인증 실패</title></head>
+<body>
+<script>window.location.href = '${appUrl}';</script>
+<p>인증에 실패했습니다. 앱으로 이동 중...</p>
+<a href="${appUrl}">앱으로 이동</a>
+</body></html>`;
+
+      res
+        .status(200)
+        .header('Content-Type', 'text/html; charset=utf-8')
+        .send(html);
+    }
+  }
+}

@@ -8,7 +8,15 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 });
 
 // Auth state
-enum AuthStatus { initial, loading, authenticated, unauthenticated, profileSetup, childSetup }
+enum AuthStatus {
+  initial,
+  loading,
+  authenticated,
+  unauthenticated,
+  phoneVerification,
+  profileSetup,
+  childSetup,
+}
 
 class AuthState {
   final AuthStatus status;
@@ -43,7 +51,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(status: AuthStatus.loading);
     try {
       final user = await _repository.getMyProfile();
-      if (!user.isProfileComplete) {
+      if (!user.isPhoneVerified) {
+        state = state.copyWith(status: AuthStatus.phoneVerification, user: user);
+      } else if (!user.isProfileComplete) {
         state = state.copyWith(status: AuthStatus.profileSetup, user: user);
       } else if (user.children == null || user.children!.isEmpty) {
         state = state.copyWith(status: AuthStatus.childSetup, user: user);
@@ -55,6 +65,38 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  Future<void> socialLogin({
+    required String provider,
+    required String accessToken,
+    String? idToken,
+  }) async {
+    state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
+    try {
+      final result = await _repository.socialLogin(
+        provider: provider,
+        accessToken: accessToken,
+        idToken: idToken,
+      );
+      if (!result.user.isPhoneVerified) {
+        state = state.copyWith(
+          status: AuthStatus.phoneVerification,
+          user: result.user,
+        );
+      } else if (result.isNewUser || !result.user.isProfileComplete) {
+        state =
+            state.copyWith(status: AuthStatus.profileSetup, user: result.user);
+      } else {
+        state =
+            state.copyWith(status: AuthStatus.authenticated, user: result.user);
+      }
+    } catch (e) {
+      state = state.copyWith(
+        status: AuthStatus.unauthenticated,
+        errorMessage: '소셜 로그인에 실패했습니다.',
+      );
+    }
+  }
+
   Future<void> emailLogin(String email, String password) async {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
     try {
@@ -62,10 +104,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
         email: email,
         password: password,
       );
-      if (result.isNewUser || !result.user.isProfileComplete) {
-        state = state.copyWith(status: AuthStatus.profileSetup, user: result.user);
+      if (!result.user.isPhoneVerified) {
+        state = state.copyWith(
+          status: AuthStatus.phoneVerification,
+          user: result.user,
+        );
+      } else if (result.isNewUser || !result.user.isProfileComplete) {
+        state =
+            state.copyWith(status: AuthStatus.profileSetup, user: result.user);
       } else {
-        state = state.copyWith(status: AuthStatus.authenticated, user: result.user);
+        state =
+            state.copyWith(status: AuthStatus.authenticated, user: result.user);
       }
     } catch (e) {
       state = state.copyWith(
@@ -82,7 +131,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
         email: email,
         password: password,
       );
-      state = state.copyWith(status: AuthStatus.profileSetup, user: result.user);
+      // 회원가입 직후 본인인증 단계로
+      state = state.copyWith(
+        status: AuthStatus.phoneVerification,
+        user: result.user,
+      );
     } catch (e) {
       state = state.copyWith(
         status: AuthStatus.unauthenticated,
@@ -93,18 +146,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> completeProfile({
     required String nickname,
-    required String regionSido,
-    required String regionSigungu,
-    required String regionDong,
     String? profileImageUrl,
   }) async {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
     try {
       final user = await _repository.setupProfile(
         nickname: nickname,
-        regionSido: regionSido,
-        regionSigungu: regionSigungu,
-        regionDong: regionDong,
         profileImageUrl: profileImageUrl,
       );
       state = state.copyWith(status: AuthStatus.childSetup, user: user);

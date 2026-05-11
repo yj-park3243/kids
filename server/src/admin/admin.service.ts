@@ -7,21 +7,34 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { In } from 'typeorm';
 import { User } from '../user/entities/user.entity';
+import { UserVisit } from '../user/entities/user-visit.entity';
 import { Room } from '../room/entities/room.entity';
 import { Child } from '../child/entities/child.entity';
+import { UserReport } from '../support/entities/user-report.entity';
 import { AdminLoginDto } from './dto/admin-login.dto';
-import { AdminUserQueryDto, AdminRoomQueryDto } from './dto/admin-query.dto';
+import {
+  AdminUserQueryDto,
+  AdminRoomQueryDto,
+  AdminReportQueryDto,
+} from './dto/admin-query.dto';
+
+const ONLINE_THRESHOLD_MIN = 5;
 
 @Injectable()
 export class AdminService {
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    @InjectRepository(UserVisit)
+    private visitRepository: Repository<UserVisit>,
     @InjectRepository(Room)
     private roomRepository: Repository<Room>,
     @InjectRepository(Child)
     private childRepository: Repository<Child>,
+    @InjectRepository(UserReport)
+    private reportRepository: Repository<UserReport>,
     private jwtService: JwtService,
   ) {}
 
@@ -43,9 +56,13 @@ export class AdminService {
       sub: user.id,
       email: user.email,
       isAdmin: true,
+      type: 'access',
     };
 
-    const accessToken = this.jwtService.sign(payload, { expiresIn: '8h' });
+    const accessToken = this.jwtService.sign(payload, {
+      expiresIn: '8h',
+      issuer: 'kids-app',
+    });
 
     return {
       accessToken,
@@ -59,8 +76,18 @@ export class AdminService {
   }
 
   async getDashboard() {
-    const today = new Date();
+    const now = new Date();
+    const today = new Date(now);
     today.setHours(0, 0, 0, 0);
+
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const thirtyDaysAgo = new Date(today);
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29); // 오늘 포함 30일
+
+    const todayDateStr = today.toISOString().slice(0, 10);
+    const onlineCutoff = new Date(now.getTime() - ONLINE_THRESHOLD_MIN * 60_000);
 
     const [
       totalUsers,
@@ -69,6 +96,12 @@ export class AdminService {
       todayRooms,
       activeRooms,
       bannedUsers,
+      currentOnline,
+      todayVisitors,
+      last7DaysSignups,
+      signupTrendRows,
+      visitorTrendRows,
+      roomTrendRows,
     ] = await Promise.all([
       this.userRepository.count(),
       this.roomRepository.count(),
@@ -88,15 +121,73 @@ export class AdminService {
         ],
       }),
       this.userRepository.count({ where: { status: 'BANNED' } }),
+      this.userRepository
+        .createQueryBuilder('user')
+        .where('user.lastSeenAt >= :cutoff', { cutoff: onlineCutoff })
+        .getCount(),
+      this.visitRepository
+        .createQueryBuilder('v')
+        .where('v.visitDate = :d', { d: todayDateStr })
+        .getCount(),
+      this.userRepository
+        .createQueryBuilder('user')
+        .where('user.createdAt >= :since', { since: sevenDaysAgo })
+        .getCount(),
+      this.userRepository
+        .createQueryBuilder('u')
+        .select(`TO_CHAR(u.created_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD')`, 'date')
+        .addSelect('COUNT(*)', 'count')
+        .where('u.created_at >= :since', { since: thirtyDaysAgo })
+        .groupBy(`TO_CHAR(u.created_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD')`)
+        .orderBy(`TO_CHAR(u.created_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD')`, 'ASC')
+        .getRawMany<{ date: string; count: string }>(),
+      this.visitRepository
+        .createQueryBuilder('v')
+        .select(`TO_CHAR(v.visit_date, 'YYYY-MM-DD')`, 'date')
+        .addSelect('COUNT(*)', 'count')
+        .where('v.visit_date >= :since', { since: thirtyDaysAgo })
+        .groupBy('v.visit_date')
+        .orderBy('v.visit_date', 'ASC')
+        .getRawMany<{ date: string; count: string }>(),
+      // QueryBuilder 가 ORDER BY 시 hidden column 을 주입해서 GROUP BY 위반이
+      // 발생한 이력이 있어 raw SQL 로 작성. count 도 int 로 cast.
+      this.roomRepository.query(
+        `SELECT TO_CHAR(created_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD') AS date,
+                COUNT(*)::int AS count
+         FROM room
+         WHERE created_at >= $1
+         GROUP BY 1
+         ORDER BY 1 ASC`,
+        [thirtyDaysAgo],
+      ) as Promise<{ date: string; count: string }[]>,
     ]);
 
     return {
+      // 회원
       totalUsers,
-      totalRooms,
       todayUsers,
-      todayRooms,
-      activeRooms,
+      last7DaysSignups,
       bannedUsers,
+      // 활성/접속
+      currentOnline,
+      todayVisitors,
+      // 모임
+      totalRooms,
+      activeRooms,
+      todayRooms,
+      // 추이 (오늘 포함 최근 30일, YYYY-MM-DD ASC)
+      signupTrend: signupTrendRows.map((r) => ({
+        date: r.date,
+        count: parseInt(r.count, 10),
+      })),
+      visitorTrend: visitorTrendRows.map((r) => ({
+        date: r.date,
+        count: parseInt(r.count, 10),
+      })),
+      roomTrend: roomTrendRows.map((r) => ({
+        date: r.date,
+        count: parseInt(r.count, 10),
+      })),
     };
   }
 
@@ -164,6 +255,22 @@ export class AdminService {
     await this.userRepository.save(user);
 
     return { success: true, status: user.status };
+  }
+
+  async setPhoneVerified(userId: string, isPhoneVerified: boolean) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('사용자를 찾을 수 없습니다.');
+    }
+
+    await this.userRepository.update(userId, {
+      isPhoneVerified,
+      // KCP 본인인증 통과로도 간주: isVerified + verifiedAt 동기화
+      isVerified: isPhoneVerified ? true : user.isVerified,
+      verifiedAt: isPhoneVerified ? user.verifiedAt ?? new Date() : user.verifiedAt,
+    });
+
+    return { success: true, isPhoneVerified };
   }
 
   async getRooms(query: AdminRoomQueryDto) {
@@ -249,5 +356,85 @@ export class AdminService {
     await this.roomRepository.save(room);
 
     return { success: true };
+  }
+
+  // ─── 신고 ─────────────────────────────────────────────────────────
+
+  async getReports(query: AdminReportQueryDto) {
+    const page = query.page || 1;
+    const limit = query.limit || 20;
+    const skip = (page - 1) * limit;
+
+    const qb = this.reportRepository
+      .createQueryBuilder('r')
+      .orderBy('r.createdAt', 'DESC');
+
+    if (query.status) qb.andWhere('r.status = :status', { status: query.status });
+    if (query.reason) qb.andWhere('r.reason = :reason', { reason: query.reason });
+
+    const [reports, total] = await qb.skip(skip).take(limit).getManyAndCount();
+
+    const userIds = Array.from(
+      new Set(
+        reports
+          .flatMap((r) => [r.reporterId, r.targetUserId])
+          .filter((v): v is string => !!v),
+      ),
+    );
+    const users = userIds.length
+      ? await this.userRepository.find({ where: { id: In(userIds) } })
+      : [];
+    const userMap = new Map(users.map((u) => [u.id, { id: u.id, nickname: u.nickname, email: u.email }]));
+
+    return {
+      items: reports.map((r) => ({
+        id: r.id,
+        reason: r.reason,
+        status: r.status,
+        detail: r.detail,
+        createdAt: r.createdAt,
+        reporter: userMap.get(r.reporterId) ?? { id: r.reporterId },
+        targetUser: r.targetUserId ? userMap.get(r.targetUserId) ?? { id: r.targetUserId } : null,
+        targetRoomId: r.targetRoomId,
+      })),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async getReport(reportId: string) {
+    const report = await this.reportRepository.findOne({ where: { id: reportId } });
+    if (!report) {
+      throw new NotFoundException('신고를 찾을 수 없습니다.');
+    }
+
+    const ids = [report.reporterId, report.targetUserId].filter(
+      (v): v is string => !!v,
+    );
+    const users = ids.length
+      ? await this.userRepository.find({ where: { id: In(ids) } })
+      : [];
+    const userMap = new Map(users.map((u) => [u.id, { id: u.id, nickname: u.nickname, email: u.email }]));
+
+    let targetRoom: { id: string; title: string } | null = null;
+    if (report.targetRoomId) {
+      const room = await this.roomRepository.findOne({ where: { id: report.targetRoomId } });
+      if (room) targetRoom = { id: room.id, title: room.title };
+    }
+
+    return {
+      id: report.id,
+      reason: report.reason,
+      status: report.status,
+      detail: report.detail,
+      createdAt: report.createdAt,
+      reporter: userMap.get(report.reporterId) ?? { id: report.reporterId },
+      targetUser: report.targetUserId
+        ? userMap.get(report.targetUserId) ?? { id: report.targetUserId }
+        : null,
+      targetRoom,
+    };
   }
 }

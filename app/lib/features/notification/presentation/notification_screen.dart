@@ -117,7 +117,7 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
         ],
       ),
       extendBodyBehindAppBar: true,
-      body: PinkBlobsBackground(child: _buildBody()),
+      body: PinkBlobsBackground(child: SafeArea(child: _buildBody())),
     );
   }
 

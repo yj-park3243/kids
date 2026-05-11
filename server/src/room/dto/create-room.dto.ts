@@ -33,11 +33,11 @@ export class CreateRoomDto {
   @MaxLength(30)
   title: string;
 
-  @ApiProperty({ example: '역삼동 근처에서 산책하며 아이들 놀릴 분 찾습니다!' })
+  @ApiProperty({ example: '역삼동 근처에서 산책하며 아이들 놀릴 분 찾습니다!', required: false })
   @IsString()
-  @MinLength(10)
+  @IsOptional()
   @MaxLength(500)
-  description: string;
+  description?: string;
 
   @ApiProperty({ example: '서울특별시' })
   @IsString()

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,7 +11,6 @@ import '../../../core/utils/validators.dart';
 import '../../../widgets/app_bar.dart';
 import '../../../widgets/common_button.dart';
 import '../../../widgets/common_input.dart';
-import '../../../widgets/region_picker.dart';
 import '../providers/auth_provider.dart';
 
 class ProfileSetupScreen extends ConsumerStatefulWidget {
@@ -23,18 +23,84 @@ class ProfileSetupScreen extends ConsumerStatefulWidget {
 class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nicknameController = TextEditingController();
-  String? _selectedSido;
-  String? _selectedSigungu;
-  String? _selectedDong;
   String? _profileImagePath;
   bool _isCheckingNickname = false;
   bool? _isNicknameAvailable;
+  bool _isGeneratingNickname = false;
   bool _isLoading = false;
+
+  // 육아 친화 단어 풀 — 따뜻하고 부드러운 톤
+  static const _adjectives = [
+    // 분위기
+    '따뜻한', '포근한', '다정한', '상냥한', '온화한', '부드러운', '살가운', '살랑살랑', '도란도란', '소곤소곤',
+    // 귀여움
+    '동글동글', '말랑말랑', '몽글몽글', '보들보들', '말캉말캉', '폭신폭신', '오동통한', '쫀득한', '뽀송뽀송', '토실토실',
+    // 빛/색감
+    '반짝이는', '빛나는', '눈부신', '환한', '맑은', '투명한', '산뜻한', '싱그러운', '청량한', '화사한',
+    // 자연
+    '봄날의', '햇살가득', '꽃피는', '바람결', '구름같은', '별빛같은', '달빛같은', '이슬맺힌', '새벽의', '노을빛',
+    // 정겨움
+    '사랑스러운', '귀여운', '깜찍한', '앙증맞은', '천진한', '해맑은', '순수한', '소중한', '예쁜', '곱디고운',
+    // 상태
+    '행복한', '평온한', '느긋한', '여유로운', '편안한', '즐거운', '신나는', '두근두근', '설레는', '포실포실',
+  ];
+
+  static const _nouns = [
+    // 동물 — 귀여운 톤
+    '곰인형', '토끼', '햄스터', '병아리', '오리', '강아지', '고양이', '판다', '코알라', '다람쥐',
+    '아기곰', '아기사슴', '아기여우', '꼬마펭귄', '아기수달', '북극곰', '카피바라', '레서판다', '미어캣', '알파카',
+    // 자연/사물 — 따뜻한 톤
+    '구름', '별빛', '달빛', '햇살', '바람', '이슬', '꽃잎', '단풍', '눈꽃', '무지개',
+    // 베이커리/디저트
+    '마카롱', '쿠키', '머핀', '도넛', '와플', '푸딩', '솜사탕', '딸기', '복숭아', '체리',
+    // 육아 관련
+    '엄마', '아빠', '부모', '가족', '아기천사', '꼬마', '꼬망이', '둥이', '꿈나무', '새싹',
+    // 사물
+    '담요', '쿠션', '비누방울', '풍선', '편지', '선물', '리본', '하트', '별사탕', '솜뭉치',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _generateRandomNickname();
+  }
 
   @override
   void dispose() {
     _nicknameController.dispose();
     super.dispose();
+  }
+
+  /// 자동 닉네임 생성 — 형용사+명사 결합, 중복이면 숫자 붙여 회피
+  Future<void> _generateRandomNickname() async {
+    if (_isGeneratingNickname) return;
+    setState(() {
+      _isGeneratingNickname = true;
+      _isNicknameAvailable = null;
+    });
+
+    final rng = Random();
+    final adj = _adjectives[rng.nextInt(_adjectives.length)];
+    final noun = _nouns[rng.nextInt(_nouns.length)];
+    var candidate = '$adj$noun';
+
+    final repo = ref.read(authRepositoryProvider);
+    for (var i = 0; i < 10; i++) {
+      try {
+        final available = await repo.checkNickname(candidate);
+        if (available) break;
+        candidate = '$adj$noun${i + 1}';
+      } catch (_) {
+        break;
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _nicknameController.text = candidate;
+      _isGeneratingNickname = false;
+      _isNicknameAvailable = true;
+    });
   }
 
   Future<void> _pickImage() async {
@@ -105,17 +171,6 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedSido == null || _selectedSigungu == null || _selectedDong == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('지역을 선택해 주세요'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
-      return;
-    }
 
     setState(() => _isLoading = true);
 
@@ -130,9 +185,6 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
 
     await ref.read(authProvider.notifier).completeProfile(
           nickname: _nicknameController.text.trim(),
-          regionSido: _selectedSido!,
-          regionSigungu: _selectedSigungu!,
-          regionDong: _selectedDong!,
           profileImageUrl: imageUrl,
         );
 
@@ -230,6 +282,36 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                       padding: const EdgeInsets.only(top: 30),
                       child: SizedBox(
                         height: 52,
+                        width: 52,
+                        child: ElevatedButton(
+                          onPressed: _isGeneratingNickname ? null : _generateRandomNickname,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.surfaceVariant,
+                            foregroundColor: AppColors.primary,
+                            elevation: 0,
+                            padding: EdgeInsets.zero,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: _isGeneratingNickname
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    color: AppColors.primary,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.refresh_rounded, size: 22),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 30),
+                      child: SizedBox(
+                        height: 52,
                         child: ElevatedButton(
                           onPressed: _isCheckingNickname ? null : _checkNickname,
                           style: ElevatedButton.styleFrom(
@@ -271,19 +353,6 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                       style: AppTextStyles.caption.copyWith(color: AppColors.error),
                     ),
                   ),
-
-                const SizedBox(height: 24),
-
-                // Region
-                RegionPicker(
-                  onSelected: (sido, sigungu, dong) {
-                    setState(() {
-                      _selectedSido = sido;
-                      _selectedSigungu = sigungu;
-                      _selectedDong = dong;
-                    });
-                  },
-                ),
 
                 const SizedBox(height: 40),
 

@@ -17,6 +17,10 @@ import { UpdateRoomDto } from './dto/update-room.dto';
 import { RoomQueryDto, MapQueryDto, MyRoomQueryDto } from './dto/room-query.dto';
 import { ChatService } from '../chat/chat.service';
 import { NotificationService } from '../notification/notification.service';
+import {
+  TelegramService,
+  escapeHtml,
+} from '../common/services/telegram.service';
 
 @Injectable()
 export class RoomService {
@@ -33,6 +37,7 @@ export class RoomService {
     private childRepository: Repository<Child>,
     private chatService: ChatService,
     private notificationService: NotificationService,
+    private telegramService: TelegramService,
   ) {}
 
   async create(userId: string, dto: CreateRoomDto) {
@@ -59,6 +64,16 @@ export class RoomService {
       isHost: true,
     });
     await this.roomMemberRepository.save(member);
+
+    // 텔레그램 관리자 알림
+    const host = await this.userRepository.findOne({ where: { id: userId } });
+    void this.telegramService.sendAdminAlert(
+      `🏠 <b>신규 모임 생성</b>\n` +
+        `• 제목: ${escapeHtml(savedRoom.title)}\n` +
+        `• 지역: ${escapeHtml(savedRoom.regionSigungu ?? '')} ${escapeHtml(savedRoom.regionDong ?? '')}\n` +
+        `• 일시: ${escapeHtml(savedRoom.date)} ${escapeHtml(savedRoom.startTime)}\n` +
+        `• 호스트: ${escapeHtml(host?.nickname ?? '-')} (<code>${escapeHtml(userId)}</code>)`,
+    );
 
     // Fetch full room data
     return this.getDetail(savedRoom.id, userId);

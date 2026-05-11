@@ -9,12 +9,16 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { KakaoService } from './social/kakao.service';
 import { AppleService } from './social/apple.service';
 import { GoogleService } from './social/google.service';
+import { KcpController } from './kcp/kcp.controller';
+import { KcpService } from './kcp/kcp.service';
 import { User } from '../user/entities/user.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
+import { SocialAccount } from './entities/social-account.entity';
+import { TokenService } from './token.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, RefreshToken]),
+    TypeOrmModule.forFeature([User, RefreshToken, SocialAccount]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -27,14 +31,16 @@ import { RefreshToken } from './entities/refresh-token.entity';
       }),
     }),
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, KcpController],
   providers: [
     AuthService,
     JwtStrategy,
     KakaoService,
     AppleService,
     GoogleService,
+    KcpService,
+    TokenService,
   ],
-  exports: [AuthService, JwtModule, PassportModule],
+  exports: [AuthService, KcpService, TokenService, JwtModule, PassportModule],
 })
 export class AuthModule {}

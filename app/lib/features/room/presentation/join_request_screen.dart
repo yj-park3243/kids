@@ -89,7 +89,7 @@ class _JoinRequestScreenState extends ConsumerState<JoinRequestScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: const CustomAppBar(title: '참여 관리'),
-      body: _buildBody(),
+      body: SafeArea(child: _buildBody()),
     );
   }
 

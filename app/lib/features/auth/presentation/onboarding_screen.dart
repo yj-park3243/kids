@@ -5,7 +5,6 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/storage/secure_storage.dart';
 import '../../../widgets/common_button.dart';
-import '../../../widgets/design/baby_avatar.dart';
 import '../../../widgets/design/pink_blobs.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -21,17 +20,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   final _pages = const [
     _OnboardingPage(
-      tone: BabyAvatarTone.pink,
       title: '우리 아이 또래 친구를\n만나요',
       subtitle: '비슷한 개월수의 아이를 키우는\n부모님들과 쉽게 연결돼요',
     ),
     _OnboardingPage(
-      tone: BabyAvatarTone.lilac,
       title: '동네에서 가까운\n모임을 찾아요',
       subtitle: '우리 동네에서 열리는\n다양한 육아 모임에 참여해 보세요',
     ),
     _OnboardingPage(
-      tone: BabyAvatarTone.mint,
       title: '안전하고 즐거운\n육아 모임',
       subtitle: '본인 인증된 부모님들과\n안심하고 모임을 즐겨요',
     ),
@@ -117,12 +113,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 }
 
 class _OnboardingPage extends StatelessWidget {
-  final BabyAvatarTone tone;
   final String title;
   final String subtitle;
 
   const _OnboardingPage({
-    required this.tone,
     required this.title,
     required this.subtitle,
   });
@@ -134,30 +128,10 @@ class _OnboardingPage extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          SizedBox(
+          Image.asset(
+            'assets/icon/logo.png',
             height: 200,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Positioned(
-                  left: 30,
-                  top: 20,
-                  child: Transform.rotate(
-                    angle: -0.1,
-                    child: BabyAvatar(size: 80, tone: BabyAvatarTone.cream),
-                  ),
-                ),
-                BabyAvatar(size: 120, tone: tone),
-                Positioned(
-                  right: 20,
-                  top: 30,
-                  child: Transform.rotate(
-                    angle: 0.1,
-                    child: const BabyAvatar(size: 70, tone: BabyAvatarTone.lilac),
-                  ),
-                ),
-              ],
-            ),
+            fit: BoxFit.contain,
           ),
           const SizedBox(height: 48),
           Text(

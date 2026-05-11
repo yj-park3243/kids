@@ -170,8 +170,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ],
                           ),
                         ),
-                        const Icon(Icons.keyboard_arrow_down_rounded,
-                            color: AppColors.ink500),
+                        if (children.length > 1)
+                          const Icon(Icons.keyboard_arrow_down_rounded,
+                              color: AppColors.ink500),
                       ],
                     ),
                   ),

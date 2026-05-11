@@ -1,0 +1,2 @@
+json_key_file("/Users/yongju/WebProject2/kids/etc/kids-fastlane.json")
+package_name("kr.kids.app")

@@ -1,0 +1,28 @@
+default_platform(:android)
+
+APP_DIR = File.expand_path("../..", __dir__)
+JSON_KEY = "/Users/yongju/WebProject2/kids/etc/kids-fastlane.json"
+
+platform :android do
+  desc "Flutter AAB 빌드"
+  lane :build do
+    sh("zsh", "-lc", "cd '#{APP_DIR}' && flutter build appbundle --release --no-tree-shake-icons --dart-define=ENVIRONMENT=production")
+  end
+
+  desc "Google Play Internal Testing 배포"
+  lane :internal do
+    build
+    upload_to_play_store(
+      track: 'internal',
+      aab: File.join(APP_DIR, 'build/app/outputs/bundle/release/app-release.aab'),
+      mapping: File.join(APP_DIR, 'build/app/outputs/mapping/release/mapping.txt'),
+      json_key: JSON_KEY,
+      package_name: 'kr.kids.app',
+      release_status: 'draft',
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true,
+    )
+    UI.success("Play Internal 업로드 완료!")
+  end
+end

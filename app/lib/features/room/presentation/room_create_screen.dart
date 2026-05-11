@@ -13,8 +13,9 @@ import '../../../providers/selected_child_provider.dart';
 import '../../../widgets/app_bar.dart';
 import '../../../widgets/common_button.dart';
 import '../../../widgets/common_input.dart';
+import '../../../widgets/address_search_sheet.dart';
+import '../../../widgets/cupertino_picker_sheet.dart';
 import '../../../widgets/design/pink_blobs.dart';
-import '../../../widgets/region_picker.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/room_detail_provider.dart';
 
@@ -29,8 +30,6 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
-  final _placeNameController = TextEditingController();
-  final _placeAddressController = TextEditingController();
   final _costController = TextEditingController();
   final _costDescController = TextEditingController();
   final _tagController = TextEditingController();
@@ -41,8 +40,10 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
   String? _regionSido;
   String? _regionSigungu;
   String? _regionDong;
+  String? _fullAddress;
   String _placeType = 'PLAYGROUND';
-  RangeValues _ageRange = const RangeValues(0, 36);
+  int _ageMin = 0;
+  int _ageMax = 36;
   int _maxMembers = 5;
   String _joinType = 'FREE';
   bool _isFree = true;
@@ -65,11 +66,10 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
   /// 선택된 아이의 개월수 기준으로 범위 자동 설정 (±3개월)
   void _applyChildAgeRange(Child child) {
     final ageMonths = AppDateUtils.calculateAgeMonths(child.birthYear, child.birthMonth);
-    final minAge = max(0, ageMonths - 3).toDouble();
-    final maxAge = min(84, ageMonths + 3).toDouble();
     setState(() {
       _selectedChild = child;
-      _ageRange = RangeValues(minAge, maxAge);
+      _ageMin = max(0, ageMonths - 3);
+      _ageMax = min(84, ageMonths + 3);
     });
   }
 
@@ -77,8 +77,6 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
-    _placeNameController.dispose();
-    _placeAddressController.dispose();
     _costController.dispose();
     _costDescController.dispose();
     _tagController.dispose();
@@ -86,47 +84,68 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
   }
 
   Future<void> _selectDate() async {
-    final date = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now().add(const Duration(days: 1)),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 30)),
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(
-            primary: AppColors.primary,
-            onPrimary: Colors.white,
-            surface: AppColors.surface,
-          ),
-        ),
-        child: child!,
-      ),
+    final now = DateTime.now();
+    final date = await showCupertinoDateSheet(
+      context,
+      initial: _selectedDate ?? now.add(const Duration(days: 1)),
+      first: DateTime(now.year, now.month, now.day),
+      last: now.add(const Duration(days: 60)),
     );
     if (date != null) setState(() => _selectedDate = date);
   }
 
   Future<void> _selectTime(bool isStart) async {
-    final time = await showTimePicker(
-      context: context,
-      initialTime: isStart
-          ? const TimeOfDay(hour: 14, minute: 0)
-          : const TimeOfDay(hour: 16, minute: 0),
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(primary: AppColors.primary),
+    if (!isStart && _startTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('시작 시간을 먼저 선택해 주세요'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
-        child: child!,
-      ),
+      );
+      return;
+    }
+    final initial = isStart
+        ? (_startTime ?? const TimeOfDay(hour: 14, minute: 0))
+        : (_endTime ?? _addHour(_startTime!));
+    final time = await showCupertinoTimeSheet(
+      context,
+      initial: initial,
+      title: isStart ? '시작 시간' : '종료 시간',
+      minimum: isStart ? null : _startTime,
     );
     if (time != null) {
       setState(() {
         if (isStart) {
           _startTime = time;
+          // 시작시간이 변경되면 종료시간이 더 이른 경우 초기화
+          if (_endTime != null && _toMinutes(_endTime!) <= _toMinutes(time)) {
+            _endTime = null;
+          }
         } else {
           _endTime = time;
         }
       });
     }
+  }
+
+  static TimeOfDay _addHour(TimeOfDay t) {
+    final m = (t.hour * 60 + t.minute + 60).clamp(0, 23 * 60 + 50);
+    return TimeOfDay(hour: m ~/ 60, minute: m % 60);
+  }
+
+  static int _toMinutes(TimeOfDay t) => t.hour * 60 + t.minute;
+
+  Future<void> _selectAddress() async {
+    final result = await showAddressSearchSheet(context);
+    if (result == null) return;
+    setState(() {
+      _regionSido = result.sido;
+      _regionSigungu = result.sigungu;
+      _regionDong = result.dong;
+      _fullAddress = result.fullAddress;
+    });
   }
 
   void _addTag() {
@@ -267,15 +286,11 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
         if (_endTime != null)
           'endTime':
               '${_endTime!.hour.toString().padLeft(2, '0')}:${_endTime!.minute.toString().padLeft(2, '0')}',
-        'ageMonthMin': _ageRange.start.round(),
-        'ageMonthMax': _ageRange.end.round(),
+        'ageMonthMin': _ageMin,
+        'ageMonthMax': _ageMax,
         'placeType': _placeType,
-        'placeName': _placeNameController.text.isNotEmpty
-            ? _placeNameController.text.trim()
-            : null,
-        'placeAddress': _placeAddressController.text.isNotEmpty
-            ? _placeAddressController.text.trim()
-            : null,
+        if (_fullAddress != null && _fullAddress!.isNotEmpty)
+          'placeAddress': _fullAddress,
         'maxMembers': _maxMembers,
         'joinType': _joinType,
         'cost': _isFree ? 0 : int.tryParse(_costController.text) ?? 0,
@@ -443,15 +458,52 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Region
-              RegionPicker(
-                onSelected: (sido, sigungu, dong) {
-                  setState(() {
-                    _regionSido = sido;
-                    _regionSigungu = sigungu;
-                    _regionDong = dong;
-                  });
-                },
+              // Region — 주소 검색 (Daum 우편번호)
+              Text('지역 / 장소 주소', style: AppTextStyles.body2Bold),
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: _selectAddress,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.divider),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.search_rounded, color: AppColors.textHint, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _regionSido == null
+                            ? Text(
+                                '주소 검색',
+                                style: AppTextStyles.body2.copyWith(color: AppColors.textHint),
+                              )
+                            : Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '$_regionSido $_regionSigungu $_regionDong'.trim(),
+                                    style: AppTextStyles.body1Bold,
+                                  ),
+                                  if (_fullAddress != null && _fullAddress!.isNotEmpty) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      _fullAddress!,
+                                      style: AppTextStyles.caption.copyWith(
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                      ),
+                      const Icon(Icons.chevron_right_rounded, color: AppColors.textHint),
+                    ],
+                  ),
+                ),
               ),
               const SizedBox(height: 20),
 
@@ -469,20 +521,6 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
                           onTap: () => setState(() => _placeType = e.key),
                         ))
                     .toList(),
-              ),
-              const SizedBox(height: 20),
-
-              // Place name & address
-              CommonInput(
-                label: '장소명 (선택)',
-                hint: '예: 역삼 어린이공원',
-                controller: _placeNameController,
-              ),
-              const SizedBox(height: 12),
-              CommonInput(
-                label: '상세 주소 (선택)',
-                hint: '예: 서울 강남구 역삼동 123',
-                controller: _placeAddressController,
               ),
               const SizedBox(height: 20),
 
@@ -509,29 +547,47 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
                   ],
                 ],
               ),
-              const SizedBox(height: 4),
-              Text(
-                '${_ageRange.start.round()}개월 ~ ${_ageRange.end.round()}개월',
-                style: AppTextStyles.body2.copyWith(color: AppColors.primary),
-              ),
-              SliderTheme(
-                data: SliderThemeData(
-                  activeTrackColor: AppColors.primary,
-                  inactiveTrackColor: AppColors.primary.withValues(alpha: 0.2),
-                  thumbColor: AppColors.primary,
-                  overlayColor: AppColors.primary.withValues(alpha: 0.1),
-                ),
-                child: RangeSlider(
-                values: _ageRange,
-                min: 0,
-                max: 84,
-                divisions: 84,
-                labels: RangeLabels(
-                  '${_ageRange.start.round()}개월',
-                  '${_ageRange.end.round()}개월',
-                ),
-                onChanged: (values) => setState(() => _ageRange = values),
-              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: _AgePickerCard(
+                      label: '시작',
+                      months: _ageMin,
+                      onTap: () async {
+                        final v = await showCupertinoMonthsSheet(
+                          context,
+                          initial: _ageMin,
+                          title: '시작 개월수',
+                        );
+                        if (v == null) return;
+                        setState(() {
+                          _ageMin = v;
+                          if (_ageMax < _ageMin) _ageMax = _ageMin;
+                        });
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.arrow_forward_rounded, size: 18, color: AppColors.textHint),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _AgePickerCard(
+                      label: '끝',
+                      months: _ageMax,
+                      onTap: () async {
+                        final v = await showCupertinoMonthsSheet(
+                          context,
+                          initial: _ageMax,
+                          minimum: _ageMin,
+                          title: '끝 개월수',
+                        );
+                        if (v == null) return;
+                        setState(() => _ageMax = v);
+                      },
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 20),
 
@@ -781,6 +837,53 @@ class _OptionChip extends StatelessWidget {
                 fontSize: 11,
                 color: isSelected ? AppColors.primary : AppColors.textHint,
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AgePickerCard extends StatelessWidget {
+  const _AgePickerCard({
+    required this.label,
+    required this.months,
+    required this.onTap,
+  });
+
+  final String label;
+  final int months;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: AppTextStyles.caption.copyWith(color: AppColors.textHint),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '$months개월',
+                  style: AppTextStyles.body1Bold.copyWith(color: AppColors.primary),
+                ),
+                const Icon(Icons.unfold_more_rounded, size: 18, color: AppColors.textHint),
+              ],
             ),
           ],
         ),

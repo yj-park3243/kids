@@ -80,7 +80,6 @@ class _MyRoomsScreenState extends ConsumerState<MyRoomsScreen>
       extendBodyBehindAppBar: true,
       body: PinkBlobsBackground(
         child: SafeArea(
-          top: false,
           child: Column(
             children: [
               Container(

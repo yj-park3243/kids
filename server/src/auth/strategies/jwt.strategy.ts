@@ -10,6 +10,8 @@ export interface JwtPayload {
   sub: string;
   email?: string;
   isAdmin?: boolean;
+  type?: 'access' | 'refresh';
+  iss?: string;
 }
 
 @Injectable()
@@ -23,10 +25,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       secretOrKey: configService.get('JWT_SECRET'),
+      issuer: 'kids-app',
     });
   }
 
   async validate(payload: JwtPayload) {
+    // refresh 토큰을 보호 라우트에 못 쓰게 차단
+    if (payload.type && payload.type !== 'access') {
+      throw new UnauthorizedException('access 토큰이 필요합니다.');
+    }
+
     const user = await this.userRepository.findOne({
       where: { id: payload.sub },
     });

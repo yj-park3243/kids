@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/storage/secure_storage.dart';
-import '../../../widgets/design/baby_avatar.dart';
 import '../../../widgets/design/pink_blobs.dart';
 import '../../auth/providers/auth_provider.dart';
 
@@ -78,6 +77,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         case AuthStatus.unauthenticated:
           context.go('/login');
           break;
+        case AuthStatus.phoneVerification:
+          context.go('/phone-verification');
+          break;
         case AuthStatus.profileSetup:
           context.go('/profile-setup');
           break;
@@ -101,8 +103,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const BabyAvatar(size: 120, tone: BabyAvatarTone.pink),
-                  const SizedBox(height: 28),
+                  Image.asset(
+                    'assets/icon/logo.png',
+                    height: 160,
+                    fit: BoxFit.contain,
+                  ),
+                  const SizedBox(height: 20),
                   ShaderMask(
                     shaderCallback: (bounds) =>
                         AppColors.pinkTextGradient.createShader(bounds),

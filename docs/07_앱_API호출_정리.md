@@ -1,7 +1,7 @@
 # 앱 API 호출 정리
 
-> Flutter 앱(`app/lib/`)에서 실제로 호출하는 모든 서버 API와 Firestore 직접 연동을 정리한 문서입니다.
-> 분석 기준일: 2026-04-06
+> Flutter 앱(`app/lib/`)에서 실제로 호출하는 모든 서버 API와 실시간 채팅 연동을 정리한 문서입니다.
+> 분석 기준일: 2026-05-11
 
 ---
 
@@ -9,11 +9,13 @@
 
 ```
 개발: http://localhost:3000/v1
-운영: http://43.201.221.240:3000/v1
+운영: https://api.growtogether.kr/v1
 ```
 
 - `ApiConstants.apiUrl` = `{baseUrl}/v1`
-- 모든 엔드포인트는 `/v1` 프리픽스 포함
+- 운영 환경: Let's Encrypt SSL, Nginx 80→443 redirect → NestJS `localhost:3000`
+- 채팅 WebSocket: `{baseUrl}/chat` (Socket.IO namespace)
+- 모든 REST 엔드포인트는 `/v1` 프리픽스 포함
 - 타임아웃: 연결 10초, 수신 15초
 
 ---
@@ -22,13 +24,14 @@
 
 ### 1-1. POST /v1/auth/social
 - **호출 파일**: `features/auth/data/auth_repository.dart` > `socialLogin()`
-- **호출 화면**: 로그인 화면 (`login_screen.dart`) - 카카오/Apple/Google 버튼 (현재 TODO 상태, `_showComingSoon`으로 대체)
+- **호출 화면**: 로그인 화면 (`login_screen.dart`) - Apple/Google 버튼 동작, Kakao는 UI만 (SDK 미연결)
 - **Request Body**:
   ```json
   {
     "provider": "KAKAO|APPLE|GOOGLE",
-    "accessToken": "소셜 액세스 토큰",
-    "idToken": "ID 토큰 (선택)"
+    "accessToken": "소셜 액세스 토큰 (Kakao)",
+    "idToken": "ID 토큰 (Apple/Google)",
+    "authorizationCode": "Apple 회원가입 시 필수 — refresh_token 교환·저장용"
   }
   ```
 - **Response**:
@@ -44,7 +47,7 @@
   ```
 - **인증 필요**: 아니오
 - **서버 구현**: `auth.controller.ts` > `socialLogin()`
-- **비고**: 앱 UI에 버튼은 있으나 실제 소셜 로그인 SDK 연동은 TODO 상태
+- **비고**: Apple authorizationCode는 `SocialAccount.appleRefreshToken`에 저장되어 회원탈퇴 시 `/auth/revoke` 호출에 사용 (App Store 5.1.1(v))
 
 ### 1-2. POST /v1/auth/email/login
 - **호출 파일**: `features/auth/data/auth_repository.dart` > `emailLogin()`
@@ -103,19 +106,23 @@
 - **인증 필요**: 예
 - **서버 구현**: `auth.controller.ts` > `logout()`
 
-### 1-6. POST /v1/auth/email/reset-password
-- **호출 파일**: `features/auth/data/auth_repository.dart` > `resetPassword()`
-- **호출 화면**: 이메일 로그인 화면의 "비밀번호를 잊으셨나요?" 버튼 (현재 TODO 상태)
-- **Request Body**:
+### 1-6. GET /v1/auth/kcp/form
+- **호출 파일**: `features/auth/data/kcp_repository.dart` > `getForm()`
+- **호출 화면**: 본인인증 화면 (`phone_verification_screen.dart`) — 회원가입 직후 자동 진입
+- **Query Params**: `?returnUrl=...` (선택, 기본은 서버 콜백 URL)
+- **Response**:
   ```json
   {
-    "email": "user@example.com"
+    "data": {
+      "html": "KCP 본인확인 V2 제출용 HTML form"
+    }
   }
   ```
-- **Response**: 200 OK — `{ "success": true, "message": "..." }` (계정 존재 여부와 무관하게 동일 응답)
-- **인증 필요**: 아니오
-- **서버 구현**: `auth.controller.ts` > `resetPassword()` (이메일 실발송은 외부 서비스 연동 대기)
-- **비고**: 앱 UI(이메일 로그인 화면의 "비밀번호를 잊으셨나요?" 버튼)와 연결 필요.
+- **인증 필요**: 예 (JWT — 가입 직후 받은 access token)
+- **서버 구현**: `auth/kcp/kcp.controller.ts` > `getForm()` (사이트코드 `ALQ1Q`)
+- **흐름**: 앱은 받은 HTML을 WebView에 로드 → KCP 본인확인 화면 표시 → 결과를 커스텀 스킴(`kids://kcp-cert?...`)으로 반환 → 서버 콜백(`POST /v1/auth/kcp/callback`)이 KCP 응답을 복호화·검증 후 `user.isPhoneVerified = true` 설정
+
+> `POST /v1/auth/email/reset-password`는 제거됨 (UI/엔드포인트 모두 폐기).
 
 ---
 
@@ -309,7 +316,7 @@
       "myStatus": "ACCEPTED|PENDING|null",
       "canJoin": true,
       "canJoinReason": "사유",
-      "chatRoomId": "Firestore chatRoom ID",
+      "chatRoomId": "채팅방 ID (= room.id)",
       "createdAt": "ISO 날짜"
     }
   }
@@ -488,60 +495,34 @@
 
 ---
 
-## 5. 채팅 (Chat) - Firestore 직접 연동
+## 5. 채팅 (Chat) — NestJS WebSocket Gateway + REST
 
-채팅은 서버 REST API가 아닌 **Cloud Firestore에 직접 연결**하여 실시간 동기화합니다.
+채팅은 **NestJS WebSocket Gateway(Socket.IO `/chat` namespace)** 기반으로 실시간 메시지를 주고받고, 메시지는 PostgreSQL `chat_message` 테이블에 저장됩니다. 목록·히스토리 조회는 REST를 사용합니다.
 
-### 5-1. Firestore: 채팅방 목록 조회 (Stream)
+### 5-1. GET /v1/chat/rooms (채팅방 목록)
 - **호출 파일**: `features/chat/data/chat_repository.dart` > `getChatRooms()`
-- **호출 화면**: 채팅 목록 화면 (`chat_list_screen.dart`) > `StreamBuilder`
-- **Firestore 경로**: `chatRooms` (컬렉션)
-- **쿼리**:
-  ```
-  .where('memberIds', arrayContains: userId)
-  .orderBy('lastMessageAt', descending: true)
-  ```
-- **반환 타입**: `Stream<List<ChatRoom>>`
+- **호출 화면**: 채팅 목록 화면 (`chat_list_screen.dart`)
+- **Response**: 내가 멤버인 Room 목록 + 마지막 메시지/시각/안읽음 카운트
+- **인증 필요**: 예
+- **서버 구현**: `chat.controller.ts` > `getMyRooms()`
 
-### 5-2. Firestore: 메시지 목록 조회 (Stream)
-- **호출 파일**: `features/chat/data/chat_repository.dart` > `getMessages()`
-- **호출 화면**: 채팅방 화면 (`chat_room_screen.dart`) > `StreamBuilder`
-- **Firestore 경로**: `chatRooms/{chatRoomId}/messages` (서브컬렉션)
-- **쿼리**:
-  ```
-  .orderBy('createdAt', descending: true)
-  .limit(50)
-  ```
-- **반환 타입**: `Stream<List<ChatMessage>>`
+### 5-2. GET /v1/chat/rooms/:roomId/messages (메시지 히스토리)
+- **호출 파일**: `features/chat/data/chat_repository.dart` > `getMessages()`, `getOlderMessages()`
+- **호출 화면**: 채팅방 화면 (`chat_room_screen.dart`) 진입 시 + 위로 스크롤
+- **Query Params**: `?cursor=...&limit=50`
+- **인증 필요**: 예 (멤버 검증)
+- **서버 구현**: `chat.controller.ts` > `getMessages()`
 
-### 5-3. Firestore: 이전 메시지 로드 (페이지네이션)
-- **호출 파일**: `features/chat/data/chat_repository.dart` > `getOlderMessages()`
-- **호출 화면**: 현재 UI에서 직접 호출하지 않음 (스크롤 페이지네이션용으로 준비)
-- **Firestore 경로**: `chatRooms/{chatRoomId}/messages`
-- **쿼리**:
-  ```
-  .orderBy('createdAt', descending: true)
-  .startAfterDocument(lastDoc)
-  .limit(50)
-  ```
-- **반환 타입**: `Future<List<ChatMessage>>`
-
-### 5-4. Firestore: 메시지 전송
-- **호출 파일**: `features/chat/data/chat_repository.dart` > `sendMessage()`
-- **호출 화면**: 채팅방 화면 (`chat_room_screen.dart`) > `_sendMessage()` (전송 버튼 / Enter 키)
-- **Firestore 작업** (batch write):
-  1. `chatRooms/{chatRoomId}/messages/{auto-id}` 에 메시지 문서 추가
-  2. `chatRooms/{chatRoomId}` 에 lastMessage, lastMessageAt 업데이트
-- **메시지 데이터**:
-  ```json
-  {
-    "senderId": "유저 ID",
-    "senderNickname": "닉네임",
-    "content": "메시지 내용",
-    "type": "TEXT",
-    "createdAt": "서버 타임스탬프"
-  }
-  ```
+### 5-3. WebSocket: `/chat` namespace (Socket.IO)
+- **호출 파일**: `features/chat/data/chat_repository.dart` (Socket.IO 클라이언트)
+- **URL**: `{baseUrl}/chat`
+- **인증**: 핸드셰이크 auth 헤더에 JWT 전달, 서버 `chat.gateway.ts`에서 검증
+- **주요 이벤트**:
+  - `join` (클라→서버): `{ roomId }` 구독
+  - `message` (클라→서버): `{ roomId, content, type }` 메시지 전송 → 서버가 DB 저장 + 같은 룸 브로드캐스트
+  - `message` (서버→클라): 새 메시지 푸시 (TEXT/SYSTEM)
+  - `leave` (클라→서버): `{ roomId }` 구독 해제
+- **서버 구현**: `chat/chat.gateway.ts`, `chat/chat.service.ts`
 
 ---
 
@@ -640,6 +621,43 @@
 
 ---
 
+## 8. 어드민 (Admin Dashboard)
+
+> 어드민 SPA(`admin.growtogether.kr`)에서 호출. 앱은 호출하지 않음. 본 문서에 응답 형태만 기록.
+
+### 8-1. GET /v1/admin/dashboard
+- **호출 측**: 어드민 SPA `admin/src/api/dashboard.ts`
+- **Response**:
+  ```json
+  {
+    "data": {
+      "totalUsers": 0,
+      "todayUsers": 0,
+      "last7DaysSignups": 0,
+      "bannedUsers": 0,
+      "currentOnline": 0,        // 최근 5분 이내 활동한 사용자 수
+      "todayVisitors": 0,        // 오늘 방문자(user_visit 집계)
+      "totalRooms": 0,
+      "activeRooms": 0,
+      "todayRooms": 0,
+      "signupTrend":  [{ "date": "YYYY-MM-DD", "count": 0 }],  // 최근 30일
+      "visitorTrend": [{ "date": "YYYY-MM-DD", "count": 0 }],
+      "roomTrend":    [{ "date": "YYYY-MM-DD", "count": 0 }]
+    }
+  }
+  ```
+- **서버 구현**: `admin/admin.service.ts` > `getDashboard()` (user_visit 테이블 + last_seen_at)
+
+### 8-2. 기타 어드민 엔드포인트
+- `POST /v1/admin/login`
+- `GET /v1/admin/users`, `GET /v1/admin/users/:id`
+- `PATCH /v1/admin/users/:id/ban` (정지/해제)
+- `PATCH /v1/admin/users/:id/verify` (본인인증 수동 토글)
+- `GET /v1/admin/rooms`, `GET /v1/admin/rooms/:id`
+- `DELETE /v1/admin/rooms/:id` (강제 삭제)
+
+---
+
 ## 서버에 구현되어 있으나 앱에서 호출하지 않는 API
 
 | Method | Endpoint | 서버 파일 | 비고 |
@@ -652,14 +670,7 @@
 | PATCH | /v1/rooms/:roomId | room.controller.ts | 방 수정 (방장) |
 | DELETE | /v1/rooms/:roomId/members/:userId | room.controller.ts | 참여자 강퇴 (방장) |
 | POST | /v1/notifications/device-token | notification.controller.ts | FCM 디바이스 토큰 등록 |
-
----
-
-## 앱에 정의되어 있으나 서버에 없는 API
-
-| Method | Endpoint | 앱 파일 | 비고 |
-|--------|----------|---------|------|
-| POST | /v1/auth/email/reset-password | auth_repository.dart | 비밀번호 재설정 - 서버 구현 완료, 앱 UI 연결 필요 |
+| POST | /v1/auth/kcp/callback | auth/kcp/kcp.controller.ts | KCP가 직접 호출하는 콜백 (앱은 form만 사용) |
 
 ---
 
@@ -667,12 +678,12 @@
 
 | # | Method | Endpoint | 호출 파일 | 화면 | 인증 | 상태 |
 |---|--------|----------|-----------|------|------|------|
-| 1 | POST | /v1/auth/social | auth_repository.dart | login_screen.dart | 아니오 | ✅ 서버 구현됨 (앱 소셜SDK TODO) |
+| 1 | POST | /v1/auth/social | auth_repository.dart | login_screen.dart | 아니오 | ✅ Apple/Google 동작 (Kakao SDK 미연결) |
 | 2 | POST | /v1/auth/email/login | auth_repository.dart | email_login_screen.dart | 아니오 | ✅ 서버 구현됨 |
 | 3 | POST | /v1/auth/email/register | auth_repository.dart | email_register_screen.dart | 아니오 | ✅ 서버 구현됨 |
 | 4 | POST | /v1/auth/refresh | api_interceptor.dart | (자동 - 인터셉터) | 아니오 | ✅ 서버 구현됨 |
 | 5 | POST | /v1/auth/logout | auth_repository.dart | mypage_screen.dart | 예 | ✅ 서버 구현됨 |
-| 6 | POST | /v1/auth/email/reset-password | auth_repository.dart | (미호출 - UI TODO) | 아니오 | ✅ 서버 구현 (이메일 발송 미연동) |
+| 6 | GET | /v1/auth/kcp/form | kcp_repository.dart | phone_verification_screen.dart | 예 | ✅ KCP V2 (사이트코드 ALQ1Q) |
 | 7 | POST | /v1/users/profile | auth_repository.dart | profile_setup_screen.dart | 예 | ✅ 서버 구현됨 |
 | 8 | GET | /v1/users/me | auth_repository.dart | splash_screen.dart 외 | 예 | ✅ 서버 구현됨 |
 | 9 | DELETE | /v1/users/me | auth_repository.dart | mypage_screen.dart | 예 | ✅ 서버 구현됨 |
@@ -692,18 +703,18 @@
 | 23 | PATCH | /v1/notifications/:id/read | notification_repository.dart | notification_screen.dart | 예 | ✅ 서버 구현됨 |
 | 24 | PATCH | /v1/notifications/read-all | notification_repository.dart | notification_screen.dart | 예 | ✅ 서버 구현됨 |
 | 25 | GET | /v1/notifications/unread-count | home_repository.dart, notification_repository.dart | home_screen.dart | 예 | ✅ 서버 구현됨 |
-| 26 | POST | /v1/upload/image | auth_repository.dart | profile_setup_screen.dart | 예 | ✅ 서버 구현됨 |
-| - | Firestore | chatRooms (채팅방 목록) | chat_repository.dart | chat_list_screen.dart | - | ✅ Firestore |
-| - | Firestore | chatRooms/{id}/messages (메시지) | chat_repository.dart | chat_room_screen.dart | - | ✅ Firestore |
-| - | Firestore | 메시지 전송 + 채팅방 업데이트 | chat_repository.dart | chat_room_screen.dart | - | ✅ Firestore |
+| 26 | POST | /v1/upload/image | auth_repository.dart | profile_setup_screen.dart | 예 | ✅ S3(`kids-uploads-518`) |
+| 27 | GET | /v1/chat/rooms | chat_repository.dart | chat_list_screen.dart | 예 | ✅ REST 목록 |
+| 28 | GET | /v1/chat/rooms/:roomId/messages | chat_repository.dart | chat_room_screen.dart | 예 | ✅ REST 히스토리 |
+| - | WS | `/chat` namespace (Socket.IO) | chat_repository.dart | chat_room_screen.dart | JWT | ✅ NestJS Gateway |
 
 ---
 
 ## 통계 요약
 
-- **REST API 총 호출**: 26개 엔드포인트 (앱에서 호출하는 것)
-- **Firestore 직접 연동**: 4개 작업 (채팅방 목록, 메시지 목록, 이전 메시지, 메시지 전송)
-- **서버 구현 완료**: 25개 / 26개 (96%)
-- **서버 미구현**: 0개 (모두 구현됨, 외부 서비스 연동만 남음)
-- **서버에만 구현 (앱 미호출)**: 8개 엔드포인트
-- **앱 TODO 상태**: 소셜 로그인 SDK 연동, 비밀번호 재설정, 프로필 수정 API 호출
+- **REST API 총 호출**: 28개 엔드포인트 (앱에서 호출하는 것)
+- **WebSocket**: 1개 namespace (`/chat`) — Socket.IO
+- **서버 구현 완료**: 모두 구현됨
+- **서버에만 구현 (앱 미호출)**: 9개 엔드포인트
+- **앱 TODO 상태**: Kakao 소셜 SDK 연결, 프로필 수정 API 호출
+- **폐기된 항목**: `POST /v1/auth/email/reset-password` (서버·앱 모두 제거)

@@ -22,10 +22,21 @@ export class GoogleService {
 
       const { sub, email, name, picture, aud } = response.data;
 
-      // Validate the audience matches our Google Client ID
-      const googleClientId = this.configService.get('GOOGLE_CLIENT_ID');
-      if (googleClientId && aud !== googleClientId) {
-        throw new UnauthorizedException('Google 토큰의 audience가 일치하지 않습니다.');
+      // 같은 프로젝트 prefix로 audience 검증. 환경변수 미설정이면 검증 거부 (security fail-closed)
+      const expectedPrefix = this.configService
+        .get<string>('GOOGLE_CLIENT_ID', '')
+        .split('-')[0];
+      if (!expectedPrefix) {
+        throw new UnauthorizedException(
+          'GOOGLE_CLIENT_ID가 설정되지 않아 Google 토큰을 검증할 수 없습니다.',
+        );
+      }
+      if (typeof aud !== 'string' || !aud.startsWith(`${expectedPrefix}-`)) {
+        throw new UnauthorizedException('Google 토큰이 다른 프로젝트에서 발급되었습니다.');
+      }
+
+      if (!sub) {
+        throw new UnauthorizedException('Google 토큰에 사용자 ID가 없습니다.');
       }
 
       return {

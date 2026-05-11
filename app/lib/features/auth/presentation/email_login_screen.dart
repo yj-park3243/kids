@@ -44,6 +44,8 @@ class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
     ref.listen<AuthState>(authProvider, (previous, next) {
       if (next.status == AuthStatus.authenticated) {
         context.go('/home');
+      } else if (next.status == AuthStatus.phoneVerification) {
+        context.go('/phone-verification');
       } else if (next.status == AuthStatus.profileSetup) {
         context.go('/profile-setup');
       } else if (next.status == AuthStatus.childSetup) {

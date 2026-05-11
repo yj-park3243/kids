@@ -28,7 +28,7 @@ echo "=============================="
 if [ "$PLATFORM" = "ios" ] || [ "$PLATFORM" = "all" ]; then
   echo ""
   echo ">>> [iOS] Flutter IPA 빌드 중..."
-  flutter build ipa --release --dart-define=ENVIRONMENT=production
+  flutter build ipa --release --no-tree-shake-icons --dart-define=ENVIRONMENT=production
 
   IPA_PATH=$(find build/ios/ipa -name "*.ipa" | head -1)
   if [ -z "$IPA_PATH" ]; then
@@ -50,7 +50,7 @@ fi
 if [ "$PLATFORM" = "android" ] || [ "$PLATFORM" = "all" ]; then
   echo ""
   echo ">>> [Android] AAB 빌드 중..."
-  flutter build appbundle --release --dart-define=ENVIRONMENT=production
+  flutter build appbundle --release --no-tree-shake-icons --dart-define=ENVIRONMENT=production
 
   AAB_PATH="build/app/outputs/bundle/release/app-release.aab"
   if [ ! -f "$AAB_PATH" ]; then

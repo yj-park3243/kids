@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/date_utils.dart';
@@ -176,28 +177,35 @@ class MyPageScreen extends ConsumerWidget {
                     onTap: () => context.push('/profile-edit'),
                   ),
                   _MenuItem(
+                    icon: Icons.child_care_rounded,
+                    label: '아이 추가',
+                    onTap: () => context.push('/child-add'),
+                  ),
+                  _MenuItem(
                     icon: Icons.notifications_none_rounded,
                     label: '알림 설정',
-                    onTap: () {},
+                    onTap: () => context.push('/notification-settings'),
                   ),
                 ]),
                 const SizedBox(height: 14),
 
                 _menuSection([
                   _MenuItem(
-                    icon: Icons.help_outline_rounded,
-                    label: '도움말',
-                    onTap: () {},
+                    icon: Icons.mail_outline_rounded,
+                    label: '1:1 문의',
+                    onTap: () => context.push('/inquiry'),
                   ),
                   _MenuItem(
                     icon: Icons.description_outlined,
                     label: '이용약관',
-                    onTap: () {},
+                    onTap: () => _openExternalUrl(
+                        'https://growtogether.kr/terms'),
                   ),
                   _MenuItem(
                     icon: Icons.privacy_tip_outlined,
                     label: '개인정보처리방침',
-                    onTap: () {},
+                    onTap: () => _openExternalUrl(
+                        'https://growtogether.kr/privacy'),
                   ),
                 ]),
                 const SizedBox(height: 14),
@@ -362,4 +370,11 @@ class _MenuItem {
     this.color,
     required this.onTap,
   });
+}
+
+Future<void> _openExternalUrl(String url) async {
+  final uri = Uri.parse(url);
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
 }

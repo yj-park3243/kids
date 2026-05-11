@@ -30,8 +30,8 @@ export class Room {
   @Column({ type: 'varchar', length: 60 })
   title: string;
 
-  @Column({ type: 'varchar', length: 1000 })
-  description: string;
+  @Column({ type: 'varchar', length: 1000, nullable: true })
+  description: string | null;
 
   @Column({ name: 'region_sido', type: 'varchar', length: 20 })
   regionSido: string;

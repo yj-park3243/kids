@@ -16,6 +16,10 @@ Authorization: Bearer {accessToken}
 
 ### 공통 응답 구조
 
+> 본 문서의 모든 라우트 응답은 별도 명시가 없는 한 아래 wrapping 규약을 따른다.
+> 즉, 이후 예제의 응답 JSON은 모두 `data` 필드 내부에 들어간다고 가정한다.
+> (예외: `POST /auth/kcp/callback` 의 HTML redirect 응답)
+
 ```json
 // 성공
 {
@@ -32,6 +36,19 @@ Authorization: Bearer {accessToken}
   }
 }
 ```
+
+### JWT 토큰 구조
+
+| 토큰 | 용도 | 만료 | Payload |
+|------|------|------|---------|
+| accessToken | 보호 라우트 인증 | 1시간 | `{ sub, email, isAdmin, type: "access", iss: "kids-app", jti, iat, exp }` |
+| refreshToken | accessToken 재발급 전용 | 14일 | `{ sub, email, isAdmin, type: "refresh", iss: "kids-app", jti, iat, exp }` |
+
+**검증 정책**
+
+- 모든 보호 라우트는 `type === "access"` 와 `iss === "kids-app"` 을 강제 검증한다.
+- refreshToken 으로 보호 라우트를 호출하면 `401 UNAUTHORIZED` 를 반환한다.
+- refreshToken 은 `POST /auth/refresh` 에서만 허용된다.
 
 ### 공통 에러 코드
 
@@ -163,30 +180,6 @@ Authorization: Bearer {accessToken}
 |------|------|
 | 401 INVALID_CREDENTIALS | 이메일/비밀번호 불일치 |
 
-### POST /auth/email/reset-password
-
-비밀번호 재설정 메일 발송
-
-**Request**
-
-```json
-{
-  "email": "string"
-}
-```
-
-**Response 200**
-
-```json
-{
-  "success": true,
-  "message": "입력하신 이메일로 재설정 안내를 보냈습니다."
-}
-```
-
-> 보안상 해당 이메일의 계정 존재 여부와 무관하게 동일한 응답을 반환한다.
-> 실제 이메일 발송은 외부 서비스(SES/SendGrid 등) 연동 필요.
-
 ### POST /auth/refresh
 
 토큰 재발급
@@ -271,6 +264,50 @@ Authorization: Bearer {accessToken}
 | 409 PHONE_ALREADY_USED | 이미 다른 계정이 사용 중 |
 
 > 실제 SMS 발송은 외부 서비스(NHN Cloud SMS / Naver Cloud SENS / CoolSMS 등) 연동 필요.
+
+### GET /auth/kcp/form
+
+KCP 본인인증 진입 폼(HTML) 발급 `[인증필요]`
+
+> 앱이 WebView 로 띄울 KCP 표준창 진입 form 을 서버가 서명·생성해서 내려준다.
+> 클라이언트는 받은 HTML 을 WebView 에 로드만 하면 KCP 측으로 자동 제출된다.
+
+**Response 200**
+
+```json
+{
+  "html": "<form ...>...</form><script>document.forms[0].submit()</script>"
+}
+```
+
+### POST /auth/kcp/callback
+
+KCP 인증 완료 콜백 (Public, 외부 KCP 서버가 호출)
+
+> 본 라우트는 앱이 직접 호출하지 않는다. KCP 인증 완료 후 KCP 측이 서버로 결과를
+> `application/x-www-form-urlencoded` 로 POST 하며, 서버는 검증 후 앱 딥링크로 redirect 하는
+> HTML 을 응답한다. 클라이언트(WebView)는 이 redirect 로 인해 `kids://kcp-cert?...` 스킴이 호출되어
+> 앱으로 돌아온다.
+
+**Request (form-urlencoded, KCP 표준 필드)**
+
+```
+cert_no=...&dn=...&ordr_idxx=...&...
+```
+
+**Response 200** — `Content-Type: text/html`
+
+```html
+<!doctype html>
+<html><head>
+  <meta http-equiv="refresh" content="0;url=kids://kcp-cert?status=ok&ci=...&name=...&phoneNumber=...">
+</head><body>processing...</body></html>
+```
+
+| 결과 | 딥링크 쿼리 |
+|------|-------------|
+| 성공 | `kids://kcp-cert?status=ok&ci={ci}&name={name}&phoneNumber={phone}` |
+| 실패/취소 | `kids://kcp-cert?status=fail&reason={reason}` |
 
 ---
 
@@ -736,59 +773,29 @@ Authorization: Bearer {accessToken}
 
 ---
 
-## 6. Chat (Firebase Firestore)
+## 6. Chat (PostgreSQL + WebSocket)
 
-> 채팅은 Flutter ↔ Firestore 직접 통신. NestJS 서버는 채팅방 생성/삭제/멤버 관리만 담당.
+> 채팅은 NestJS 서버가 **PostgreSQL** 에 메시지를 영속 저장하고, **Socket.IO (`/chat` namespace)** 로 실시간 브로드캐스트한다.
+> 클라이언트는 외부 DB(Firestore 등)에 직접 연결하지 않으며, 모든 채팅 트래픽은 본 서버를 경유한다.
+> REST API 와 WebSocket 의 구체 스펙은 아래 **7-1. Chat API** 섹션을 참조한다.
 
-### Firestore Collections
+### 역할 분리
 
-```
-chatRooms/{chatRoomId}
-  ├── roomId: string
-  ├── memberIds: string[]
-  ├── lastMessage: string
-  ├── lastMessageAt: timestamp
-  │
-  └── messages (subcollection)
-      └── {messageId}
-          ├── senderId: string
-          ├── senderNickname: string
-          ├── content: string
-          ├── type: "TEXT" | "SYSTEM" | "IMAGE"
-          └── createdAt: timestamp
-```
+| 계층 | 책임 |
+|------|------|
+| PostgreSQL | `ChatRoom`, `ChatMessage`, `RoomMember` 영속 저장 |
+| NestJS REST (`/chat/...`) | 채팅방 목록, 히스토리(커서 페이징), 메시지 전송(저장) |
+| NestJS WS (`/chat` namespace) | 저장 직후 같은 방 멤버에게 브로드캐스트 |
+| Flutter 클라이언트 | REST 로 송신·히스토리, WS 로 실시간 수신 |
 
-### NestJS 서버 역할 (Firestore Admin SDK)
+### 서버 자동 처리 트리거
 
 | 시점 | 동작 |
 |------|------|
-| 방 참여 확정 | chatRoom의 memberIds에 유저 추가 + 시스템 메시지 작성 |
-| 방 퇴장/강퇴 | chatRoom의 memberIds에서 유저 제거 + 시스템 메시지 작성 |
-| 방 생성 | chatRooms 문서 생성 |
-| 방 삭제 | chatRooms 문서 삭제 |
-
-### Flutter 클라이언트 역할
-
-| 기능 | Firestore 연동 |
-|------|----------------|
-| 메시지 전송 | `chatRooms/{id}/messages`에 add |
-| 실시간 수신 | `onSnapshot` 리스너 |
-| 채팅방 목록 | `chatRooms` where `memberIds` contains myId, orderBy `lastMessageAt` |
-| 히스토리 | `messages` orderBy `createdAt desc`, `startAfter` + `limit(50)` |
-
-### Firestore Security Rules (핵심)
-
-```javascript
-match /chatRooms/{chatRoomId} {
-  allow read: if request.auth.uid in resource.data.memberIds;
-
-  match /messages/{messageId} {
-    allow read: if request.auth.uid in get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.memberIds;
-    allow create: if request.auth.uid in get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.memberIds
-                  && request.resource.data.senderId == request.auth.uid;
-  }
-}
-```
+| 방 생성 | `ChatRoom` 1:1 생성 (Room.id 와 동일 식별자) |
+| 방 참여 확정 | `RoomMember` 추가 + SYSTEM 메시지 저장·브로드캐스트 |
+| 방 퇴장/강퇴 | `RoomMember` 제거 + SYSTEM 메시지 저장·브로드캐스트 |
+| 방 삭제/취소 | 채팅 입장은 차단되나 히스토리는 보존 |
 
 ---
 
@@ -979,13 +986,34 @@ match /chatRooms/{chatRoomId} {
 ```json
 {
   "totalUsers": 0,
-  "totalRooms": 0,
   "todayUsers": 0,
-  "todayRooms": 0,
+  "last7DaysSignups": 0,
+  "bannedUsers": 0,
+  "currentOnline": 0,
+  "todayVisitors": 0,
+  "totalRooms": 0,
   "activeRooms": 0,
-  "bannedUsers": 0
+  "todayRooms": 0,
+  "signupTrend": [{ "date": "2026-04-12", "count": 0 }],
+  "visitorTrend": [{ "date": "2026-04-12", "count": 0 }],
+  "roomTrend":   [{ "date": "2026-04-12", "count": 0 }]
 }
 ```
+
+| 키 | 설명 |
+|----|------|
+| totalUsers | 전체 가입 유저 수 |
+| todayUsers | 오늘 가입한 유저 수 |
+| last7DaysSignups | 최근 7일 신규 가입 수 |
+| bannedUsers | 정지 상태 유저 수 |
+| currentOnline | 현재 온라인(WS 세션 기준) |
+| todayVisitors | 오늘 방문자 수 |
+| totalRooms | 전체 방 수 |
+| activeRooms | 모집중/진행중 방 수 |
+| todayRooms | 오늘 생성된 방 수 |
+| signupTrend | 최근 30일 가입자 추이 `[{date, count}]` |
+| visitorTrend | 최근 30일 방문자 추이 `[{date, count}]` |
+| roomTrend | 최근 30일 방 생성 추이 `[{date, count}]` |
 
 ### GET /admin/users
 
@@ -1029,6 +1057,29 @@ match /chatRooms/{chatRoomId} {
 {
   "success": true,
   "status": "BANNED"
+}
+```
+
+### PATCH /admin/users/:id/verify
+
+유저 본인인증 상태 수동 토글 `[관리자 인증필요]`
+
+> KCP 본인인증/Apple 계정 연동 등과 별개로, 운영자가 직접 본인인증 플래그를 부여하거나 회수할 때 사용한다.
+
+**Request**
+
+```json
+{
+  "isPhoneVerified": true
+}
+```
+
+**Response 200**
+
+```json
+{
+  "success": true,
+  "isPhoneVerified": true
 }
 ```
 

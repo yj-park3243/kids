@@ -60,8 +60,44 @@ export class User {
   @Column({ name: 'phone_number', type: 'varchar', length: 20, nullable: true })
   phoneNumber: string;
 
+  // ─── KCP 본인인증 ───
+  @Column({ name: 'ci', type: 'varchar', length: 100, nullable: true, unique: true })
+  ci: string;
+
+  @Column({ name: 'di', type: 'varchar', length: 100, nullable: true })
+  di: string;
+
+  @Column({ name: 'real_name', type: 'varchar', length: 50, nullable: true })
+  realName: string;
+
+  @Column({ name: 'carrier', type: 'varchar', length: 20, nullable: true })
+  carrier: string;
+
+  @Column({ name: 'birth_date', type: 'date', nullable: true })
+  birthDate: Date;
+
+  @Column({ name: 'gender', type: 'varchar', length: 10, nullable: true })
+  gender: string; // MALE | FEMALE
+
+  @Column({ name: 'is_verified', type: 'boolean', default: false })
+  isVerified: boolean;
+
+  @Column({ name: 'verified_at', type: 'timestamp', nullable: true })
+  verifiedAt: Date;
+
+  @Column({ name: 'apple_refresh_token', type: 'text', nullable: true })
+  appleRefreshToken: string;
+
   @Column({ name: 'is_admin', type: 'boolean', default: false })
   isAdmin: boolean;
+
+  @Column({ name: 'last_seen_at', type: 'timestamp', nullable: true })
+  @Index()
+  lastSeenAt: Date;
+
+  @Column({ name: 'last_login_at', type: 'timestamp', nullable: true })
+  @Index()
+  lastLoginAt: Date;
 
   @Column({ type: 'varchar', length: 20, default: 'ACTIVE' })
   status: string; // ACTIVE, WITHDRAWN, BANNED

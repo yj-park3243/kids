@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   ConflictException,
   BadRequestException,
@@ -9,11 +10,14 @@ import { Repository, Not } from 'typeorm';
 import { User } from './entities/user.entity';
 import { Child } from '../child/entities/child.entity';
 import { RoomMember } from '../room/entities/room-member.entity';
+import { AppleService } from '../auth/social/apple.service';
 import { CreateProfileDto } from './dto/create-profile.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class UserService {
+  private readonly logger = new Logger(UserService.name);
+
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
@@ -21,6 +25,7 @@ export class UserService {
     private childRepository: Repository<Child>,
     @InjectRepository(RoomMember)
     private roomMemberRepository: Repository<RoomMember>,
+    private appleService: AppleService,
   ) {}
 
   async createProfile(userId: string, dto: CreateProfileDto) {
@@ -41,9 +46,9 @@ export class UserService {
     }
 
     user.nickname = dto.nickname;
-    user.regionSido = dto.regionSido;
-    user.regionSigungu = dto.regionSigungu;
-    user.regionDong = dto.regionDong;
+    if (dto.regionSido) user.regionSido = dto.regionSido;
+    if (dto.regionSigungu) user.regionSigungu = dto.regionSigungu;
+    if (dto.regionDong) user.regionDong = dto.regionDong;
     user.profileImageUrl = dto.profileImageUrl || user.profileImageUrl;
     user.introduction = dto.introduction || user.introduction;
     user.isProfileComplete = true;
@@ -162,9 +167,20 @@ export class UserService {
       );
     }
 
+    // Apple 사용자면 Apple 측 토큰 revoke (App Store 5.1.1(v) 준수)
+    if (user.authProvider === 'APPLE' && user.appleRefreshToken) {
+      const ok = await this.appleService.revokeRefreshToken(
+        user.appleRefreshToken,
+      );
+      this.logger.log(
+        `[deleteMe] userId=${userId} apple revoke=${ok ? 'success' : 'failed'}`,
+      );
+    }
+
     // Soft delete
     user.status = 'WITHDRAWN';
     user.withdrawnAt = new Date();
+    user.appleRefreshToken = null as unknown as string;
     await this.userRepository.save(user);
 
     return { success: true };

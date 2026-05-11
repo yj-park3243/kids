@@ -8,17 +8,20 @@ export class CreateProfileDto {
   @MaxLength(10, { message: '닉네임은 10자 이하여야 합니다.' })
   nickname: string;
 
-  @ApiProperty({ example: '서울특별시' })
+  @ApiProperty({ example: '서울특별시', required: false })
   @IsString()
-  regionSido: string;
+  @IsOptional()
+  regionSido?: string;
 
-  @ApiProperty({ example: '강남구' })
+  @ApiProperty({ example: '강남구', required: false })
   @IsString()
-  regionSigungu: string;
+  @IsOptional()
+  regionSigungu?: string;
 
-  @ApiProperty({ example: '역삼동' })
+  @ApiProperty({ example: '역삼동', required: false })
   @IsString()
-  regionDong: string;
+  @IsOptional()
+  regionDong?: string;
 
   @ApiProperty({ required: false })
   @IsString()

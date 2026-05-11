@@ -3,6 +3,138 @@ default_platform(:ios)
 APP_DIR = File.expand_path("../..", __dir__)
 
 platform :ios do
+  desc "ASC에 앱 등록 여부 확인"
+  lane :check_app do
+    require "spaceship"
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+      key_id: ENV["ASC_KEY_ID"],
+      issuer_id: ENV["ASC_ISSUER_ID"],
+      filepath: ENV["ASC_KEY_PATH"],
+    )
+    app = Spaceship::ConnectAPI::App.find(ENV["APP_IDENTIFIER"])
+    if app
+      UI.success("FOUND: #{app.bundle_id} | name=#{app.name} | id=#{app.id}")
+    else
+      UI.error("NOT FOUND in App Store Connect: #{ENV['APP_IDENTIFIER']}")
+    end
+  end
+
+  desc "Push Notifications capability 활성화 + 프로파일 재발급"
+  lane :enable_push do
+    require "spaceship"
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+      key_id: ENV["ASC_KEY_ID"],
+      issuer_id: ENV["ASC_ISSUER_ID"],
+      filepath: ENV["ASC_KEY_PATH"],
+    )
+
+    bundle_id = ENV["APP_IDENTIFIER"]
+    bid = Spaceship::ConnectAPI::BundleId.find(bundle_id)
+    UI.user_error!("Bundle ID not found: #{bundle_id}") unless bid
+
+    capabilities = bid.get_capabilities
+    has_push = capabilities.any? { |c| c.capability_type == "PUSH_NOTIFICATIONS" }
+    if has_push
+      UI.success("Push Notifications already enabled")
+    else
+      UI.message("Enabling PUSH_NOTIFICATIONS capability...")
+      Spaceship::ConnectAPI::BundleIdCapability.create(
+        bundle_id_id: bid.id,
+        capability_type: "PUSH_NOTIFICATIONS",
+      )
+      UI.success("Push Notifications enabled!")
+    end
+
+    UI.message("Regenerating provisioning profile...")
+    profiles = Spaceship::ConnectAPI::Profile.all.select do |p|
+      p.name == "#{bundle_id} AppStore"
+    end
+    profiles.each do |p|
+      UI.message("Deleting old profile: #{p.name}")
+      p.delete!
+    end
+    sigh(
+      api_key_path: "/tmp/asc_api_key.json",
+      app_identifier: bundle_id,
+      output_path: "/tmp",
+    )
+    UI.success("Profile regenerated.")
+  end
+
+  desc "Sign In with Apple capability 활성화 + 프로파일 재발급"
+  lane :enable_apple_signin do
+    require "spaceship"
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+      key_id: ENV["ASC_KEY_ID"],
+      issuer_id: ENV["ASC_ISSUER_ID"],
+      filepath: ENV["ASC_KEY_PATH"],
+    )
+
+    bundle_id = ENV["APP_IDENTIFIER"]
+    bid = Spaceship::ConnectAPI::BundleId.find(bundle_id)
+    UI.user_error!("Bundle ID not found: #{bundle_id}") unless bid
+
+    capabilities = bid.get_capabilities
+    has_apple_signin = capabilities.any? { |c| c.capability_type == "APPLE_ID_AUTH" }
+
+    if has_apple_signin
+      UI.success("Sign In with Apple already enabled")
+    else
+      UI.message("Enabling APPLE_ID_AUTH capability...")
+      Spaceship::ConnectAPI::BundleIdCapability.create(
+        bundle_id_id: bid.id,
+        capability_type: "APPLE_ID_AUTH",
+      )
+      UI.success("Sign In with Apple enabled!")
+    end
+
+    UI.message("Regenerating provisioning profile...")
+    profiles = Spaceship::ConnectAPI::Profile.all.select do |p|
+      p.name == "#{bundle_id} AppStore"
+    end
+    profiles.each do |p|
+      UI.message("Deleting old profile: #{p.name}")
+      p.delete!
+    end
+    sigh(
+      api_key_path: "/tmp/asc_api_key.json",
+      app_identifier: bundle_id,
+      output_path: "/tmp",
+    )
+    UI.success("Profile regenerated. Re-run deploy.")
+  end
+
+  desc "팀/Bundle ID/인증서 매핑 디버그"
+  lane :debug_signing do
+    require "spaceship"
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+      key_id: ENV["ASC_KEY_ID"],
+      issuer_id: ENV["ASC_ISSUER_ID"],
+      filepath: ENV["ASC_KEY_PATH"],
+    )
+
+    # 1. Bundle IDs (Apple Developer Portal)
+    UI.message("=== Bundle IDs ===")
+    bundle_ids = Spaceship::ConnectAPI::BundleId.all
+    bundle_ids.each do |b|
+      UI.message("id=#{b.identifier} | name=#{b.name} | platform=#{b.platform}")
+    end
+
+    # 2. Distribution certs
+    UI.message("=== Distribution Certificates ===")
+    certs = Spaceship::ConnectAPI::Certificate.all
+    certs.each do |c|
+      UI.message("type=#{c.certificate_type} | name=#{c.display_name} | id=#{c.id} | serial=#{c.serial_number}")
+    end
+
+    # 3. Profiles
+    UI.message("=== Provisioning Profiles ===")
+    profiles = Spaceship::ConnectAPI::Profile.all
+    profiles.each do |p|
+      UI.message("name=#{p.name} | type=#{p.profile_type} | uuid=#{p.uuid}")
+    end
+  end
+
   desc "TestFlight 배포"
   lane :deploy do
     # App Store Connect API 인증
@@ -13,7 +145,7 @@ platform :ios do
     )
 
     # Flutter 빌드
-    sh("zsh", "-lc", "cd '#{APP_DIR}' && flutter build ipa --release --dart-define=ENVIRONMENT=production")
+    sh("zsh", "-lc", "cd '#{APP_DIR}' && flutter build ipa --release --no-tree-shake-icons --dart-define=ENVIRONMENT=production")
 
     # IPA 파일 찾기
     ipa_path = Dir[File.join(APP_DIR, "build/ios/ipa/*.ipa")].first
