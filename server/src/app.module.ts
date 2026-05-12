@@ -15,6 +15,12 @@ import { AdminModule } from './admin/admin.module';
 import { SupportModule } from './support/support.module';
 import { VersionModule } from './version/version.module';
 import { RoomPhotoModule } from './room-photo/room-photo.module';
+import { ReviewModule } from './review/review.module';
+import { ReportModule } from './report/report.module';
+import { BlockModule } from './block/block.module';
+import { FollowModule } from './follow/follow.module';
+import { GrowthGuideModule } from './growth-guide/growth-guide.module';
+import { ShareModule } from './share/share.module';
 import { ActivityTrackerInterceptor } from './common/interceptors/activity-tracker.interceptor';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { CommonModule } from './common/common.module';
@@ -60,6 +66,12 @@ import { UserVisit } from './user/entities/user-visit.entity';
     SupportModule,
     VersionModule,
     RoomPhotoModule,
+    ReviewModule,
+    ReportModule,
+    BlockModule,
+    FollowModule,
+    GrowthGuideModule,
+    ShareModule,
   ],
   providers: [
     {

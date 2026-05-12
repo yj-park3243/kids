@@ -10,6 +10,7 @@ import UserDetailPage from './pages/UserDetailPage';
 import RoomsPage from './pages/RoomsPage';
 import RoomDetailPage from './pages/RoomDetailPage';
 import ReportsPage from './pages/ReportsPage';
+import GuidesPage from './pages/GuidesPage';
 
 export default function App() {
   return (
@@ -38,6 +39,7 @@ export default function App() {
             <Route path="/rooms" element={<RoomsPage />} />
             <Route path="/rooms/:id" element={<RoomDetailPage />} />
             <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/guides" element={<GuidesPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

@@ -14,10 +14,10 @@ final chatRoomsProvider = FutureProvider.autoDispose<List<ChatRoom>>((ref) {
   return ref.watch(chatRepositoryProvider).fetchChatRooms();
 });
 
-/// Opens the socket stream for a specific room.
-final chatMessageStreamProvider =
-    StreamProvider.autoDispose.family<ChatMessage, String>((ref, roomId) {
-  return ref.watch(chatRepositoryProvider).messageStream(roomId);
+/// Opens the socket stream for a specific room (messages + read receipts).
+final chatRoomEventStreamProvider =
+    StreamProvider.autoDispose.family<ChatRoomEvent, String>((ref, roomId) {
+  return ref.watch(chatRepositoryProvider).roomEventStream(roomId);
 });
 
 /// Loads a page of historical messages (newest first).

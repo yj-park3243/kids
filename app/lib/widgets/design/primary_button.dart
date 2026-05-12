@@ -4,8 +4,8 @@ import '../../core/constants/app_radius.dart';
 import '../../core/constants/app_shadows.dart';
 import '../../core/constants/app_text_styles.dart';
 
-/// Primary CTA: 핑크 그라디언트 + 흰 텍스트 + 핑크 그림자
-class PinkButton extends StatefulWidget {
+/// Primary CTA: 민트 그라디언트 + 흰 텍스트 + 민트 그림자.
+class PrimaryButton extends StatefulWidget {
   final String text;
   final VoidCallback? onPressed;
   final bool isLoading;
@@ -15,7 +15,7 @@ class PinkButton extends StatefulWidget {
   final IconData? icon;
   final double radius;
 
-  const PinkButton({
+  const PrimaryButton({
     super.key,
     required this.text,
     this.onPressed,
@@ -28,10 +28,10 @@ class PinkButton extends StatefulWidget {
   });
 
   @override
-  State<PinkButton> createState() => _PinkButtonState();
+  State<PrimaryButton> createState() => _PrimaryButtonState();
 }
 
-class _PinkButtonState extends State<PinkButton> {
+class _PrimaryButtonState extends State<PrimaryButton> {
   bool _pressed = false;
 
   @override
@@ -50,9 +50,9 @@ class _PinkButtonState extends State<PinkButton> {
           height: widget.height,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(widget.radius),
-            gradient: enabled ? AppColors.pinkGradient : null,
-            color: enabled ? null : AppColors.pink200,
-            boxShadow: enabled ? AppShadows.pinkCta : null,
+            gradient: enabled ? AppColors.primaryGradient : null,
+            color: enabled ? null : AppColors.primary200,
+            boxShadow: enabled ? AppShadows.primaryCta : null,
             border: Border.all(
               color: Colors.white.withValues(alpha: 0.35),
               width: 0.5,
@@ -104,7 +104,7 @@ class GlassButton extends StatelessWidget {
     this.icon,
     this.height = 54,
     this.radius = 18,
-    this.textColor = AppColors.pink700,
+    this.textColor = AppColors.primaryDark,
   });
 
   @override
@@ -118,7 +118,7 @@ class GlassButton extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(radius),
           color: Colors.white.withValues(alpha: 0.7),
-          border: Border.all(color: AppColors.pink200, width: 0.8),
+          border: Border.all(color: AppColors.divider, width: 1),
           boxShadow: AppShadows.glass,
         ),
         child: Center(
@@ -184,7 +184,7 @@ class GlassIconButton extends StatelessWidget {
                 width: 8,
                 height: 8,
                 decoration: const BoxDecoration(
-                  color: AppColors.pink500,
+                  color: AppColors.accentCoral,
                   shape: BoxShape.circle,
                 ),
               ),

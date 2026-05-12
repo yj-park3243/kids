@@ -326,9 +326,13 @@ cert_no=...&dn=...&ordr_idxx=...&...
   "regionSigungu": "string",
   "regionDong": "string",
   "profileImageUrl": "string | null",
-  "introduction": "string | null"
+  "introduction": "string | null",
+  "parentGender": "MOM | DAD",
+  "isSingleParent": false
 }
 ```
+
+> `parentGender`와 `isSingleParent`는 **이 엔드포인트로만 입력 가능**하며, 이후 `PATCH /users/me`로는 수정할 수 없다. 정정은 운영자(어드민) 경로로만 가능.
 
 **Response 201**
 
@@ -341,9 +345,19 @@ cert_no=...&dn=...&ordr_idxx=...&...
   "regionDong": "string",
   "profileImageUrl": "string | null",
   "introduction": "string | null",
+  "parentGender": "MOM | DAD",
+  "isSingleParent": false,
+  "mannerScore": 36.5,
   "createdAt": "ISO8601"
 }
 ```
+
+**Error**
+
+| 코드 | 상황 |
+|------|------|
+| 422 PARENT_GENDER_REQUIRED | `parentGender` 누락 |
+| 409 PROFILE_ALREADY_COMPLETED | 이미 프로필 초기 설정이 완료된 유저가 재호출 (덮어쓰기 시도) |
 
 ### GET /users/me
 
@@ -358,11 +372,15 @@ cert_no=...&dn=...&ordr_idxx=...&...
 ```json
 {
   "nickname": "string",
+  "regionSido": "string",
+  "regionSigungu": "string",
   "regionDong": "string",
   "profileImageUrl": "string",
   "introduction": "string"
 }
 ```
+
+> 🚫 `parentGender`, `isSingleParent`는 이 엔드포인트로 수정 불가. 요청에 포함되어도 서버가 silently drop 한다 (422 미반환, DB는 변경되지 않음).
 
 ### GET /users/check-nickname?nickname={nickname}
 
@@ -389,6 +407,7 @@ cert_no=...&dn=...&ordr_idxx=...&...
   "regionSigungu": "string",
   "profileImageUrl": "string | null",
   "introduction": "string | null",
+  "parentGender": "MOM | DAD",
   "children": [
     {
       "nickname": "string",
@@ -397,9 +416,16 @@ cert_no=...&dn=...&ordr_idxx=...&...
     }
   ],
   "roomCount": 15,
+  "mannerScore": 37.2,
+  "mannerTags": ["친절했어요", "약속 잘 지켜요", "아이와 잘 놀아줬어요"],
+  "noShowLevel": "NONE | OCCASIONAL | FREQUENT",
+  "isFollowing": false,
+  "isBlocked": false,
   "createdAt": "ISO8601"
 }
 ```
+
+> 🔒 `isSingleParent`는 응답에 **포함하지 않는다**. 한부모 전용 방의 멤버 목록 API에서만 노출된다.
 
 ### DELETE /users/me
 
@@ -487,11 +513,21 @@ cert_no=...&dn=...&ordr_idxx=...&...
   "longitude": "float | null",
   "maxMembers": 5,
   "joinType": "FREE | APPROVAL",
+  "genderFilter": "ALL | MOM_ONLY | DAD_ONLY",
+  "singleParentOnly": false,
+  "isFlashMeeting": false,
+  "requiredItems": ["기저귀", "물티슈", "간식"],
   "cost": 0,
   "costDescription": "string | null",
   "tags": ["산책", "이유식"]
 }
 ```
+
+**유효성 규칙 (서버 측)**
+
+- `isFlashMeeting = true` 일 때: `date == today` 만 허용, `startTime`은 현재 시각 + 1시간 이후만 허용. `false`이면 `date`는 오늘 ~ +30일 이내.
+- `singleParentOnly = true` 일 때: 방장 본인의 `isSingleParent = true` 여야 함 (서버 검증). 아니면 `403 SINGLE_PARENT_ONLY_REQUIRES_SINGLE_PARENT_HOST`.
+- `requiredItems`: 최대 10개, 각 20자 이내.
 
 **Response 201**
 
@@ -522,12 +558,17 @@ cert_no=...&dn=...&ordr_idxx=...&...
 | regionSigungu | string | X | 구 단위 확장 검색 |
 | dateFrom | date | X | 시작 날짜 (기본: 오늘) |
 | dateTo | date | X | 종료 날짜 |
-| ageMonth | int | X | 개월수 (±3 범위 자동) |
+| ageMonth | int | X | 개월수 (±3 범위 자동, 단일 값일 때) |
 | placeType | enum | X | 장소 유형 |
 | joinType | enum | X | 입장 방식 |
+| **genderFilter** | enum | X | ALL / MOM_ONLY / DAD_ONLY (미지정 = 전체) |
+| **singleParentOnly** | boolean | X | true 면 한부모 전용 방만 반환 |
+| **isFlashMeeting** | boolean | X | true 면 번개 모임만, false 면 일반만, 미지정이면 전체 |
 | costFree | boolean | X | 무료만 |
 | cursor | string | X | 페이징 커서 |
 | limit | int | X | 페이지 크기 (기본 20) |
+
+> 서버는 요청 유저의 `parentGender`, `isSingleParent`를 자동으로 고려하여 **참여 불가능한 방은 응답에서 제외**한다. 예: 일반 부모(`isSingleParent=false`)에게는 한부모 전용 방을 노출하지 않음. `parentGender=DAD` 유저에게는 `MOM_ONLY` 방 노출 X.
 
 **Response 200**
 
@@ -546,6 +587,9 @@ cert_no=...&dn=...&ordr_idxx=...&...
       "currentMembers": 3,
       "maxMembers": 5,
       "joinType": "FREE",
+      "genderFilter": "ALL",
+      "singleParentOnly": false,
+      "isFlashMeeting": true,
       "cost": 0,
       "tags": ["산책"],
       "status": "RECRUITING",
@@ -558,6 +602,8 @@ cert_no=...&dn=...&ordr_idxx=...&...
   "hasMore": true
 }
 ```
+
+> 🔒 **위치 노출 단계화**: 목록 응답의 `latitude`/`longitude`는 **동 중심점에 랜덤 오프셋(±200m)을 적용한 마스킹 좌표**. 정확 좌표/`placeName`/`placeAddress`는 참여 확정 후 방 상세에서만 응답.
 
 ### GET /rooms/map
 
@@ -618,7 +664,11 @@ cert_no=...&dn=...&ordr_idxx=...&...
 
 방 상세 조회 `[인증필요]`
 
-**Response 200**
+> 🔒 응답 형태가 **참여 확정 여부**에 따라 두 가지로 분기된다.
+> - **비참여자** (`myStatus !== "ACCEPTED"` && 방장 아님): `placeName`, `placeAddress`, 정확 `latitude`/`longitude`는 응답에서 제외 (또는 마스킹 좌표). `members[].isSingleParent`는 무조건 제외.
+> - **참여 확정자**: 모든 필드 포함. `singleParentOnly = true` 방인 경우에만 `members[].isSingleParent` 포함.
+
+**Response 200** (참여 확정자)
 
 ```json
 {
@@ -641,6 +691,10 @@ cert_no=...&dn=...&ordr_idxx=...&...
   "maxMembers": 5,
   "currentMembers": 3,
   "joinType": "APPROVAL",
+  "genderFilter": "MOM_ONLY",
+  "singleParentOnly": true,
+  "isFlashMeeting": false,
+  "requiredItems": ["기저귀", "물티슈"],
   "cost": 5000,
   "costDescription": "키즈카페 입장료 더치페이",
   "tags": ["실내놀이", "10개월"],
@@ -649,24 +703,34 @@ cert_no=...&dn=...&ordr_idxx=...&...
     "id": "uuid",
     "nickname": "콩이맘",
     "profileImageUrl": "...",
-    "regionSigungu": "강남구"
+    "regionSigungu": "강남구",
+    "parentGender": "MOM",
+    "isSingleParent": true,
+    "mannerScore": 38.1
   },
   "members": [
     {
       "id": "uuid",
       "nickname": "콩이맘",
       "profileImageUrl": "...",
+      "parentGender": "MOM",
+      "isSingleParent": true,
+      "mannerScore": 38.1,
       "children": [{ "nickname": "콩이", "ageMonths": 10, "gender": "MALE" }],
       "isHost": true
     }
   ],
-  "myStatus": "NONE | PENDING | ACCEPTED | REJECTED",
-  "canJoin": true,
-  "canJoinReason": "string | null",
+  "myStatus": "ACCEPTED",
+  "canJoin": false,
+  "canJoinReason": "ALREADY_JOINED",
   "chatRoomId": "uuid",
   "createdAt": "ISO8601"
 }
 ```
+
+**Response 200** (비참여자 — 일반 방)
+
+`placeName`, `placeAddress`, 정확 `latitude`/`longitude`, `members[].isSingleParent` 필드 제외. `members[].parentGender`도 일반 방에서는 제외 (`MOM_ONLY`/`DAD_ONLY` 방에서는 자명하므로 포함).
 
 ### PATCH /rooms/:roomId
 
@@ -724,8 +788,12 @@ cert_no=...&dn=...&ordr_idxx=...&...
 |------|------|
 | 409 ALREADY_JOINED | 이미 참여/신청 중 |
 | 409 ROOM_FULL | 인원 초과 |
-| 403 AGE_NOT_MATCH | 개월수 불일치 |
+| 403 AGE_NOT_MATCH | 개월수 불일치 (모든 자녀의 개월수가 범위 밖) |
 | 403 ROOM_NOT_RECRUITING | 모집 종료 |
+| 403 GENDER_NOT_MATCH | `parentGender`가 방의 `genderFilter`와 불일치 |
+| 403 SINGLE_PARENT_REQUIRED | 한부모 전용 방에 일반 가정 부모가 신청 |
+| 403 BLOCKED_BY_HOST | 방장과 차단 관계 (양방향 어느 쪽이든) |
+| 403 NOSHOW_RESTRICTED | 노쇼 누적으로 참여 제한 중 (`canJoinAt` 까지) |
 
 ### DELETE /rooms/:roomId/join
 
@@ -831,6 +899,30 @@ cert_no=...&dn=...&ordr_idxx=...&...
 ### GET /notifications/unread-count
 
 안읽은 알림 수 `[인증필요]`
+
+### Notification `type` enum
+
+| 값 | 설명 |
+|----|------|
+| JOIN_REQUEST | 참여 신청 (방장 수신) |
+| JOIN_ACCEPTED | 참여 수락 (신청자 수신) |
+| JOIN_REJECTED | 참여 거절 (신청자 수신) |
+| ROOM_CANCELLED | 모임 취소 (참여자 전원) |
+| ROOM_REMINDER | 모임 리마인더 (참여자 전원) |
+| NEW_CHAT | 새 메시지 (앱 비활성 시) |
+| NEW_ROOM | 새 방 알림 (조건 매칭 유저) |
+| NEW_FLASH | 번개 모임 (동 + 개월수 매칭) |
+| REVIEW_REQUEST | 후기 작성 요청 (참여자, 종료 직후 + D+6) |
+| FOLLOW_NEW_ROOM | 단골 부모가 새 방 생성 |
+| NOSHOW_WARNING | 노쇼 누적 경고 |
+| GROWTH_UPDATE | 자녀 개월수 진입 알림 |
+| REPORT_RESOLVED | 신고 처리 결과 |
+
+`data` JSONB 권장 스키마:
+- 방 관련: `{ roomId, chatRoomId }`
+- 후기 관련: `{ roomId, reviewableUntil }` (ISO8601)
+- 발달 가이드: `{ childId, ageMonth }`
+- 신고: `{ reportId, action }`
 
 ---
 
@@ -1116,3 +1208,367 @@ cert_no=...&dn=...&ordr_idxx=...&...
   "success": true
 }
 ```
+
+### PATCH /admin/users/:id/correct-identity
+
+부모 성별 / 한부모 여부 정정 `[관리자 인증필요]`
+
+> 본 필드는 유저가 직접 수정할 수 없으므로 운영자 정정 경로만 제공.
+
+**Request**
+
+```json
+{
+  "parentGender": "MOM | DAD | null",
+  "isSingleParent": true
+}
+```
+
+---
+
+## 10. Review API (후기 / 매너 온도)
+
+### POST /rooms/:roomId/reviews
+
+후기 등록 `[인증필요]`
+
+**전제 조건**
+
+- 방 상태 = `COMPLETED`
+- 본인이 해당 방의 멤버였음 (`room_member`에 존재)
+- `now() < completedAt + 7days`
+- 대상 유저(`targetUserId`)도 같은 방의 멤버 (본인 제외)
+
+**Request**
+
+```json
+{
+  "targetUserId": "uuid",
+  "score": 5,
+  "tags": ["친절했어요", "약속 잘 지켜요"],
+  "comment": "string | null (200자 이내)"
+}
+```
+
+**Response 201**
+
+```json
+{
+  "id": "uuid",
+  "roomId": "uuid",
+  "targetUserId": "uuid",
+  "score": 5,
+  "tags": ["친절했어요", "약속 잘 지켜요"],
+  "comment": "string | null",
+  "createdAt": "ISO8601"
+}
+```
+
+**Error**
+
+| 코드 | 상황 |
+|------|------|
+| 403 ROOM_NOT_COMPLETED | 방이 종료되지 않음 |
+| 403 REVIEW_PERIOD_EXPIRED | 7일 초과 |
+| 403 NOT_ROOM_MEMBER | 본인이 멤버가 아니거나 target이 멤버 아님 |
+| 409 REVIEW_ALREADY_EXISTS | 같은 방·같은 target에 이미 작성 (PATCH 사용) |
+
+### PATCH /reviews/:reviewId
+
+후기 수정 `[인증필요]` — 본인 작성 + `now() < completedAt + 7days`
+
+**Request**: POST와 동일 (변경 필드만)
+
+### DELETE /reviews/:reviewId
+
+후기 삭제 `[인증필요]` — 본인 작성 + 7일 이내
+
+### GET /users/:userId/reviews
+
+받은 후기 집계 조회 `[인증필요]` — 익명, 집계만
+
+**Response 200**
+
+```json
+{
+  "mannerScore": 37.2,
+  "reviewCount": 12,
+  "scoreDistribution": { "5": 8, "4": 3, "3": 1, "2": 0, "1": 0 },
+  "topTags": [
+    { "tag": "친절했어요", "count": 9 },
+    { "tag": "약속 잘 지켜요", "count": 7 }
+  ]
+}
+```
+
+---
+
+## 11. Report API (신고)
+
+### POST /reports
+
+신고 등록 `[인증필요]`
+
+**Request**
+
+```json
+{
+  "targetType": "USER | ROOM | CHAT_MESSAGE",
+  "targetId": "uuid",
+  "reason": "SPAM | INAPPROPRIATE | HARASSMENT | FAKE_PROFILE | NO_SHOW | OTHER",
+  "description": "string | null (500자 이내)"
+}
+```
+
+**Response 201**
+
+```json
+{
+  "id": "uuid",
+  "status": "PENDING",
+  "createdAt": "ISO8601"
+}
+```
+
+### GET /admin/reports
+
+신고 큐 `[관리자 인증필요]`
+
+**Query**: `status (PENDING/RESOLVED/DISMISSED)`, `page`, `limit`
+
+### PATCH /admin/reports/:id
+
+신고 처리 `[관리자 인증필요]`
+
+**Request**
+
+```json
+{
+  "status": "RESOLVED | DISMISSED",
+  "adminAction": "NONE | WARNING | BAN_7D | BAN_PERMANENT",
+  "adminNote": "string | null"
+}
+```
+
+→ `adminAction = BAN_*` 이면 신고 대상 유저의 `status = BANNED` 처리. 신고자에게 `REPORT_RESOLVED` 푸시.
+
+---
+
+## 12. Block API (차단)
+
+### POST /blocks
+
+유저 차단 `[인증필요]`
+
+**Request**
+
+```json
+{ "targetUserId": "uuid" }
+```
+
+**처리**
+
+- `block` 레코드 INSERT (양방향 적용은 조회 시점에서 OR로 검증)
+- 양방향 팔로우 자동 해제
+- 차단한 유저가 호스트인 방의 내 `RoomMember` 자동 삭제 (참여 중이라면) + 시스템 메시지 "차단 처리되었습니다"
+- 반대로 내가 호스트인 방에 차단 대상이 멤버라면 동일하게 강퇴
+
+### DELETE /blocks/:targetUserId
+
+차단 해제 `[인증필요]`
+
+### GET /blocks
+
+내 차단 목록 `[인증필요]`
+
+**Response 200**
+
+```json
+{
+  "items": [
+    {
+      "targetUserId": "uuid",
+      "nickname": "string",
+      "profileImageUrl": "string | null",
+      "createdAt": "ISO8601"
+    }
+  ]
+}
+```
+
+---
+
+## 13. Attendance / NoShow API
+
+### POST /rooms/:roomId/attendance
+
+출석 체크 (방장) `[인증필요]`
+
+**전제**: 방장만 호출 가능. 모임 시작 + 30분 ~ 종료 + 24시간 사이에만 허용.
+
+**Request**
+
+```json
+{
+  "records": [
+    { "userId": "uuid", "attended": true },
+    { "userId": "uuid", "attended": false }
+  ]
+}
+```
+
+**Response 200**
+
+```json
+{
+  "updated": 4,
+  "noShowApplied": [
+    { "userId": "uuid", "noShowCount": 2.0, "restrictedUntil": null }
+  ]
+}
+```
+
+`attended = false` 처리되면 해당 유저의 `noShowCount += 1.0` 및 매너온도 -0.3°C 자동 반영.
+
+**Error**
+
+| 코드 | 상황 |
+|------|------|
+| 403 NOT_HOST | 방장이 아님 |
+| 400 ATTENDANCE_WINDOW_CLOSED | 출석 체크 가능 시간대 아님 |
+
+### GET /users/me/noshow
+
+내 노쇼 현황 `[인증필요]`
+
+**Response 200**
+
+```json
+{
+  "noShowCount": 2.5,
+  "restrictedUntil": "2026-05-18T00:00:00Z | null",
+  "level": "NONE | OCCASIONAL | FREQUENT"
+}
+```
+
+---
+
+## 14. Follow API (팔로우 / 단골 부모)
+
+### POST /follows
+
+팔로우 `[인증필요]`
+
+**Request**
+
+```json
+{ "targetUserId": "uuid" }
+```
+
+**Error**
+
+| 코드 | 상황 |
+|------|------|
+| 409 ALREADY_FOLLOWING | 이미 팔로우 중 |
+| 403 BLOCKED | 차단 관계 (어느 방향이든) |
+
+### DELETE /follows/:targetUserId
+
+언팔로우 `[인증필요]`
+
+### GET /follows/me
+
+내 팔로잉 목록 `[인증필요]`
+
+**Response 200**
+
+```json
+{
+  "items": [
+    {
+      "targetUserId": "uuid",
+      "nickname": "string",
+      "profileImageUrl": "string | null",
+      "regionSigungu": "string",
+      "mannerScore": 38.0,
+      "followedAt": "ISO8601"
+    }
+  ]
+}
+```
+
+> 팔로워 목록 조회 API는 제공하지 않는다 (스토킹 방지).
+
+---
+
+## 15. Growth Guide API (발달 가이드)
+
+### GET /guides/:ageMonth
+
+월령별 가이드 단건 조회 `[인증필요]`
+
+**Response 200**
+
+```json
+{
+  "ageMonth": 10,
+  "title": "10개월: 잡고 일어서기 시작해요",
+  "summary": "대근육 발달이 활발한 시기...",
+  "bodyMarkdown": "# 발달 포인트\n...",
+  "coverImage": "https://cdn.../10.webp",
+  "tags": ["대근육", "놀이터", "산책"],
+  "recommendedRooms": [
+    {
+      "id": "uuid",
+      "title": "역삼동 놀이터 산책 모임",
+      "date": "2026-05-13",
+      "regionDong": "역삼동"
+    }
+  ]
+}
+```
+
+### GET /guides
+
+전체 가이드 목록 `[인증필요]` — 월령 오름차순 73개
+
+### GET /admin/guides / POST / PATCH / DELETE
+
+어드민 CMS `[관리자 인증필요]` — `ageMonth`(0~72)별 콘텐츠 등록/수정. 동일 `ageMonth`는 1개만 유지.
+
+---
+
+## 16. Share API (카카오 공유)
+
+> 공유 동작 자체는 **Kakao Flutter SDK 클라이언트 처리**이므로 별도 백엔드 API는 없다.
+> 다만 딥링크 경로와 추적 파라미터는 서버 처리와 맞물려 있다.
+
+### 딥링크
+
+| URL | 설명 |
+|-----|------|
+| `kids://room/:id?source=kakao&inviter=:userId` | 방 공유 카드 탭 시 진입 |
+| Android App Link | `https://growtogether.kr/room/:id` |
+| iOS Universal Link | 동일 도메인 |
+
+### GET /share/room/:roomId/preview
+
+방 공유 카드 미리보기 데이터 `[Public]`
+
+> 카카오 측 크롤러가 OG 메타데이터를 가져갈 때 사용. 인증 불필요. `placeName`/`placeAddress`는 노출하지 않음.
+
+**Response 200**
+
+```json
+{
+  "title": "역삼동 놀이터 산책 모임 (10~14개월)",
+  "description": "5월 13일 14:00 · 역삼동 · 자유 입장",
+  "imageUrl": "https://cdn.../room-default.webp",
+  "deeplink": "kids://room/{id}"
+}
+```
+
+### 가입 전환 추적
+
+- 딥링크의 `inviter` 쿼리를 클라이언트가 신규 가입 요청(`POST /auth/social` / `POST /auth/email/register`)의 헤더 `X-Inviter-Id`로 전달
+- 서버는 가입 성공 시 `user.inviter_id` 컬럼에 저장 — 어드민 대시보드에서 `inviter` 기준 가입 전환 카운트 노출

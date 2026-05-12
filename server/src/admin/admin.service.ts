@@ -19,6 +19,7 @@ import {
   AdminRoomQueryDto,
   AdminReportQueryDto,
 } from './dto/admin-query.dto';
+import { UserService } from '../user/user.service';
 
 const ONLINE_THRESHOLD_MIN = 5;
 
@@ -36,7 +37,16 @@ export class AdminService {
     @InjectRepository(UserReport)
     private reportRepository: Repository<UserReport>,
     private jwtService: JwtService,
+    private userService: UserService,
   ) {}
+
+  async correctIdentity(
+    userId: string,
+    parentGender: 'MOM' | 'DAD' | null,
+    isSingleParent: boolean,
+  ) {
+    return this.userService.adminCorrectIdentity(userId, parentGender, isSingleParent);
+  }
 
   async login(dto: AdminLoginDto) {
     const user = await this.userRepository.findOne({
@@ -102,6 +112,7 @@ export class AdminService {
       signupTrendRows,
       visitorTrendRows,
       roomTrendRows,
+      reportsPendingRows,
     ] = await Promise.all([
       this.userRepository.count(),
       this.roomRepository.count(),
@@ -160,7 +171,13 @@ export class AdminService {
          ORDER BY 1 ASC`,
         [thirtyDaysAgo],
       ) as Promise<{ date: string; count: string }[]>,
+      // 신규 report 테이블 PENDING 카운트 (테이블 미존재 시 0)
+      this.roomRepository
+        .query(`SELECT COUNT(*)::int AS c FROM report WHERE status = 'PENDING'`)
+        .catch(() => [{ c: 0 }]) as Promise<{ c: number }[]>,
     ]);
+
+    const reportsPending = reportsPendingRows?.[0]?.c ?? 0;
 
     return {
       // 회원
@@ -175,6 +192,8 @@ export class AdminService {
       totalRooms,
       activeRooms,
       todayRooms,
+      // 신고
+      reportsPending,
       // 추이 (오늘 포함 최근 30일, YYYY-MM-DD ASC)
       signupTrend: signupTrendRows.map((r) => ({
         date: r.date,

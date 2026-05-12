@@ -1,11 +1,28 @@
-import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  ForbiddenException,
+  NotFoundException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { LessThan, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { ChatMessage, ChatMessageType } from './entities/chat-message.entity';
 import { Room } from '../room/entities/room.entity';
 import { RoomMember } from '../room/entities/room-member.entity';
 import { User } from '../user/entities/user.entity';
 import { ChatGateway } from './chat.gateway';
+
+export interface ChatMessageView {
+  id: string;
+  roomId: string;
+  senderId: string | null;
+  senderNickname: string;
+  content: string;
+  type: ChatMessageType;
+  createdAt: Date;
+  unreadCount: number;
+}
 
 @Injectable()
 export class ChatService {
@@ -18,6 +35,7 @@ export class ChatService {
     private roomMemberRepository: Repository<RoomMember>,
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    @Inject(forwardRef(() => ChatGateway))
     private chatGateway: ChatGateway,
   ) {}
 
@@ -40,6 +58,35 @@ export class ChatService {
     return room;
   }
 
+  /**
+   * "본인을 제외한 멤버 중 lastReadAt이 createdAt 이전(또는 NULL)인 사람 수".
+   * sender 본인은 자동 읽음으로 처리해 카운트에서 제외한다.
+   */
+  private computeUnreadCount(
+    message: Pick<ChatMessage, 'senderId' | 'createdAt'>,
+    members: RoomMember[],
+  ): number {
+    let count = 0;
+    for (const m of members) {
+      if (message.senderId && m.userId === message.senderId) continue;
+      if (m.lastReadAt == null || m.lastReadAt < message.createdAt) count++;
+    }
+    return count;
+  }
+
+  private toView(msg: ChatMessage, unreadCount: number): ChatMessageView {
+    return {
+      id: msg.id,
+      roomId: msg.roomId,
+      senderId: msg.senderId,
+      senderNickname: msg.senderNickname,
+      content: msg.content,
+      type: msg.type,
+      createdAt: msg.createdAt,
+      unreadCount,
+    };
+  }
+
   async listMyChatRooms(userId: string) {
     const rows = await this.roomRepository
       .createQueryBuilder('room')
@@ -50,17 +97,45 @@ export class ChatService {
       .getMany();
 
     const roomIds = rows.map((r) => r.id);
-    const lastMessages = roomIds.length
-      ? await this.chatMessageRepository
-          .createQueryBuilder('m')
-          .where('m.roomId IN (:...roomIds)', { roomIds })
-          .orderBy('m.createdAt', 'DESC')
-          .getMany()
-      : [];
+    if (roomIds.length === 0) return [];
+
+    const lastMessages = await this.chatMessageRepository
+      .createQueryBuilder('m')
+      .where('m.roomId IN (:...roomIds)', { roomIds })
+      .orderBy('m.createdAt', 'DESC')
+      .getMany();
     const lastByRoom = new Map<string, ChatMessage>();
     for (const m of lastMessages) {
       if (!lastByRoom.has(m.roomId)) lastByRoom.set(m.roomId, m);
     }
+
+    // 내 멤버 행만 모아서 lastReadAt 확인 후 unread 메시지 수 카운트.
+    const myMembers = await this.roomMemberRepository.find({
+      where: roomIds.map((roomId) => ({ roomId, userId })),
+    });
+    const myMemberByRoom = new Map<string, RoomMember>();
+    for (const mm of myMembers) myMemberByRoom.set(mm.roomId, mm);
+
+    const unreadRows = await this.chatMessageRepository
+      .createQueryBuilder('m')
+      .select('m.roomId', 'roomId')
+      .addSelect('COUNT(*)', 'count')
+      .where('m.roomId IN (:...roomIds)', { roomIds })
+      .andWhere('m.senderId <> :userId OR m.senderId IS NULL', { userId })
+      .andWhere(
+        // 멤버가 있고 lastReadAt이 있으면 그 시점 이후만, 없으면 전체.
+        `(
+          SELECT COALESCE(rm.last_read_at, 'epoch'::timestamp)
+          FROM room_member rm
+          WHERE rm.room_id = m.room_id AND rm.user_id = :userId
+          LIMIT 1
+        ) < m.created_at`,
+        { userId },
+      )
+      .groupBy('m.roomId')
+      .getRawMany<{ roomId: string; count: string }>();
+    const unreadByRoom = new Map<string, number>();
+    for (const r of unreadRows) unreadByRoom.set(r.roomId, Number(r.count));
 
     return rows.map((room) => {
       const last = lastByRoom.get(room.id);
@@ -70,6 +145,7 @@ export class ChatService {
         roomTitle: room.title,
         lastMessage: last?.content ?? null,
         lastMessageAt: last?.createdAt ?? null,
+        unreadCount: unreadByRoom.get(room.id) ?? 0,
       };
     });
   }
@@ -78,7 +154,7 @@ export class ChatService {
     roomId: string,
     userId: string,
     opts: { cursor?: string; limit?: number } = {},
-  ) {
+  ): Promise<{ items: ChatMessageView[]; nextCursor: string | null; hasMore: boolean }> {
     await this.ensureMembership(roomId, userId);
     const limit = Math.min(opts.limit ?? 50, 100);
 
@@ -102,7 +178,12 @@ export class ChatService {
         ? items[items.length - 1].createdAt.toISOString()
         : null;
 
-    return { items, nextCursor, hasMore };
+    const members = await this.roomMemberRepository.find({ where: { roomId } });
+    const views = items.map((msg) =>
+      this.toView(msg, this.computeUnreadCount(msg, members)),
+    );
+
+    return { items: views, nextCursor, hasMore };
   }
 
   async sendUserMessage(
@@ -110,7 +191,7 @@ export class ChatService {
     userId: string,
     content: string,
     type: ChatMessageType = 'TEXT',
-  ): Promise<ChatMessage> {
+  ): Promise<ChatMessageView> {
     await this.ensureMembership(roomId, userId);
     const trimmed = content.trim();
     if (!trimmed) {
@@ -130,9 +211,18 @@ export class ChatService {
       }),
     );
 
+    // sender 본인은 자기 메시지를 곧바로 읽은 것으로 처리.
+    await this.roomMemberRepository.update(
+      { roomId, userId },
+      { lastReadAt: saved.createdAt },
+    );
+
     await this.roomRepository.update(roomId, { updatedAt: new Date() });
-    this.chatGateway.broadcastMessage(roomId, saved);
-    return saved;
+
+    const members = await this.roomMemberRepository.find({ where: { roomId } });
+    const view = this.toView(saved, this.computeUnreadCount(saved, members));
+    this.chatGateway.broadcastMessage(roomId, view);
+    return view;
   }
 
   /**
@@ -148,7 +238,28 @@ export class ChatService {
         type: 'SYSTEM',
       }),
     );
-    this.chatGateway.broadcastMessage(roomId, saved);
+    const members = await this.roomMemberRepository.find({ where: { roomId } });
+    const view = this.toView(saved, this.computeUnreadCount(saved, members));
+    this.chatGateway.broadcastMessage(roomId, view);
+  }
+
+  /**
+   * Mark all messages in the room as read for this user up to `asOf` (defaults to now).
+   * Broadcasts a `read` event so other clients can decrement their badge counters.
+   */
+  async markRoomRead(
+    roomId: string,
+    userId: string,
+    asOfIso?: string,
+  ): Promise<{ lastReadAt: string }> {
+    await this.ensureMembership(roomId, userId);
+    const asOf = asOfIso ? new Date(asOfIso) : new Date();
+    await this.roomMemberRepository.update(
+      { roomId, userId },
+      { lastReadAt: asOf },
+    );
+    this.chatGateway.broadcastRead(roomId, userId, asOf);
+    return { lastReadAt: asOf.toISOString() };
   }
 
   /**

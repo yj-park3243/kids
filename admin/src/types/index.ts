@@ -30,6 +30,10 @@ export interface User {
   isPhoneVerified: boolean;
   isAdmin: boolean;
   status: 'ACTIVE' | 'WITHDRAWN' | 'BANNED';
+  parentGender?: 'MOM' | 'DAD' | null;
+  isSingleParent?: boolean;
+  mannerScore?: number;
+  noShowCount?: number;
   children?: Child[];
   createdAt: string;
   updatedAt: string;
@@ -142,6 +146,8 @@ export interface DashboardStats {
   signupTrend: TrendPoint[];
   visitorTrend: TrendPoint[];
   roomTrend: TrendPoint[];
+  reportsPending?: number;
+  topInviters?: Array<{ inviterId: string; nickname: string; count: number }>;
 }
 
 // ============ Pagination ============
@@ -156,6 +162,7 @@ export interface PaginatedResponse<T> {
 // ============ Reports ============
 export type ReportReason = 'SPAM' | 'ABUSE' | 'INAPPROPRIATE' | 'FRAUD' | 'OTHER';
 export type ReportStatus = 'OPEN' | 'REVIEWED' | 'RESOLVED' | 'DISMISSED';
+export type AdminAction = 'NONE' | 'WARNING' | 'BAN_7D' | 'BAN_PERMANENT';
 
 export interface ReportUserRef {
   id: string;
@@ -176,4 +183,25 @@ export interface ReportListItem {
 
 export interface ReportDetail extends ReportListItem {
   targetRoom: { id: string; title: string } | null;
+  adminAction?: AdminAction;
+  adminNote?: string;
+}
+
+// ============ Guides ============
+export interface Guide {
+  ageMonth: number;        // 0~72
+  title: string;
+  summary: string;
+  bodyMarkdown: string;
+  coverImage?: string | null;
+  tags: string[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface GuideListItem {
+  ageMonth: number;
+  title: string;
+  summary: string;
+  coverImage?: string | null;
 }

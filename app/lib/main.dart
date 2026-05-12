@@ -7,6 +7,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:kakao_flutter_sdk_common/kakao_flutter_sdk_common.dart';
 import 'core/constants/app_colors.dart';
 import 'core/constants/app_constants.dart';
 import 'core/constants/app_text_styles.dart';
@@ -14,6 +15,8 @@ import 'core/error/error_reporter.dart';
 import 'core/router/app_router.dart';
 import 'core/scroll/app_scroll_behavior.dart';
 import 'core/version/version_check_service.dart';
+import 'features/share/deeplink/deeplink_handler.dart';
+import 'features/share/deeplink/fcm_tap_handler.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -59,6 +62,15 @@ void main() async {
         clientId: AppConstants.naverMapClientId,
         onAuthFailed: (ex) => debugPrint('NaverMap auth failed: $ex'),
       );
+
+      // Kakao SDK — 공유 기능에 필요. TODO: 실제 네이티브 앱 키 주입.
+      KakaoSdk.init(
+        nativeAppKey: AppConstants.kakaoNativeAppKey,
+      );
+
+      // 딥링크 / FCM 탭 핸들러 — 라우터가 초기화된 직후 연결.
+      unawaited(DeeplinkHandler.instance.init(appRouter));
+      unawaited(FcmTapHandler.instance.init(appRouter));
 
       runApp(
         const ProviderScope(

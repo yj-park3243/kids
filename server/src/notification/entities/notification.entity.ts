@@ -20,7 +20,7 @@ export class Notification {
   userId: string;
 
   @Column({ type: 'varchar', length: 30 })
-  type: string; // JOIN_REQUEST, JOIN_ACCEPTED, JOIN_REJECTED, ROOM_CANCELLED, ROOM_REMINDER, NEW_CHAT, NEW_ROOM
+  type: string; // JOIN_REQUEST, JOIN_ACCEPTED, JOIN_REJECTED, ROOM_CANCELLED, ROOM_REMINDER, NEW_CHAT, NEW_ROOM, NEW_FLASH, REVIEW_REQUEST, FOLLOW_NEW_ROOM, NOSHOW_WARNING, GROWTH_UPDATE, REPORT_RESOLVED
 
   @Column({ type: 'varchar', length: 100 })
   title: string;

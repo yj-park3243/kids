@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../models/room_photo.dart';
 import '../../../models/user.dart';
@@ -83,10 +84,11 @@ class _PhotoGridScreenState extends ConsumerState<PhotoGridScreen> {
           children: [
             if (uniqueChildren.isNotEmpty)
               SizedBox(
-                height: 44,
+                height: 52,
                 child: ListView(
                   scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.screen, vertical: AppSpacing.sm),
                   children: [
                     _FilterChip(
                       label: '전체',
@@ -112,22 +114,27 @@ class _PhotoGridScreenState extends ConsumerState<PhotoGridScreen> {
                   ? const Center(child: CircularProgressIndicator())
                   : _photos.isEmpty
                       ? Center(
-                          child: Text(
-                            '아직 올린 사진이 없어요.\n오른쪽 위 + 버튼으로 첫 사진을 올려보세요.',
-                            style: AppTextStyles.body2
-                                .copyWith(color: AppColors.textSecondary),
-                            textAlign: TextAlign.center,
+                          child: Padding(
+                            padding: const EdgeInsets.all(AppSpacing.xl),
+                            child: Text(
+                              '아직 올린 사진이 없어요.\n오른쪽 위 + 버튼으로 첫 사진을 올려보세요.',
+                              style: AppTextStyles.body2.copyWith(
+                                color: AppColors.textSecondary,
+                                height: 1.6,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
                           ),
                         )
                       : RefreshIndicator(
                           onRefresh: _load,
                           child: GridView.builder(
-                            padding: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.all(AppSpacing.sm),
                             gridDelegate:
                                 const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 3,
-                              crossAxisSpacing: 4,
-                              mainAxisSpacing: 4,
+                              crossAxisSpacing: AppSpacing.xs,
+                              mainAxisSpacing: AppSpacing.xs,
                             ),
                             itemCount: _photos.length,
                             itemBuilder: (_, i) {

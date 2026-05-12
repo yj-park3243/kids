@@ -1,5 +1,4 @@
-import { Logger } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
+import { Logger, Inject, forwardRef } from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
@@ -9,8 +8,10 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
+import { JwtService } from '@nestjs/jwt';
 import { Server, Socket } from 'socket.io';
-import { ChatMessage } from './entities/chat-message.entity';
+import type { ChatMessageView } from './chat.service';
+import { ChatService } from './chat.service';
 
 interface SocketWithUser extends Socket {
   userId?: string;
@@ -28,7 +29,11 @@ export class ChatGateway
   @WebSocketServer()
   server: Server;
 
-  constructor(private jwtService: JwtService) {}
+  constructor(
+    private jwtService: JwtService,
+    @Inject(forwardRef(() => ChatService))
+    private chatService: ChatService,
+  ) {}
 
   handleConnection(client: SocketWithUser) {
     try {
@@ -75,10 +80,29 @@ export class ChatGateway
     return { ok: true };
   }
 
+  @SubscribeMessage('read')
+  async handleRead(
+    @ConnectedSocket() client: SocketWithUser,
+    @MessageBody() data: { roomId: string; asOf?: string },
+  ) {
+    if (!client.userId || !data?.roomId) return { ok: false };
+    try {
+      const { lastReadAt } = await this.chatService.markRoomRead(
+        data.roomId,
+        client.userId,
+        data.asOf,
+      );
+      return { ok: true, lastReadAt };
+    } catch (err) {
+      this.logger.warn(`read failed: ${err}`);
+      return { ok: false };
+    }
+  }
+
   /**
    * Called from ChatService after a message is persisted.
    */
-  broadcastMessage(roomId: string, message: ChatMessage) {
+  broadcastMessage(roomId: string, message: ChatMessageView) {
     this.server.to(`room:${roomId}`).emit('message', {
       id: message.id,
       roomId: message.roomId,
@@ -87,6 +111,19 @@ export class ChatGateway
       content: message.content,
       type: message.type,
       createdAt: message.createdAt.toISOString(),
+      unreadCount: message.unreadCount,
+    });
+  }
+
+  /**
+   * Notify the room that `userId` has read up to `asOf` — other clients use this to
+   * decrement their unread badges on messages older than `asOf`.
+   */
+  broadcastRead(roomId: string, userId: string, asOf: Date) {
+    this.server.to(`room:${roomId}`).emit('read', {
+      roomId,
+      userId,
+      lastReadAt: asOf.toISOString(),
     });
   }
 }

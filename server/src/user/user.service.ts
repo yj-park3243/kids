@@ -4,6 +4,7 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Not } from 'typeorm';
@@ -34,6 +35,20 @@ export class UserService {
       throw new NotFoundException('사용자를 찾을 수 없습니다.');
     }
 
+    if (user.isProfileComplete) {
+      throw new ConflictException({
+        code: 'PROFILE_ALREADY_COMPLETED',
+        message: '이미 프로필이 완료된 사용자입니다.',
+      });
+    }
+
+    if (dto.parentGender !== 'MOM' && dto.parentGender !== 'DAD') {
+      throw new UnprocessableEntityException({
+        code: 'PARENT_GENDER_REQUIRED',
+        message: '부모 성별(MOM/DAD)을 선택해야 합니다.',
+      });
+    }
+
     // Check nickname uniqueness
     const existingNickname = await this.userRepository.findOne({
       where: { nickname: dto.nickname },
@@ -51,6 +66,8 @@ export class UserService {
     if (dto.regionDong) user.regionDong = dto.regionDong;
     user.profileImageUrl = dto.profileImageUrl || user.profileImageUrl;
     user.introduction = dto.introduction || user.introduction;
+    user.parentGender = dto.parentGender;
+    user.isSingleParent = dto.isSingleParent === true;
     user.isProfileComplete = true;
 
     const saved = await this.userRepository.save(user);
@@ -102,7 +119,9 @@ export class UserService {
       }
     }
 
-    Object.assign(user, dto);
+    // parentGender / isSingleParent 는 가입 후 수정 불가 — 요청에 섞여 들어와도 무시.
+    const { parentGender: _pg, isSingleParent: _sp, ...patch } = dto as any;
+    Object.assign(user, patch);
     const saved = await this.userRepository.save(user);
     return this.sanitizeUser(saved);
   }
@@ -114,7 +133,7 @@ export class UserService {
     return { available: !existing };
   }
 
-  async getUserById(userId: string) {
+  async getUserById(userId: string, requesterId?: string) {
     const user = await this.userRepository.findOne({
       where: { id: userId, status: 'ACTIVE' },
       relations: ['children'],
@@ -129,19 +148,99 @@ export class UserService {
       where: { userId },
     });
 
+    // 받은 후기 정성 태그 top3 (review 테이블이 아직 동기화 전이면 빈 배열)
+    let mannerTags: string[] = [];
+    try {
+      const rows = await this.userRepository.query(
+        `SELECT tag, COUNT(*)::int AS c
+         FROM (
+           SELECT UNNEST(tags) AS tag FROM review WHERE target_user_id = $1
+         ) t
+         GROUP BY tag
+         ORDER BY c DESC
+         LIMIT 3`,
+        [userId],
+      );
+      mannerTags = rows.map((r: { tag: string }) => r.tag);
+    } catch {
+      mannerTags = [];
+    }
+
+    // 노쇼 카운트 -> 3단계 텍스트로만 노출
+    const nsc = Number(user.noShowCount ?? 0);
+    const noShowLevel: 'NONE' | 'OCCASIONAL' | 'FREQUENT' =
+      nsc < 1 ? 'NONE' : nsc < 3 ? 'OCCASIONAL' : 'FREQUENT';
+
+    // 팔로우/차단 관계 (요청자 vs target) — 테이블 미존재 시 false fallback
+    let isFollowing = false;
+    let isBlocked = false;
+    if (requesterId && requesterId !== userId) {
+      try {
+        const fRows = await this.userRepository.query(
+          `SELECT 1 FROM follow WHERE follower_id = $1 AND target_user_id = $2 LIMIT 1`,
+          [requesterId, userId],
+        );
+        isFollowing = fRows.length > 0;
+      } catch {
+        isFollowing = false;
+      }
+      try {
+        const bRows = await this.userRepository.query(
+          `SELECT 1 FROM block
+           WHERE (blocker_id = $1 AND target_user_id = $2)
+              OR (blocker_id = $2 AND target_user_id = $1)
+           LIMIT 1`,
+          [requesterId, userId],
+        );
+        isBlocked = bRows.length > 0;
+      } catch {
+        isBlocked = false;
+      }
+    }
+
+    // 공개 응답: isSingleParent 는 절대 포함하지 않는다 (한부모 전용 방 내부에서만 노출).
     return {
       id: user.id,
       nickname: user.nickname,
       regionSigungu: user.regionSigungu,
       profileImageUrl: user.profileImageUrl,
       introduction: user.introduction,
+      parentGender: user.parentGender,
       children: user.children?.map((child) => ({
         nickname: child.nickname,
         ageMonths: this.calculateAgeMonths(child.birthYear, child.birthMonth),
         gender: child.gender,
       })),
       roomCount,
+      mannerScore: Number(user.mannerScore),
+      mannerTags,
+      noShowLevel,
+      isFollowing,
+      isBlocked,
       createdAt: user.createdAt,
+    };
+  }
+
+  // ─── 관리자 정정 ───
+  async adminCorrectIdentity(
+    userId: string,
+    parentGender: 'MOM' | 'DAD' | null,
+    isSingleParent: boolean,
+  ) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('사용자를 찾을 수 없습니다.');
+    }
+    if (parentGender !== null && parentGender !== 'MOM' && parentGender !== 'DAD') {
+      throw new BadRequestException('parentGender 는 MOM | DAD | null 만 허용됩니다.');
+    }
+    user.parentGender = parentGender as string;
+    user.isSingleParent = isSingleParent === true;
+    await this.userRepository.save(user);
+    return {
+      id: user.id,
+      parentGender: user.parentGender,
+      isSingleParent: user.isSingleParent,
     };
   }
 

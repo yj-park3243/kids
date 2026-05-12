@@ -170,6 +170,20 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                 ),
                 const SizedBox(height: 20),
 
+                // 부모 정체성 / 한부모 가정 — 읽기 전용. PATCH 본문에 포함하지 않음.
+                _LockedField(
+                  label: '부모',
+                  value: _parentGenderLabel(user?.parentGender),
+                  onInfoTap: () => _showLockedInfoDialog(context),
+                ),
+                const SizedBox(height: 12),
+                _LockedField(
+                  label: '한부모 가정',
+                  value: (user?.isSingleParent ?? false) ? '예' : '아니오',
+                  onInfoTap: () => _showLockedInfoDialog(context),
+                ),
+                const SizedBox(height: 20),
+
                 // 지역 — 주소 검색 (Daum 우편번호). 큰 덩어리(시/도 + 시/군/구)만 저장.
                 Align(
                   alignment: Alignment.centerLeft,
@@ -217,6 +231,78 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  static String _parentGenderLabel(String? gender) {
+    switch (gender) {
+      case 'MOM':
+        return '👩 엄마';
+      case 'DAD':
+        return '👨 아빠';
+      default:
+        return '-';
+    }
+  }
+
+  static void _showLockedInfoDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('변경 불가 항목'),
+        content: const Text('운영자 문의로만 정정 가능합니다.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('확인'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 회색 박스 안에 읽기 전용 값 + ⓘ 아이콘 (탭하면 정정 불가 안내).
+class _LockedField extends StatelessWidget {
+  final String label;
+  final String value;
+  final VoidCallback onInfoTap;
+
+  const _LockedField({
+    required this.label,
+    required this.value,
+    required this.onInfoTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        children: [
+          Text(
+            '$label: ',
+            style: AppTextStyles.body2.copyWith(color: AppColors.textSecondary),
+          ),
+          Text(value, style: AppTextStyles.body1Bold),
+          const Spacer(),
+          GestureDetector(
+            onTap: onInfoTap,
+            child: const Icon(
+              Icons.info_outline_rounded,
+              size: 18,
+              color: AppColors.textHint,
+            ),
+          ),
+        ],
       ),
     );
   }

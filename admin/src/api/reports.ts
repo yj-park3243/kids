@@ -1,5 +1,5 @@
 import client from './client';
-import type { PaginatedResponse, ReportDetail, ReportListItem } from '../types';
+import type { AdminAction, PaginatedResponse, ReportDetail, ReportListItem } from '../types';
 
 export interface ReportsQuery {
   page?: number;
@@ -15,5 +15,16 @@ export const reportsApi = {
 
   getReport(id: string): Promise<ReportDetail> {
     return client.get(`/admin/reports/${id}`).then((res) => res.data);
+  },
+
+  resolveReport(
+    id: string,
+    status: 'RESOLVED' | 'DISMISSED',
+    adminAction: AdminAction,
+    adminNote?: string,
+  ): Promise<{ success: boolean }> {
+    return client
+      .patch(`/admin/reports/${id}`, { status, adminAction, adminNote })
+      .then((res) => res.data);
   },
 };

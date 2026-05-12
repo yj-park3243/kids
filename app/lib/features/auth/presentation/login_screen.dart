@@ -6,7 +6,7 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../widgets/common_button.dart';
-import '../../../widgets/design/pink_blobs.dart';
+import '../../../widgets/design/accent_blobs.dart';
 import '../providers/auth_provider.dart';
 
 class LoginScreen extends ConsumerWidget {
@@ -36,7 +36,7 @@ class LoginScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: PinkBlobsBackground(
+      body: AccentBlobsBackground(
         strong: true,
         child: SafeArea(
           child: Padding(
@@ -52,7 +52,7 @@ class LoginScreen extends ConsumerWidget {
                 const SizedBox(height: 16),
                 ShaderMask(
                   shaderCallback: (bounds) =>
-                      AppColors.pinkTextGradient.createShader(bounds),
+                      AppColors.primaryTextGradient.createShader(bounds),
                   child: Text(
                     '같이크자',
                     style: AppTextStyles.display.copyWith(
@@ -106,7 +106,7 @@ class LoginScreen extends ConsumerWidget {
                   text: '이메일로 시작하기',
                   backgroundColor: Colors.white,
                   textColor: AppColors.ink900,
-                  borderColor: AppColors.pink200,
+                  borderColor: AppColors.primary200,
                   icon: Icons.email_outlined,
                   onPressed: () => context.push('/email-login'),
                 ),
@@ -123,7 +123,7 @@ class LoginScreen extends ConsumerWidget {
                       child: Text(
                         '회원가입',
                         style: AppTextStyles.body2Bold.copyWith(
-                          color: AppColors.pink500,
+                          color: AppColors.primary,
                         ),
                       ),
                     ),
@@ -142,7 +142,7 @@ class LoginScreen extends ConsumerWidget {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('$feature 기능은 준비 중입니다'),
-        backgroundColor: AppColors.pink700,
+        backgroundColor: AppColors.primary700,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),

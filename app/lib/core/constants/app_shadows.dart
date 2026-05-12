@@ -1,60 +1,56 @@
 import 'package:flutter/material.dart';
+import 'app_colors.dart';
 
 class AppShadows {
   AppShadows._();
 
-  static const Color _pinkShadow = Color(0xFFE84C88);
+  static const Color _ink = Color(0xFF1A1A2E);
 
-  // Glass card (soft)
   static List<BoxShadow> get glass => [
         BoxShadow(
-          color: _pinkShadow.withValues(alpha: 0.06),
+          color: _ink.withValues(alpha: 0.04),
           blurRadius: 2,
           offset: const Offset(0, 1),
         ),
         BoxShadow(
-          color: _pinkShadow.withValues(alpha: 0.08),
-          blurRadius: 24,
+          color: _ink.withValues(alpha: 0.06),
+          blurRadius: 20,
           offset: const Offset(0, 8),
         ),
       ];
 
-  // Glass card pink (stronger)
-  static List<BoxShadow> get glassPink => [
+  static List<BoxShadow> get glassStrong => [
         BoxShadow(
-          color: _pinkShadow.withValues(alpha: 0.10),
+          color: _ink.withValues(alpha: 0.06),
           blurRadius: 6,
           offset: const Offset(0, 2),
         ),
         BoxShadow(
-          color: _pinkShadow.withValues(alpha: 0.12),
-          blurRadius: 28,
+          color: _ink.withValues(alpha: 0.08),
+          blurRadius: 24,
           offset: const Offset(0, 12),
         ),
       ];
 
-  // Pink CTA button
-  static List<BoxShadow> get pinkCta => [
+  static List<BoxShadow> get primaryCta => [
         BoxShadow(
-          color: _pinkShadow.withValues(alpha: 0.35),
+          color: AppColors.primary.withValues(alpha: 0.32),
           blurRadius: 16,
           offset: const Offset(0, 6),
         ),
       ];
 
-  // Bottom tab bar
   static List<BoxShadow> get tabBar => [
         BoxShadow(
-          color: _pinkShadow.withValues(alpha: 0.14),
+          color: _ink.withValues(alpha: 0.08),
           blurRadius: 32,
           offset: const Offset(0, 12),
         ),
       ];
 
-  // FAB
   static List<BoxShadow> get fab => [
         BoxShadow(
-          color: _pinkShadow.withValues(alpha: 0.4),
+          color: AppColors.primary.withValues(alpha: 0.35),
           blurRadius: 20,
           offset: const Offset(0, 8),
         ),

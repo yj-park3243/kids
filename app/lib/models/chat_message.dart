@@ -36,6 +36,7 @@ class ChatMessage {
   final String content;
   final String type; // TEXT, SYSTEM, IMAGE
   final DateTime createdAt;
+  final int unreadCount;
 
   ChatMessage({
     required this.id,
@@ -44,10 +45,23 @@ class ChatMessage {
     required this.content,
     required this.type,
     required this.createdAt,
+    this.unreadCount = 0,
   });
 
   bool get isSystem => type == 'SYSTEM';
   bool get isImage => type == 'IMAGE';
+
+  ChatMessage copyWith({int? unreadCount}) {
+    return ChatMessage(
+      id: id,
+      senderId: senderId,
+      senderNickname: senderNickname,
+      content: content,
+      type: type,
+      createdAt: createdAt,
+      unreadCount: unreadCount ?? this.unreadCount,
+    );
+  }
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
     return ChatMessage(
@@ -59,6 +73,7 @@ class ChatMessage {
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'] as String)
           : DateTime.now(),
+      unreadCount: (json['unreadCount'] as int?) ?? 0,
     );
   }
 }

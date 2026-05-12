@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
+  Alert,
   Card,
   Descriptions,
   Tag,
@@ -11,6 +12,9 @@ import {
   Space,
   Avatar,
   Popconfirm,
+  Modal,
+  Select,
+  Switch,
   message,
 } from 'antd';
 import {
@@ -18,6 +22,7 @@ import {
   UserOutlined,
   StopOutlined,
   CheckCircleOutlined,
+  EditOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { usersApi } from '../api/users';
@@ -36,12 +41,21 @@ const GENDER_MAP: Record<string, string> = {
   FEMALE: '여',
 };
 
+const PARENT_GENDER_LABEL: Record<string, string> = {
+  MOM: '👩 엄마',
+  DAD: '👨 아빠',
+};
+
 export default function UserDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [user, setUser] = useState<UserDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [correctOpen, setCorrectOpen] = useState(false);
+  const [correctGender, setCorrectGender] = useState<'MOM' | 'DAD' | null>(null);
+  const [correctSingle, setCorrectSingle] = useState(false);
+  const [correctSaving, setCorrectSaving] = useState(false);
 
   useEffect(() => {
     if (id) fetchUser(id);
@@ -76,6 +90,28 @@ export default function UserDetailPage() {
       message.error('처리 중 오류가 발생했습니다.');
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const openCorrect = () => {
+    if (!user) return;
+    setCorrectGender(user.parentGender ?? null);
+    setCorrectSingle(!!user.isSingleParent);
+    setCorrectOpen(true);
+  };
+
+  const handleCorrectSave = async () => {
+    if (!id) return;
+    try {
+      setCorrectSaving(true);
+      await usersApi.correctIdentity(id, correctGender, correctSingle);
+      message.success('정체성 정보를 정정했습니다.');
+      setCorrectOpen(false);
+      fetchUser(id);
+    } catch {
+      message.error('처리 중 오류가 발생했습니다.');
+    } finally {
+      setCorrectSaving(false);
     }
   };
 
@@ -212,6 +248,18 @@ export default function UserDetailPage() {
           <Descriptions.Item label="자기소개" span={2}>
             {user.introduction || '-'}
           </Descriptions.Item>
+          <Descriptions.Item label="부모 정체성">
+            {user.parentGender ? PARENT_GENDER_LABEL[user.parentGender] || user.parentGender : '-'}
+          </Descriptions.Item>
+          <Descriptions.Item label="한부모 가정">
+            {user.isSingleParent ? '예' : '아니오'}
+          </Descriptions.Item>
+          <Descriptions.Item label="매너 온도">
+            {(user.mannerScore ?? 36.5).toFixed(1)}°C
+          </Descriptions.Item>
+          <Descriptions.Item label="노쇼 카운트">
+            {(user.noShowCount ?? 0).toFixed(1)}회
+          </Descriptions.Item>
           <Descriptions.Item label="가입일">
             {dayjs(user.createdAt).format('YYYY.MM.DD HH:mm')}
           </Descriptions.Item>
@@ -222,7 +270,57 @@ export default function UserDetailPage() {
             {user.roomCount ?? 0}개
           </Descriptions.Item>
         </Descriptions>
+
+        {/* 본인 정정 불가 필드 */}
+        <div style={{ marginTop: 24 }}>
+          <Space style={{ marginBottom: 8 }} align="center">
+            <Typography.Text strong>본인 정정 불가 필드</Typography.Text>
+            <Button size="small" icon={<EditOutlined />} onClick={openCorrect}>
+              정정
+            </Button>
+          </Space>
+          <Alert
+            type="warning"
+            showIcon
+            message="이 필드는 사용자가 직접 수정할 수 없으므로 신중히 처리하세요."
+          />
+        </div>
       </Card>
+
+      <Modal
+        title="본인 정정 불가 필드 정정"
+        open={correctOpen}
+        onCancel={() => setCorrectOpen(false)}
+        onOk={handleCorrectSave}
+        okText="저장"
+        cancelText="취소"
+        confirmLoading={correctSaving}
+      >
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="이 필드는 사용자가 직접 수정할 수 없으므로 신중히 처리하세요."
+        />
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 8 }}>부모 정체성</div>
+          <Select
+            style={{ width: '100%' }}
+            value={correctGender}
+            onChange={(v) => setCorrectGender(v)}
+            allowClear
+            placeholder="선택 안 함"
+            options={[
+              { value: 'MOM', label: '👩 엄마' },
+              { value: 'DAD', label: '👨 아빠' },
+            ]}
+          />
+        </div>
+        <div>
+          <div style={{ marginBottom: 8 }}>한부모 가정</div>
+          <Switch checked={correctSingle} onChange={setCorrectSingle} />
+        </div>
+      </Modal>
 
       {/* Children */}
       <Card title="아이 정보">

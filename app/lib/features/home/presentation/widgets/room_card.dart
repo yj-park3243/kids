@@ -11,8 +11,18 @@ import '../../../../widgets/design/glass_card.dart';
 class RoomCard extends StatelessWidget {
   final Room room;
   final VoidCallback? onTap;
+  final VoidCallback? onOpenDetail;
+  final VoidCallback? onOpenChat;
 
-  const RoomCard({super.key, required this.room, this.onTap});
+  const RoomCard({
+    super.key,
+    required this.room,
+    this.onTap,
+    this.onOpenDetail,
+    this.onOpenChat,
+  });
+
+  bool get _hasActions => onOpenDetail != null || onOpenChat != null;
 
   @override
   Widget build(BuildContext context) {
@@ -110,7 +120,7 @@ class RoomCard extends StatelessWidget {
                       ),
                       DesignChip(
                         label: '${room.currentMembers}/${room.maxMembers}명',
-                        tone: room.isFull ? ChipTone.ink : ChipTone.pinkSolid,
+                        tone: room.isFull ? ChipTone.ink : ChipTone.primarySolid,
                         height: 22,
                         icon: Icons.people_rounded,
                       ),
@@ -119,6 +129,13 @@ class RoomCard extends StatelessWidget {
                 ],
               ),
             ),
+            if (_hasActions) ...[
+              const SizedBox(width: 8),
+              _CardActions(
+                onOpenDetail: onOpenDetail,
+                onOpenChat: onOpenChat,
+              ),
+            ],
           ],
         ),
       ),
@@ -126,18 +143,88 @@ class RoomCard extends StatelessWidget {
   }
 
   List<Color> _ageColors(int age) {
-    if (age < 6) return const [Color(0xFFFFCABD), Color(0xFFFF8E7A)];
-    if (age < 12) return const [Color(0xFFFF8EB5), Color(0xFFE84C88)];
-    if (age < 24) return const [Color(0xFFD5C0F5), Color(0xFFB08AE8)];
-    if (age < 36) return const [Color(0xFFB9EAD2), Color(0xFF7DCFA4)];
-    return const [Color(0xFFFFE0CC), Color(0xFFFFAD9A)];
+    if (age < 6) return const [Color(0xFFFFE2A6), AppColors.accentYellow];
+    if (age < 12) return const [Color(0xFF9DD9D0), AppColors.primary];
+    if (age < 24) return const [Color(0xFFD5C7F2), AppColors.accentLavender];
+    if (age < 36) return const [Color(0xFFD8EFB8), AppColors.accentLime];
+    return const [Color(0xFFFFC0AC), AppColors.accentCoral];
   }
 
   Widget _statusChip(String status) {
     final label = AppConstants.roomStatus[status] ?? status;
     if (status == 'RECRUITING') {
-      return DesignChip(label: label, tone: ChipTone.pinkGhost, height: 22);
+      return DesignChip(label: label, tone: ChipTone.primaryGhost, height: 22);
     }
     return DesignChip(label: label, tone: ChipTone.outline, height: 22);
+  }
+}
+
+class _CardActions extends StatelessWidget {
+  final VoidCallback? onOpenDetail;
+  final VoidCallback? onOpenChat;
+
+  const _CardActions({this.onOpenDetail, this.onOpenChat});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        if (onOpenDetail != null)
+          _ActionIcon(
+            icon: Icons.home_rounded,
+            tooltip: '방 상세',
+            color: AppColors.primary,
+            onTap: onOpenDetail!,
+          ),
+        if (onOpenDetail != null && onOpenChat != null)
+          const SizedBox(height: 8),
+        if (onOpenChat != null)
+          _ActionIcon(
+            icon: Icons.chat_bubble_rounded,
+            tooltip: '채팅',
+            color: AppColors.accentSky,
+            onTap: onOpenChat!,
+          ),
+      ],
+    );
+  }
+}
+
+class _ActionIcon extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _ActionIcon({
+    required this.icon,
+    required this.tooltip,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Tooltip(
+          message: tooltip,
+          child: Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            alignment: Alignment.center,
+            child: Icon(icon, size: 20, color: color),
+          ),
+        ),
+      ),
+    );
   }
 }

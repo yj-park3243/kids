@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 
-enum ChipTone { pinkSolid, pinkGhost, mint, lilac, cream, ink, outline }
+enum ChipTone { primarySolid, primaryGhost, mint, lilac, cream, ink, outline }
 
 class DesignChip extends StatelessWidget {
   final String label;
@@ -15,7 +15,7 @@ class DesignChip extends StatelessWidget {
   const DesignChip({
     super.key,
     required this.label,
-    this.tone = ChipTone.pinkGhost,
+    this.tone = ChipTone.primaryGhost,
     this.icon,
     this.onTap,
     this.selected = false,
@@ -24,13 +24,13 @@ class DesignChip extends StatelessWidget {
 
   ({Color bg, Color fg, Color? border}) _palette() {
     switch (tone) {
-      case ChipTone.pinkSolid:
-        return (bg: AppColors.pink500, fg: Colors.white, border: null);
-      case ChipTone.pinkGhost:
+      case ChipTone.primarySolid:
+        return (bg: AppColors.primary, fg: Colors.white, border: null);
+      case ChipTone.primaryGhost:
         return (
-          bg: AppColors.pink100.withValues(alpha: 0.7),
-          fg: AppColors.pink700,
-          border: AppColors.pink300Real.withValues(alpha: 0.35),
+          bg: AppColors.primary100.withValues(alpha: 0.7),
+          fg: AppColors.primary700,
+          border: AppColors.primary.withValues(alpha: 0.35),
         );
       case ChipTone.mint:
         return (bg: AppColors.mint.withValues(alpha: 0.7), fg: const Color(0xFF1F6B4A), border: null);
@@ -48,7 +48,7 @@ class DesignChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = selected
-        ? (bg: AppColors.pink500, fg: Colors.white, border: null)
+        ? (bg: AppColors.primary, fg: Colors.white, border: null)
         : _palette();
     return GestureDetector(
       onTap: onTap,

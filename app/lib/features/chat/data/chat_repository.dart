@@ -8,9 +8,27 @@ import '../../../core/network/api_client.dart';
 import '../../../core/storage/secure_storage.dart';
 import '../../../models/chat_message.dart';
 
+/// 채팅방에서 들어오는 실시간 이벤트.
+sealed class ChatRoomEvent {
+  const ChatRoomEvent();
+}
+
+class ChatMessageEvent extends ChatRoomEvent {
+  final ChatMessage message;
+  const ChatMessageEvent(this.message);
+}
+
+/// 다른 유저(또는 본인 다른 기기)가 채팅방을 읽었다는 알림.
+/// `lastReadAt` 이전의 메시지들은 그 유저 기준 읽음으로 간주.
+class ChatReadEvent extends ChatRoomEvent {
+  final String userId;
+  final DateTime lastReadAt;
+  const ChatReadEvent({required this.userId, required this.lastReadAt});
+}
+
 /// REST + WebSocket 기반 채팅 레포지토리.
-/// - 목록/히스토리 조회는 REST (`/v1/chat/...`)
-/// - 실시간 수신은 socket.io (`namespace=/chat`, event=`message`)
+/// - 목록/히스토리/읽음 처리는 REST (`/v1/chat/...`)
+/// - 실시간 수신은 socket.io (`namespace=/chat`, event=`message`/`read`)
 /// - 메시지 전송은 REST (서버가 WS로 브로드캐스트).
 class ChatRepository {
   ChatRepository({Dio? dio}) : _dio = dio ?? ApiClient.instance;
@@ -58,10 +76,21 @@ class ChatRepository {
     return ChatMessage.fromJson(_unwrap(res.data) as Map<String, dynamic>);
   }
 
-  /// Returns a broadcast stream of messages for the given room.
-  /// The first subscriber opens the socket; the last to cancel closes it.
-  Stream<ChatMessage> messageStream(String roomId) {
-    final controller = StreamController<ChatMessage>.broadcast();
+  Future<DateTime> markRoomRead(String roomId, {DateTime? asOf}) async {
+    final res = await _dio.post(
+      ApiConstants.chatRoomRead(roomId),
+      data: {
+        if (asOf != null) 'asOf': asOf.toUtc().toIso8601String(),
+      },
+    );
+    final data = _unwrap(res.data) as Map<String, dynamic>;
+    return DateTime.parse(data['lastReadAt'] as String);
+  }
+
+  /// 메시지 + 읽음 이벤트를 모두 받는 단일 스트림.
+  /// 첫 구독자가 소켓을 열고 마지막 해제자가 소켓을 닫는다.
+  Stream<ChatRoomEvent> roomEventStream(String roomId) {
+    final controller = StreamController<ChatRoomEvent>.broadcast();
     io.Socket? socket;
 
     controller.onListen = () async {
@@ -81,7 +110,23 @@ class ChatRepository {
         ..on('message', (data) {
           if (data is Map) {
             controller.add(
-              ChatMessage.fromJson(Map<String, dynamic>.from(data)),
+              ChatMessageEvent(
+                ChatMessage.fromJson(Map<String, dynamic>.from(data)),
+              ),
+            );
+          }
+        })
+        ..on('read', (data) {
+          if (data is Map) {
+            final m = Map<String, dynamic>.from(data);
+            final userId = m['userId'] as String?;
+            final lastReadAtStr = m['lastReadAt'] as String?;
+            if (userId == null || lastReadAtStr == null) return;
+            controller.add(
+              ChatReadEvent(
+                userId: userId,
+                lastReadAt: DateTime.parse(lastReadAtStr),
+              ),
             );
           }
         })
@@ -98,6 +143,14 @@ class ChatRepository {
     };
 
     return controller.stream;
+  }
+
+  /// WS로 읽음 알림을 즉시 emit (서버는 멤버 lastReadAt 갱신 + 룸 broadcast).
+  void emitRead(String roomId, {DateTime? asOf}) {
+    _socket?.emit('read', {
+      'roomId': roomId,
+      if (asOf != null) 'asOf': asOf.toUtc().toIso8601String(),
+    });
   }
 
   void dispose() {

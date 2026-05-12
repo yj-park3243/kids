@@ -7,7 +7,7 @@ import '../../../core/utils/date_utils.dart';
 import '../../../models/chat_message.dart';
 import '../../../widgets/design/avatar.dart';
 import '../../../widgets/design/glass_card.dart';
-import '../../../widgets/design/pink_blobs.dart';
+import '../../../widgets/design/accent_blobs.dart';
 import '../../../widgets/empty_state.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/chat_provider.dart';
@@ -22,7 +22,7 @@ class ChatListScreen extends ConsumerWidget {
     if (userId == null) {
       return Scaffold(
         backgroundColor: Colors.transparent,
-        body: PinkBlobsBackground(
+        body: AccentBlobsBackground(
           child: const EmptyState(
             icon: Icons.chat_bubble_outline_rounded,
             title: '로그인이 필요합니다',
@@ -35,7 +35,7 @@ class ChatListScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: PinkBlobsBackground(
+      body: AccentBlobsBackground(
         child: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -47,7 +47,7 @@ class ChatListScreen extends ConsumerWidget {
               Expanded(
                 child: roomsAsync.when(
                   loading: () => const Center(
-                    child: CircularProgressIndicator(color: AppColors.pink500),
+                    child: CircularProgressIndicator(color: AppColors.primary),
                   ),
                   error: (err, _) => ErrorState(
                     message: '채팅 목록을 불러올 수 없습니다',
@@ -62,7 +62,7 @@ class ChatListScreen extends ConsumerWidget {
                       );
                     }
                     return RefreshIndicator(
-                      color: AppColors.pink500,
+                      color: AppColors.primary,
                       onRefresh: () async => ref.invalidate(chatRoomsProvider),
                       child: ListView.builder(
                         padding: const EdgeInsets.fromLTRB(16, 4, 16, 110),
@@ -137,7 +137,7 @@ class ChatListScreen extends ConsumerWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
-                  gradient: AppColors.pinkGradient,
+                  gradient: AppColors.primaryGradient,
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(

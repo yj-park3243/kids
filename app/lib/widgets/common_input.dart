@@ -62,7 +62,7 @@ class CommonInput extends StatelessWidget {
           textInputAction: textInputAction,
           onFieldSubmitted: onSubmitted,
           style: AppTextStyles.body1,
-          cursorColor: AppColors.pink500,
+          cursorColor: AppColors.primary,
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: AppTextStyles.body1.copyWith(color: AppColors.ink300),
@@ -85,13 +85,13 @@ class CommonInput extends StatelessWidget {
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
               borderSide: BorderSide(
-                color: AppColors.pink100.withValues(alpha: 0.8),
+                color: AppColors.primary100.withValues(alpha: 0.8),
                 width: 1,
               ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: AppColors.pink500, width: 1.5),
+              borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),

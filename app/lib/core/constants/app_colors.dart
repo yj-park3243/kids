@@ -1,105 +1,118 @@
 import 'package:flutter/material.dart';
 
+/// 파스텔 키즈 팔레트. 흰 베이스 + 민트 primary + 5색 알록달록 보조.
 class AppColors {
   AppColors._();
 
-  // ===== Pink palette (rose) — design handoff =====
-  static const Color pink50 = Color(0xFFFFF1F6);
-  static const Color pink100 = Color(0xFFFFDCE8);
-  static const Color pink200 = Color(0xFFFFB8D0);
-  static const Color pink300 = Color(0xFF8EB5FF); // placeholder
-  static const Color pink300Real = Color(0xFFFF8EB5);
-  static const Color pink400 = Color(0xFFF56799);
-  static const Color pink500 = Color(0xFFE84C88);
-  static const Color pink600 = Color(0xFFD13870);
-  static const Color pink700 = Color(0xFFA62656);
-  static const Color pinkInk = Color(0xFF5A1336);
+  // ===== Primary (민트) =====
+  static const Color primary = Color(0xFF4FD1C5);
+  static const Color primaryLight = Color(0xFF99E7E0);
+  static const Color primaryDark = Color(0xFF2BB3A6);
 
-  // Accents
-  static const Color coral = Color(0xFFFFAD9A);
-  static const Color cream = Color(0xFFFFF7F1);
-  static const Color lilac = Color(0xFFE6D5FF);
-  static const Color mint = Color(0xFFB9EAD2);
+  // Primary tonal scale (light → deep)
+  static const Color primary50 = Color(0xFFE6FAF8);
+  static const Color primary100 = Color(0xFFB9F0E9);
+  static const Color primary200 = Color(0xFF8FE5DA);
+  static const Color primary300 = Color(0xFF6BDACB);
+  static const Color primary400 = Color(0xFF55CDC0);
+  static const Color primary700 = Color(0xFF1F8A7E);
 
-  // Neutral ink
-  static const Color ink900 = Color(0xFF1A0F18);
-  static const Color ink700 = Color(0xFF3B2A36);
-  static const Color ink500 = Color(0xFF7A6270);
-  static const Color ink300 = Color(0xFFB9A7B3);
+  // ===== Accent palette (알록달록 보조) =====
+  static const Color accentYellow = Color(0xFFFFD96B);
+  static const Color accentSky = Color(0xFF6FB7FF);
+  static const Color accentLavender = Color(0xFFB89BE8);
+  static const Color accentCoral = Color(0xFFFF9476);
+  static const Color accentLime = Color(0xFFB8E186);
 
-  // Base backgrounds
-  static const Color bg = Color(0xFFFFF9FB);
-  static const Color bg2 = Color(0xFFFFF1F6);
+  // ===== Semantic aliases =====
+  static const Color secondary = accentLavender;
+  static const Color secondaryLight = Color(0xFFD9C6F2);
+  static const Color secondaryDark = Color(0xFF9176CC);
+  static const Color accent = accentCoral;
+  static const Color accentLightAlias = Color(0xFFFFC0AC);
+  static const Color accentDark = Color(0xFFE07560);
 
-  // ===== Legacy aliases (keep screen imports working) =====
-  // Primary → pink500
-  static const Color primary = pink500;
-  static const Color primaryLight = Color(0xFFFF8EB5); // pink300
-  static const Color primaryDark = pink600;
+  // ===== Surfaces =====
+  static const Color background = Color(0xFFFFFFFF);
+  static const Color backgroundSoft = Color(0xFFFAFAF8);
+  static const Color surface = Color(0xFFFFFFFF);
+  static const Color surfaceVariant = Color(0xFFF5F5F1);
+  static const Color bg = background;
+  static const Color bg2 = backgroundSoft;
 
-  // Secondary → lilac for subtle accent role
-  static const Color secondary = Color(0xFFB08AE8);
-  static const Color secondaryLight = lilac;
-  static const Color secondaryDark = Color(0xFF7A5BB8);
-
-  // Accent (legacy)
-  static const Color accent = coral;
-  static const Color accentLight = Color(0xFFFFC9BB);
-  static const Color accentDark = Color(0xFFE89380);
-
-  // Surface / background
-  static const Color background = bg;
-  static const Color surface = Colors.white;
-  static const Color surfaceVariant = bg2;
-
-  // Text
+  // ===== Ink (text) =====
+  static const Color ink900 = Color(0xFF1A1A2E);
+  static const Color ink700 = Color(0xFF374151);
+  static const Color ink500 = Color(0xFF6B7280);
+  static const Color ink300 = Color(0xFF9CA3AF);
   static const Color textPrimary = ink900;
   static const Color textSecondary = ink500;
   static const Color textHint = ink300;
   static const Color textOnPrimary = Colors.white;
 
-  // Status
-  static const Color error = Color(0xFFE84C6B);
-  static const Color success = Color(0xFF27AE60);
-  static const Color warning = Color(0xFFF39C12);
-  static const Color info = Color(0xFF3498DB);
+  // ===== Status =====
+  static const Color error = Color(0xFFFF6B6B);
+  static const Color success = Color(0xFF4CAF50);
+  static const Color warning = accentYellow;
+  static const Color info = accentSky;
 
-  // Badge / Tag
-  static const Color recruiting = Color(0xFF27AE60);
-  static const Color closed = ink300;
-  static const Color cancelled = Color(0xFFE84C6B);
+  // ===== Badge / Tag =====
+  static const Color recruiting = accentLime;
+  static const Color closed = Color(0xFFD1D5DB);
+  static const Color cancelled = accentCoral;
 
-  // Social login
+  // ===== Social login (브랜드 색 보존) =====
   static const Color kakao = Color(0xFFFEE500);
   static const Color kakaoText = Color(0xFF191919);
   static const Color apple = ink900;
   static const Color google = Colors.white;
-  static const Color googleBorder = Color(0x24261A24);
+  static const Color googleBorder = Color(0xFFE5E7EB);
 
-  // Misc
-  static const Color divider = Color(0x141A0F18); // 0.08 alpha on ink900
-  static const Color dividerStrong = Color(0x241A0F18);
-  static const Color shimmerBase = Color(0xFFF2E6EC);
-  static const Color shimmerHighlight = Color(0xFFFFF9FB);
-  static const Color chatBubbleMine = pink500;
-  static const Color chatBubbleOther = Colors.white;
-  static const Color unreadBadge = pink500;
+  // ===== Misc =====
+  static const Color divider = Color(0xFFE5E7EB);
+  static const Color dividerStrong = Color(0xFFD1D5DB);
+  static const Color shimmerBase = Color(0xFFF5F5F1);
+  static const Color shimmerHighlight = Color(0xFFFAFAF8);
+  static const Color chatBubbleMine = primary;
+  static const Color chatBubbleOther = Color(0xFFF5F5F1);
+  static const Color unreadBadge = accentCoral;
+
+  // ===== Legacy aliases (non-primary 톤 — DesignChip/CategoryBadge에서 사용) =====
+  static const Color coral = accentCoral;
+  static const Color cream = backgroundSoft;
+  static const Color lilac = Color(0xFFE6DAF9);
+  static const Color mint = primaryLight;
+  static const Color accentLight = accentLightAlias;
 
   // ===== Gradients =====
-  static const LinearGradient pinkGradient = LinearGradient(
+  static const LinearGradient primaryGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [Color(0xFFFF6AA0), pink500],
+    colors: [Color(0xFF6BDACB), primary],
   );
-
-  static const LinearGradient pinkTextGradient = LinearGradient(
-    colors: [pink500, Color(0xFFFF8EB5)],
+  static const LinearGradient primaryTextGradient = LinearGradient(
+    colors: [primary, primary400],
   );
 
   // ===== Glass =====
-  static const Color glassWhite = Color(0x8CFFFFFF); // 0.55 alpha
-  static const Color glassWhiteStrong = Color(0xB3FFFFFF); // 0.70 alpha
-  static const Color glassPinkTop = Color(0x8CFFDBE8);
-  static const Color glassPinkBottom = Color(0x59FFB8D0);
-  static const Color glassBorder = Color(0xB3FFFFFF);
+  static const Color glassWhite = Color(0xF2FFFFFF);
+  static const Color glassWhiteStrong = Colors.white;
+  static const Color glassBorder = Color(0xFFE5E7EB);
+
+  // ===== Accent helpers (카테고리/카드별 좌측 보더용 순환) =====
+  static const List<Color> accentRotation = [
+    primary,
+    accentYellow,
+    accentSky,
+    accentLavender,
+    accentCoral,
+    accentLime,
+  ];
+
+  /// 문자열 키 → 액센트 색 (안정적 매핑)
+  static Color accentFor(String key) {
+    if (key.isEmpty) return primary;
+    final hash = key.codeUnits.fold<int>(0, (a, b) => (a + b) & 0xffff);
+    return accentRotation[hash % accentRotation.length];
+  }
 }

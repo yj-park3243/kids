@@ -20,6 +20,13 @@ class AppConstants {
 
   static const String naverMapClientId = 'vwcyomo2zx';
 
+  // TODO: 카카오 디벨로퍼 콘솔에서 발급받은 네이티브 앱 키로 교체.
+  // dart-define 로 주입하는 것을 권장: --dart-define=KAKAO_NATIVE_APP_KEY=xxx
+  static const String kakaoNativeAppKey = String.fromEnvironment(
+    'KAKAO_NATIVE_APP_KEY',
+    defaultValue: 'TODO_KAKAO_NATIVE_APP_KEY',
+  );
+
   // Place types
   static const Map<String, String> placeTypes = {
     'PLAYGROUND': '놀이터',

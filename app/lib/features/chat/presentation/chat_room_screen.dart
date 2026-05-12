@@ -1,14 +1,16 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../models/chat_message.dart';
 import '../../../widgets/app_bar.dart';
 import '../../../widgets/design/avatar.dart';
-import '../../../widgets/design/pink_blobs.dart';
+import '../../../widgets/design/accent_blobs.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../data/chat_repository.dart';
 import '../providers/chat_provider.dart';
 
 class ChatRoomScreen extends ConsumerStatefulWidget {
@@ -20,16 +22,20 @@ class ChatRoomScreen extends ConsumerStatefulWidget {
   ConsumerState<ChatRoomScreen> createState() => _ChatRoomScreenState();
 }
 
-class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
+class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen>
+    with WidgetsBindingObserver {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
 
   final List<ChatMessage> _messages = [];
+  // messageId -> userIds who've read it. 같은 유저 중복 차감을 방지.
+  final Map<String, Set<String>> _readers = {};
   bool _loadingHistory = true;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadHistory();
   }
 
@@ -42,8 +48,10 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
         _messages
           ..clear()
           ..addAll(page.items);
+        _readers.clear();
         _loadingHistory = false;
       });
+      _markReadIfAny();
     } catch (_) {
       if (!mounted) return;
       setState(() => _loadingHistory = false);
@@ -52,9 +60,17 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _markReadIfAny();
+    }
   }
 
   Future<void> _sendMessage() async {
@@ -77,20 +93,55 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
     }
   }
 
-  void _handleIncoming(ChatMessage message) {
-    if (_messages.any((m) => m.id == message.id)) return;
-    setState(() => _messages.insert(0, message));
+  /// 가장 최근 메시지 시점까지 읽음 처리. 화면을 보고 있는 동안 새 메시지가
+  /// 들어오면 즉시 카운트가 -1 되도록.
+  void _markReadIfAny() {
+    if (_messages.isEmpty) return;
+    final latest = _messages.first.createdAt;
+    ref.read(chatRepositoryProvider).markRoomRead(
+          widget.chatRoomId,
+          asOf: latest,
+        );
+  }
+
+  void _handleEvent(ChatRoomEvent event) {
+    switch (event) {
+      case ChatMessageEvent(:final message):
+        if (_messages.any((m) => m.id == message.id)) return;
+        setState(() => _messages.insert(0, message));
+        _markReadIfAny();
+      case ChatReadEvent(:final userId, :final lastReadAt):
+        _applyReadReceipt(userId, lastReadAt);
+    }
+  }
+
+  void _applyReadReceipt(String userId, DateTime lastReadAt) {
+    bool changed = false;
+    for (var i = 0; i < _messages.length; i++) {
+      final msg = _messages[i];
+      if (msg.createdAt.isAfter(lastReadAt)) continue;
+      if (msg.senderId == userId) continue;
+      final readers = _readers.putIfAbsent(msg.id, () => <String>{});
+      if (readers.add(userId)) {
+        final next = (msg.unreadCount - 1).clamp(0, msg.unreadCount);
+        if (next != msg.unreadCount) {
+          _messages[i] = msg.copyWith(unreadCount: next);
+          changed = true;
+        }
+      }
+    }
+    if (changed && mounted) setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
     final userId = ref.watch(authProvider).user?.id ?? '';
 
-    ref.listen<AsyncValue<ChatMessage>>(
-      chatMessageStreamProvider(widget.chatRoomId),
+    ref.listen<AsyncValue<ChatRoomEvent>>(
+      chatRoomEventStreamProvider(widget.chatRoomId),
       (_, next) {
-        final message = next.value;
-        if (message != null) _handleIncoming(message);
+        final event = next.value;
+        if (event != null) _handleEvent(event);
       },
     );
 
@@ -98,7 +149,7 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
       backgroundColor: Colors.transparent,
       appBar: const CustomAppBar(title: '채팅'),
       extendBodyBehindAppBar: true,
-      body: PinkBlobsBackground(
+      body: AccentBlobsBackground(
         child: SafeArea(
           top: false,
           child: Column(
@@ -107,7 +158,7 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
                 child: _loadingHistory
                     ? const Center(
                         child: CircularProgressIndicator(
-                            color: AppColors.pink500),
+                            color: AppColors.primary),
                       )
                     : _messages.isEmpty
                         ? Center(
@@ -117,28 +168,98 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
                                   .copyWith(color: AppColors.ink300),
                             ),
                           )
-                        : ListView.builder(
-                            controller: _scrollController,
-                            reverse: true,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 12),
-                            itemCount: _messages.length,
-                            itemBuilder: (context, index) {
-                              final message = _messages[index];
-                              final isMine = message.senderId == userId;
-                              if (message.isSystem) {
-                                return _SystemMessage(message: message);
-                              }
-                              return _ChatBubble(
-                                  message: message, isMine: isMine);
-                            },
-                          ),
+                        : _buildMessageList(userId),
               ),
               _InputBar(
                 controller: _messageController,
                 onSend: _sendMessage,
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMessageList(String userId) {
+    // _messages는 최신이 [0]. 카카오톡 스타일을 위해선 같은 발신자/같은 분
+    // 묶음의 "마지막" 발화에만 시간/카운트가 붙고, "첫" 발화 위에 아바타+이름이
+    // 붙어야 한다. reverse:true 상태에서 인덱스 i와 양쪽 이웃을 비교한다.
+    return ListView.builder(
+      controller: _scrollController,
+      reverse: true,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      itemCount: _messages.length,
+      itemBuilder: (context, index) {
+        final message = _messages[index];
+        if (message.isSystem) {
+          return _SystemMessage(message: message);
+        }
+        // reverse:true이므로 [index+1]이 시각적으로 위쪽(=더 오래된) 메시지.
+        final older = index + 1 < _messages.length ? _messages[index + 1] : null;
+        final newer = index - 1 >= 0 ? _messages[index - 1] : null;
+
+        final isMine = message.senderId == userId;
+        final showDateHeader = older == null ||
+            !_sameDay(older.createdAt.toLocal(), message.createdAt.toLocal()) ||
+            older.isSystem;
+        final showSenderHeader = !isMine &&
+            (showDateHeader ||
+                older.senderId != message.senderId ||
+                older.isSystem);
+        final showTimeFooter = newer == null ||
+            newer.isSystem ||
+            newer.senderId != message.senderId ||
+            !_sameMinute(
+                newer.createdAt.toLocal(), message.createdAt.toLocal()) ||
+            !_sameDay(
+                newer.createdAt.toLocal(), message.createdAt.toLocal());
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (showDateHeader) _DateHeader(date: message.createdAt),
+            _ChatBubble(
+              message: message,
+              isMine: isMine,
+              showSenderHeader: showSenderHeader,
+              showTimeFooter: showTimeFooter,
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  bool _sameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  bool _sameMinute(DateTime a, DateTime b) =>
+      _sameDay(a, b) && a.hour == b.hour && a.minute == b.minute;
+}
+
+class _DateHeader extends StatelessWidget {
+  final DateTime date;
+  const _DateHeader({required this.date});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.18),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            AppDateUtils.formatChatDateHeader(date),
+            style: AppTextStyles.caption.copyWith(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ),
@@ -183,7 +304,7 @@ class _InputBar extends StatelessWidget {
                     child: TextField(
                       controller: controller,
                       style: AppTextStyles.body1,
-                      cursorColor: AppColors.pink500,
+                      cursorColor: AppColors.primary,
                       decoration: InputDecoration(
                         hintText: '메시지 보내기...',
                         hintStyle: AppTextStyles.body1
@@ -204,11 +325,11 @@ class _InputBar extends StatelessWidget {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      gradient: AppColors.pinkGradient,
+                      gradient: AppColors.primaryGradient,
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.pink500.withValues(alpha: 0.35),
+                          color: AppColors.primary.withValues(alpha: 0.35),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),
@@ -230,24 +351,45 @@ class _InputBar extends StatelessWidget {
 class _ChatBubble extends StatelessWidget {
   final ChatMessage message;
   final bool isMine;
+  final bool showSenderHeader;
+  final bool showTimeFooter;
 
-  const _ChatBubble({required this.message, required this.isMine});
+  const _ChatBubble({
+    required this.message,
+    required this.isMine,
+    required this.showSenderHeader,
+    required this.showTimeFooter,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final timeLabel =
+        DateFormat('a h:mm', 'ko').format(message.createdAt.toLocal());
+    final meta = _BubbleMeta(
+      unreadCount: message.unreadCount,
+      timeLabel: showTimeFooter ? timeLabel : null,
+      alignRight: isMine,
+    );
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: EdgeInsets.only(top: showSenderHeader ? 10 : 2, bottom: 2),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
         mainAxisAlignment:
             isMine ? MainAxisAlignment.end : MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (!isMine) ...[
-            InitialAvatar(
-              label: message.senderNickname,
-              size: 30,
-              tone: AvatarTone
-                  .values[message.senderId.hashCode.abs() % AvatarTone.values.length],
+            SizedBox(
+              width: 30,
+              child: showSenderHeader
+                  ? InitialAvatar(
+                      label: message.senderNickname,
+                      size: 30,
+                      tone: AvatarTone.values[
+                          message.senderId.hashCode.abs() %
+                              AvatarTone.values.length],
+                    )
+                  : const SizedBox.shrink(),
             ),
             const SizedBox(width: 8),
           ],
@@ -256,7 +398,7 @@ class _ChatBubble extends StatelessWidget {
               crossAxisAlignment:
                   isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
               children: [
-                if (!isMine)
+                if (showSenderHeader)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 4, left: 4),
                     child: Text(
@@ -274,22 +416,17 @@ class _ChatBubble extends StatelessWidget {
                       ? MainAxisAlignment.end
                       : MainAxisAlignment.start,
                   children: [
-                    if (isMine) ...[
-                      Text(
-                        AppDateUtils.formatChatTime(message.createdAt),
-                        style: AppTextStyles.caption.copyWith(fontSize: 10),
-                      ),
-                      const SizedBox(width: 6),
-                    ],
+                    if (isMine) ...[meta, const SizedBox(width: 6)],
                     Flexible(
                       child: Container(
                         constraints: BoxConstraints(
-                          maxWidth: MediaQuery.of(context).size.width * 0.65,
+                          maxWidth:
+                              MediaQuery.of(context).size.width * 0.65,
                         ),
                         padding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 10),
                         decoration: BoxDecoration(
-                          gradient: isMine ? AppColors.pinkGradient : null,
+                          gradient: isMine ? AppColors.primaryGradient : null,
                           color: isMine
                               ? null
                               : Colors.white.withValues(alpha: 0.85),
@@ -302,14 +439,14 @@ class _ChatBubble extends StatelessWidget {
                           border: isMine
                               ? null
                               : Border.all(
-                                  color: AppColors.pink100
+                                  color: AppColors.primary100
                                       .withValues(alpha: 0.8),
                                   width: 0.5,
                                 ),
                           boxShadow: [
                             BoxShadow(
                               color:
-                                  AppColors.pink500.withValues(alpha: 0.08),
+                                  AppColors.primary.withValues(alpha: 0.08),
                               blurRadius: 10,
                               offset: const Offset(0, 4),
                             ),
@@ -323,19 +460,66 @@ class _ChatBubble extends StatelessWidget {
                         ),
                       ),
                     ),
-                    if (!isMine) ...[
-                      const SizedBox(width: 6),
-                      Text(
-                        AppDateUtils.formatChatTime(message.createdAt),
-                        style: AppTextStyles.caption.copyWith(fontSize: 10),
-                      ),
-                    ],
+                    if (!isMine) ...[const SizedBox(width: 6), meta],
                   ],
                 ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 카카오톡 식: 안 읽은 사람 수(노란색)는 위, 전송 시각은 아래.
+class _BubbleMeta extends StatelessWidget {
+  final int unreadCount;
+  final String? timeLabel;
+  final bool alignRight;
+
+  const _BubbleMeta({
+    required this.unreadCount,
+    required this.timeLabel,
+    required this.alignRight,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final children = <Widget>[
+      if (unreadCount > 0)
+        Text(
+          '$unreadCount',
+          style: const TextStyle(
+            color: Color(0xFFFFCC00),
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            height: 1.0,
+          ),
+        ),
+      if (timeLabel != null)
+        Padding(
+          padding: EdgeInsets.only(top: unreadCount > 0 ? 2 : 0),
+          child: Text(
+            timeLabel!,
+            style: AppTextStyles.caption.copyWith(
+              fontSize: 10,
+              color: AppColors.ink300,
+              height: 1.0,
+            ),
+          ),
+        ),
+    ];
+
+    if (children.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Column(
+        crossAxisAlignment:
+            alignRight ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: children,
       ),
     );
   }

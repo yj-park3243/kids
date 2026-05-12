@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
@@ -6,6 +7,8 @@ import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../models/room.dart';
 import '../../room/providers/room_detail_provider.dart';
+
+const _seoulCity = NLatLng(37.5665, 126.9780);
 
 class MapScreen extends ConsumerStatefulWidget {
   const MapScreen({super.key});
@@ -15,27 +18,29 @@ class MapScreen extends ConsumerStatefulWidget {
 }
 
 class _MapScreenState extends ConsumerState<MapScreen> {
+  NaverMapController? _controller;
   MapPin? _selectedPin;
   List<MapCluster> _clusters = [];
   List<MapPin> _pins = [];
   bool _isLoading = false;
   String _mode = 'CLUSTER';
 
-  @override
-  void initState() {
-    super.initState();
-    _loadMapData();
-  }
+  Future<void> _loadMapDataForCurrentRegion() async {
+    final controller = _controller;
+    if (controller == null) return;
 
-  Future<void> _loadMapData() async {
     setState(() => _isLoading = true);
     try {
+      final region = await controller.getContentBounds();
+      final cameraPosition = await controller.getCameraPosition();
+      final zoom = cameraPosition.zoom.round();
+
       final data = await ref.read(roomRepositoryProvider).getMapRooms(
-            swLat: 37.4,
-            swLng: 126.8,
-            neLat: 37.7,
-            neLng: 127.2,
-            zoomLevel: 12,
+            swLat: region.southWest.latitude,
+            swLng: region.southWest.longitude,
+            neLat: region.northEast.latitude,
+            neLng: region.northEast.longitude,
+            zoomLevel: zoom,
           );
 
       final mode = data['mode'] ?? 'CLUSTER';
@@ -44,18 +49,50 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 ?.map((e) => MapCluster.fromJson(e))
                 .toList() ??
             [];
+        _pins = [];
         _mode = 'CLUSTER';
       } else {
         _pins = (data['pins'] as List<dynamic>?)
                 ?.map((e) => MapPin.fromJson(e))
                 .toList() ??
             [];
+        _clusters = [];
         _mode = 'PIN';
       }
-    } catch (e) {
-      // Handle error silently - map will show empty
+      await _renderOverlays();
+    } catch (_) {
+      // 서버 미응답/네트워크 에러 시 빈 화면 유지
     }
-    setState(() => _isLoading = false);
+    if (mounted) setState(() => _isLoading = false);
+  }
+
+  Future<void> _renderOverlays() async {
+    final controller = _controller;
+    if (controller == null) return;
+    await controller.clearOverlays();
+
+    if (_mode == 'CLUSTER') {
+      for (final c in _clusters) {
+        final marker = NMarker(
+          id: 'cluster-${c.regionDong}',
+          position: NLatLng(c.latitude, c.longitude),
+          caption: NOverlayCaption(text: '${c.regionDong} ${c.count}'),
+        );
+        await controller.addOverlay(marker);
+      }
+    } else {
+      for (final p in _pins) {
+        final marker = NMarker(
+          id: 'pin-${p.id}',
+          position: NLatLng(p.latitude, p.longitude),
+          caption: NOverlayCaption(text: p.title),
+        );
+        marker.setOnTapListener((NMarker overlay) {
+          setState(() => _selectedPin = p);
+        });
+        await controller.addOverlay(marker);
+      }
+    }
   }
 
   @override
@@ -64,69 +101,29 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
-          // Map placeholder (Naver Map would go here)
-          Container(
-            decoration: const BoxDecoration(
-              gradient: RadialGradient(
-                center: Alignment(0, -0.3),
-                radius: 1.2,
-                colors: [
-                  Color(0xFFDDF5E6),
-                  Color(0xFFE0EEFF),
-                  Color(0xFFFFDCE8),
-                ],
+          NaverMap(
+            options: const NaverMapViewOptions(
+              initialCameraPosition: NCameraPosition(
+                target: _seoulCity,
+                zoom: 12,
               ),
+              mapType: NMapType.basic,
+              locationButtonEnable: true,
             ),
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.map_rounded,
-                      size: 80, color: AppColors.textHint.withValues(alpha: 0.5)),
-                  const SizedBox(height: 16),
-                  Text(
-                    '네이버 지도',
-                    style: AppTextStyles.heading2.copyWith(
-                      color: AppColors.textHint,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Firebase 및 Naver Map 설정 후 활성화됩니다',
-                    style: AppTextStyles.body2.copyWith(
-                      color: AppColors.textHint,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  // Show clusters or pins as list
-                  if (_mode == 'CLUSTER' && _clusters.isNotEmpty) ...[
-                    Text('클러스터 모드', style: AppTextStyles.captionBold),
-                    const SizedBox(height: 8),
-                    ..._clusters.take(5).map((c) => Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 2),
-                          child: Text(
-                            '${c.regionDong}: ${c.count}개 모임',
-                            style: AppTextStyles.body2,
-                          ),
-                        )),
-                  ],
-                  if (_mode == 'PIN' && _pins.isNotEmpty) ...[
-                    Text('핀 모드', style: AppTextStyles.captionBold),
-                    const SizedBox(height: 8),
-                    ..._pins.take(5).map((p) => Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 2),
-                          child: Text(
-                            p.title,
-                            style: AppTextStyles.body2,
-                          ),
-                        )),
-                  ],
-                ],
-              ),
-            ),
+            onMapReady: (controller) async {
+              _controller = controller;
+              await _loadMapDataForCurrentRegion();
+            },
+            onCameraIdle: () {
+              _loadMapDataForCurrentRegion();
+            },
+            onMapTapped: (_, __) {
+              if (_selectedPin != null) {
+                setState(() => _selectedPin = null);
+              }
+            },
           ),
 
-          // Top filter bar
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
             left: 16,
@@ -150,7 +147,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                       color: AppColors.textHint, size: 20),
                   const SizedBox(width: 8),
                   Text(
-                    '지도에서 모임 찾기',
+                    _mode == 'CLUSTER'
+                        ? '동 단위 (${_clusters.length})'
+                        : '핀 (${_pins.length})',
                     style: AppTextStyles.body2
                         .copyWith(color: AppColors.textHint),
                   ),
@@ -173,21 +172,25 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             ),
           ),
 
-          // Loading indicator
           if (_isLoading)
-            const Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 60,
+              right: 24,
+              child: const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: AppColors.primary),
+              ),
             ),
 
-          // Bottom card (when pin selected)
           if (_selectedPin != null)
             Positioned(
               bottom: 20,
               left: 16,
               right: 16,
               child: GestureDetector(
-                onTap: () =>
-                    context.push('/rooms/${_selectedPin!.id}'),
+                onTap: () => context.push('/rooms/${_selectedPin!.id}'),
                 child: _PinCard(pin: _selectedPin!),
               ),
             ),
@@ -225,7 +228,7 @@ class _PinCard extends StatelessWidget {
           const SizedBox(height: 8),
           Row(
             children: [
-              Icon(Icons.calendar_today_rounded,
+              const Icon(Icons.calendar_today_rounded,
                   size: 14, color: AppColors.textSecondary),
               const SizedBox(width: 4),
               Text(

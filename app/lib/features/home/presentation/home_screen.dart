@@ -10,11 +10,12 @@ import '../../../providers/selected_child_provider.dart';
 import '../../../widgets/design/baby_avatar.dart';
 import '../../../widgets/design/design_chip.dart';
 import '../../../widgets/design/glass_card.dart';
-import '../../../widgets/design/pink_blobs.dart';
-import '../../../widgets/design/pink_button.dart';
+import '../../../widgets/design/accent_blobs.dart';
+import '../../../widgets/design/primary_button.dart';
 import '../../../widgets/empty_state.dart';
 import '../../../widgets/loading.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../growth_guide/presentation/widgets/growth_guide_widget.dart';
 import '../providers/home_provider.dart';
 import 'widgets/room_card.dart';
 
@@ -77,7 +78,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: PinkBlobsBackground(
+      body: AccentBlobsBackground(
         child: SafeArea(
           child: Column(
             children: [
@@ -90,7 +91,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       width: 36,
                       height: 36,
                       decoration: BoxDecoration(
-                        gradient: AppColors.pinkGradient,
+                        gradient: AppColors.primaryGradient,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       alignment: Alignment.center,
@@ -120,21 +121,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ),
 
-              // Child switcher (glass pink)
+              // Child switcher (glass card)
               if (selectedChild != null)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
                   child: GlassCard(
-                    tone: GlassTone.pink,
+                    tone: GlassTone.white,
                     radius: 20,
                     padding: const EdgeInsets.all(14),
+                    onTap: () => _showChildSelectorSheet(children, selectedChild),
                     child: Row(
                       children: [
                         BabyAvatar(
                           size: 58,
                           tone: selectedChild.gender == 'MALE'
                               ? BabyAvatarTone.blue
-                              : BabyAvatarTone.pink,
+                              : BabyAvatarTone.primary,
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -157,7 +159,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       ),
                                     ),
                                     style: AppTextStyles.caption.copyWith(
-                                      color: AppColors.pink700,
+                                      color: AppColors.primary700,
                                     ),
                                   ),
                                 ],
@@ -170,9 +172,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ],
                           ),
                         ),
-                        if (children.length > 1)
-                          const Icon(Icons.keyboard_arrow_down_rounded,
-                              color: AppColors.ink500),
+                        const Icon(Icons.keyboard_arrow_down_rounded,
+                            color: AppColors.ink500),
                       ],
                     ),
                   ),
@@ -272,11 +273,131 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               const SizedBox(height: 8),
 
+              // 발달 가이드 요약 — 선택된 자녀(없으면 첫째) 기준.
+              if ((selectedChild ?? (children.isNotEmpty ? children.first : null)) !=
+                  null)
+                GrowthGuideWidget(
+                  child: selectedChild ?? children.first,
+                ),
+
               Expanded(child: _buildRoomList(homeState)),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Future<void> _showChildSelectorSheet(
+      List<Child> children, Child? selected) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.divider,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text('아이 선택', style: AppTextStyles.body1Bold),
+                const SizedBox(height: 12),
+                ...children.map((child) {
+                  final isSelected = selected?.id == child.id;
+                  final ageMonths = AppDateUtils.calculateAgeMonths(
+                      child.birthYear, child.birthMonth);
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () {
+                      ref
+                          .read(selectedChildProvider.notifier)
+                          .select(child);
+                      Navigator.of(sheetContext).pop();
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 4, vertical: 10),
+                      child: Row(
+                        children: [
+                          BabyAvatar(
+                            size: 44,
+                            tone: child.gender == 'MALE'
+                                ? BabyAvatarTone.blue
+                                : BabyAvatarTone.primary,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(child.nickname,
+                                    style: AppTextStyles.body1Bold),
+                                const SizedBox(height: 2),
+                                Text(
+                                  AppDateUtils.formatAgeMonths(ageMonths),
+                                  style: AppTextStyles.caption,
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (isSelected)
+                            const Icon(Icons.check_circle_rounded,
+                                color: AppColors.primary),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+                const Divider(height: 24, color: AppColors.divider),
+                InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    context.push('/child-add');
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 4, vertical: 10),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          alignment: Alignment.center,
+                          child: const Icon(Icons.add_rounded,
+                              color: AppColors.primary),
+                        ),
+                        const SizedBox(width: 12),
+                        Text('아이 추가', style: AppTextStyles.body1Bold),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -293,17 +414,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           duration: const Duration(milliseconds: 150),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
           decoration: BoxDecoration(
-            gradient: selected ? AppColors.pinkGradient : null,
+            gradient: selected ? AppColors.primaryGradient : null,
             color: selected ? null : Colors.white.withValues(alpha: 0.7),
             borderRadius: BorderRadius.circular(999),
             border: Border.all(
-              color: selected ? Colors.transparent : AppColors.pink200,
+              color: selected ? Colors.transparent : AppColors.primary200,
               width: 0.8,
             ),
             boxShadow: selected
                 ? [
                     BoxShadow(
-                      color: AppColors.pink500.withValues(alpha: 0.28),
+                      color: AppColors.primary.withValues(alpha: 0.28),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -316,7 +437,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               Icon(
                 Icons.child_care_rounded,
                 size: 14,
-                color: selected ? Colors.white : AppColors.pink500,
+                color: selected ? Colors.white : AppColors.primary,
               ),
               const SizedBox(width: 4),
               Text(
@@ -368,7 +489,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       onRefresh: () async {
         await ref.read(homeProvider.notifier).loadRooms(refresh: true);
       },
-      color: AppColors.pink500,
+      color: AppColors.primary,
       child: ListView.builder(
         controller: _scrollController,
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 110),
@@ -379,7 +500,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               padding: EdgeInsets.all(16),
               child: Center(
                 child: CircularProgressIndicator(
-                  color: AppColors.pink500,
+                  color: AppColors.primary,
                   strokeWidth: 2,
                 ),
               ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../widgets/app_bar.dart';
 
@@ -59,7 +60,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : ListView(
-                padding: const EdgeInsets.symmetric(vertical: 8),
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
                 children: [
                   _tile(
                     title: '앱 알림 받기',
@@ -107,10 +108,16 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
     return Opacity(
       opacity: enabled ? 1 : 0.4,
       child: SwitchListTile(
-        title: Text(title, style: AppTextStyles.body1Bold),
+        contentPadding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.screen, vertical: AppSpacing.sm),
+        title: Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.xxs),
+          child: Text(title, style: AppTextStyles.body1Bold),
+        ),
         subtitle: Text(
           subtitle,
-          style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+          style: AppTextStyles.caption
+              .copyWith(color: AppColors.textSecondary, height: 1.5),
         ),
         value: enabled ? value : false,
         activeThumbColor: AppColors.primary,

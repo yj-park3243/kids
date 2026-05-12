@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
   OneToMany,
   Index,
+  Check,
 } from 'typeorm';
 import { Child } from '../../child/entities/child.entity';
 import { Room } from '../../room/entities/room.entity';
@@ -17,6 +18,8 @@ import { RefreshToken } from '../../auth/entities/refresh-token.entity';
 
 @Entity('user')
 @Index(['regionSido', 'regionSigungu', 'regionDong'])
+@Check(`"parent_gender" IS NULL OR "parent_gender" IN ('MOM','DAD')`)
+@Check(`"manner_score" >= 0 AND "manner_score" <= 99.9`)
 export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -101,6 +104,24 @@ export class User {
 
   @Column({ type: 'varchar', length: 20, default: 'ACTIVE' })
   status: string; // ACTIVE, WITHDRAWN, BANNED
+
+  @Column({ name: 'parent_gender', type: 'varchar', length: 10, nullable: true })
+  parentGender: string; // MOM, DAD
+
+  @Column({ name: 'is_single_parent', type: 'boolean', default: false })
+  isSingleParent: boolean;
+
+  @Column({ name: 'manner_score', type: 'numeric', precision: 4, scale: 1, default: 36.5 })
+  mannerScore: number;
+
+  @Column({ name: 'no_show_count', type: 'numeric', precision: 4, scale: 1, default: 0 })
+  noShowCount: number;
+
+  @Column({ name: 'can_join_at', type: 'timestamp', nullable: true })
+  canJoinAt: Date;
+
+  @Column({ name: 'inviter_id', type: 'uuid', nullable: true })
+  inviterId: string;
 
   @Column({ name: 'withdrawn_at', type: 'timestamp', nullable: true })
   withdrawnAt: Date;

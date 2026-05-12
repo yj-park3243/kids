@@ -31,6 +31,11 @@ class Room {
   final String? canJoinReason;
   final String? chatRoomId;
   final String? createdAt;
+  final String genderFilter; // 'ALL' | 'MOM_ONLY' | 'DAD_ONLY' 등
+  final bool singleParentOnly;
+  final bool isFlashMeeting;
+  final List<String> requiredItems;
+  final DateTime? completedAt;
 
   Room({
     required this.id,
@@ -63,6 +68,11 @@ class Room {
     this.canJoinReason,
     this.chatRoomId,
     this.createdAt,
+    this.genderFilter = 'ALL',
+    this.singleParentOnly = false,
+    this.isFlashMeeting = false,
+    this.requiredItems = const [],
+    this.completedAt,
   });
 
   bool get isRecruiting => status == 'RECRUITING';
@@ -109,6 +119,16 @@ class Room {
       canJoinReason: json['canJoinReason'],
       chatRoomId: json['chatRoomId'],
       createdAt: json['createdAt'],
+      genderFilter: json['genderFilter'] ?? 'ALL',
+      singleParentOnly: json['singleParentOnly'] ?? false,
+      isFlashMeeting: json['isFlashMeeting'] ?? false,
+      requiredItems: (json['requiredItems'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
+      completedAt: json['completedAt'] != null
+          ? DateTime.tryParse(json['completedAt'].toString())
+          : null,
     );
   }
 }
@@ -142,6 +162,8 @@ class RoomMember {
   final String? profileImageUrl;
   final List<Child>? children;
   final bool isHost;
+  // singleParentOnly === true 인 방에서만 서버가 내려줌. 기본 null.
+  final bool? isSingleParent;
 
   RoomMember({
     required this.id,
@@ -149,6 +171,7 @@ class RoomMember {
     this.profileImageUrl,
     this.children,
     this.isHost = false,
+    this.isSingleParent,
   });
 
   factory RoomMember.fromJson(Map<String, dynamic> json) {
@@ -160,6 +183,7 @@ class RoomMember {
           ? (json['children'] as List).map((e) => Child.fromJson(e)).toList()
           : null,
       isHost: json['isHost'] ?? false,
+      isSingleParent: json['isSingleParent'],
     );
   }
 }

@@ -29,6 +29,13 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   bool _isGeneratingNickname = false;
   bool _isLoading = false;
 
+  // 부모 정체성 — 'MOM' | 'DAD'. 가입 후 변경 불가.
+  String? _parentGender;
+  String? _parentGenderError;
+
+  // 한부모 가정 여부. 가입 후 변경 불가.
+  bool _isSingleParent = false;
+
   // 육아 친화 단어 풀 — 따뜻하고 부드러운 톤
   static const _adjectives = [
     // 분위기
@@ -172,7 +179,16 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
+    // parentGender 필수
+    if (_parentGender == null) {
+      setState(() => _parentGenderError = '부모 정체성을 선택해 주세요');
+      return;
+    }
+
+    setState(() {
+      _parentGenderError = null;
+      _isLoading = true;
+    });
 
     String? imageUrl;
     if (_profileImagePath != null) {
@@ -186,6 +202,8 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     await ref.read(authProvider.notifier).completeProfile(
           nickname: _nicknameController.text.trim(),
           profileImageUrl: imageUrl,
+          parentGender: _parentGender,
+          isSingleParent: _isSingleParent,
         );
 
     setState(() => _isLoading = false);
@@ -354,6 +372,81 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                     ),
                   ),
 
+                const SizedBox(height: 28),
+
+                // 부모 정체성 (필수, 가입 후 변경 불가)
+                Text('부모 정체성', style: AppTextStyles.body2Bold),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _ParentGenderOption(
+                        emoji: '👩',
+                        label: '엄마',
+                        selected: _parentGender == 'MOM',
+                        onTap: () => setState(() {
+                          _parentGender = 'MOM';
+                          _parentGenderError = null;
+                        }),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _ParentGenderOption(
+                        emoji: '👨',
+                        label: '아빠',
+                        selected: _parentGender == 'DAD',
+                        onTap: () => setState(() {
+                          _parentGender = 'DAD';
+                          _parentGenderError = null;
+                        }),
+                      ),
+                    ),
+                  ],
+                ),
+                if (_parentGenderError != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      _parentGenderError!,
+                      style: AppTextStyles.caption.copyWith(color: AppColors.error),
+                    ),
+                  ),
+                const SizedBox(height: 6),
+                Text(
+                  '한 번 선택하면 변경할 수 없어요. 운영자 문의 시에만 정정 가능합니다.',
+                  style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                ),
+
+                const SizedBox(height: 24),
+
+                // 한부모 가정 (필수, 가입 후 변경 불가, default off)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.divider),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text('한부모 가정', style: AppTextStyles.body1Bold),
+                      ),
+                      Switch.adaptive(
+                        value: _isSingleParent,
+                        activeThumbColor: AppColors.primary,
+                        onChanged: (v) => setState(() => _isSingleParent = v),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '한부모 가정 전용 모임에 참여할 수 있어요. 가입 후 변경 불가.',
+                  style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                ),
+
                 const SizedBox(height: 40),
 
                 PrimaryButton(
@@ -364,6 +457,53 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 부모 정체성 선택 카드. 핑크 글래스 톤.
+class _ParentGenderOption extends StatelessWidget {
+  final String emoji;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _ParentGenderOption({
+    required this.emoji,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary50 : AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? AppColors.primary : AppColors.divider,
+            width: selected ? 1.6 : 1,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 28)),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: AppTextStyles.body1Bold.copyWith(
+                color: selected ? AppColors.primary700 : AppColors.textPrimary,
+              ),
+            ),
+          ],
         ),
       ),
     );

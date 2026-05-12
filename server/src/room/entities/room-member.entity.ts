@@ -27,6 +27,18 @@ export class RoomMember {
   @Column({ name: 'is_host', type: 'boolean', default: false })
   isHost: boolean;
 
+  @Column({ type: 'boolean', nullable: true })
+  attended: boolean; // NULL=미체크, TRUE=출석, FALSE=노쇼
+
+  @Column({ name: 'attendance_recorded_at', type: 'timestamp', nullable: true })
+  attendanceRecordedAt: Date;
+
+  @Column({ name: 'child_ids', type: 'uuid', array: true, default: () => "'{}'" })
+  childIds: string[];
+
+  @Column({ name: 'last_read_at', type: 'timestamp', nullable: true })
+  lastReadAt: Date | null;
+
   @CreateDateColumn({ name: 'joined_at' })
   joinedAt: Date;
 

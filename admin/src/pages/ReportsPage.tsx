@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Card, Table, Select, Tag, Typography, Space, message } from 'antd';
+import { Button, Card, Input, Modal, Radio, Table, Select, Tag, Typography, Space, message } from 'antd';
 import dayjs from 'dayjs';
 import { reportsApi } from '../api/reports';
-import type { ReportListItem } from '../types';
+import type { AdminAction, ReportListItem } from '../types';
 
 const { Title } = Typography;
 
@@ -15,11 +15,19 @@ const REASON_LABEL: Record<string, string> = {
 };
 
 const STATUS_MAP: Record<string, { color: string; label: string }> = {
+  PENDING: { color: 'orange', label: '대기' },
   OPEN: { color: 'orange', label: '접수' },
   REVIEWED: { color: 'blue', label: '검토중' },
   RESOLVED: { color: 'green', label: '처리완료' },
   DISMISSED: { color: 'default', label: '반려' },
 };
+
+const ACTION_OPTIONS: Array<{ value: AdminAction; label: string }> = [
+  { value: 'NONE', label: '조치 없음' },
+  { value: 'WARNING', label: '경고' },
+  { value: 'BAN_7D', label: '7일 정지' },
+  { value: 'BAN_PERMANENT', label: '영구 정지' },
+];
 
 export default function ReportsPage() {
   const [items, setItems] = useState<ReportListItem[]>([]);
@@ -29,6 +37,11 @@ export default function ReportsPage() {
   const [limit] = useState(15);
   const [status, setStatus] = useState<string | undefined>();
   const [reason, setReason] = useState<string | undefined>();
+  const [resolveTarget, setResolveTarget] = useState<ReportListItem | null>(null);
+  const [resolveStatus, setResolveStatus] = useState<'RESOLVED' | 'DISMISSED'>('RESOLVED');
+  const [resolveAction, setResolveAction] = useState<AdminAction>('NONE');
+  const [resolveNote, setResolveNote] = useState('');
+  const [resolveSaving, setResolveSaving] = useState(false);
 
   const fetchReports = useCallback(async () => {
     try {
@@ -46,6 +59,34 @@ export default function ReportsPage() {
   useEffect(() => {
     fetchReports();
   }, [fetchReports]);
+
+  const openResolve = (r: ReportListItem) => {
+    setResolveTarget(r);
+    setResolveStatus('RESOLVED');
+    setResolveAction('NONE');
+    setResolveNote('');
+  };
+
+  const handleResolveSave = async () => {
+    if (!resolveTarget) return;
+    try {
+      setResolveSaving(true);
+      const action: AdminAction = resolveStatus === 'DISMISSED' ? 'NONE' : resolveAction;
+      await reportsApi.resolveReport(
+        resolveTarget.id,
+        resolveStatus,
+        action,
+        resolveNote || undefined,
+      );
+      message.success('신고를 처리했습니다.');
+      setResolveTarget(null);
+      fetchReports();
+    } catch {
+      message.error('처리 중 오류가 발생했습니다.');
+    } finally {
+      setResolveSaving(false);
+    }
+  };
 
   const columns = [
     {
@@ -110,12 +151,30 @@ export default function ReportsPage() {
     },
     {
       title: '상태',
-      dataIndex: 'status',
       key: 'status',
+      width: 160,
+      render: (_: unknown, r: ReportListItem) => {
+        const m = STATUS_MAP[r.status] || { color: 'default', label: r.status };
+        const action = (r as ReportListItem & { adminAction?: AdminAction }).adminAction;
+        return (
+          <Space size={4} wrap>
+            <Tag color={m.color}>{m.label}</Tag>
+            {action && action !== 'NONE' && <Tag>{action}</Tag>}
+          </Space>
+        );
+      },
+    },
+    {
+      title: '액션',
+      key: 'action',
       width: 90,
-      render: (s: string) => {
-        const m = STATUS_MAP[s] || { color: 'default', label: s };
-        return <Tag color={m.color}>{m.label}</Tag>;
+      render: (_: unknown, r: ReportListItem) => {
+        const done = r.status === 'RESOLVED' || r.status === 'DISMISSED';
+        return (
+          <Button size="small" type="primary" disabled={done} onClick={() => openResolve(r)}>
+            처리
+          </Button>
+        );
       },
     },
   ];
@@ -175,6 +234,47 @@ export default function ReportsPage() {
           }}
         />
       </Card>
+
+      <Modal
+        title="신고 처리"
+        open={!!resolveTarget}
+        onCancel={() => setResolveTarget(null)}
+        onOk={handleResolveSave}
+        okText="저장"
+        cancelText="취소"
+        confirmLoading={resolveSaving}
+      >
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 8 }}>처리 상태</div>
+          <Radio.Group
+            value={resolveStatus}
+            onChange={(e) => setResolveStatus(e.target.value)}
+            options={[
+              { value: 'RESOLVED', label: '처리완료' },
+              { value: 'DISMISSED', label: '반려' },
+            ]}
+          />
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 8 }}>조치</div>
+          <Select
+            style={{ width: '100%' }}
+            value={resolveAction}
+            onChange={(v) => setResolveAction(v)}
+            disabled={resolveStatus === 'DISMISSED'}
+            options={ACTION_OPTIONS}
+          />
+        </div>
+        <div>
+          <div style={{ marginBottom: 8 }}>메모 (선택)</div>
+          <Input.TextArea
+            rows={3}
+            value={resolveNote}
+            onChange={(e) => setResolveNote(e.target.value)}
+            placeholder="처리 메모"
+          />
+        </div>
+      </Modal>
     </div>
   );
 }

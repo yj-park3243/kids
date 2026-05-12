@@ -1,42 +1,9 @@
 import 'package:flutter/material.dart';
 import '../core/constants/app_colors.dart';
 import '../core/constants/app_text_styles.dart';
-import 'design/pink_button.dart';
+import 'design/primary_button.dart';
 
-/// Legacy PrimaryButton — 내부적으로 PinkButton을 사용.
-class PrimaryButton extends StatelessWidget {
-  final String text;
-  final VoidCallback? onPressed;
-  final bool isLoading;
-  final bool isEnabled;
-  final double? width;
-  final double height;
-  final IconData? icon;
-
-  const PrimaryButton({
-    super.key,
-    required this.text,
-    this.onPressed,
-    this.isLoading = false,
-    this.isEnabled = true,
-    this.width,
-    this.height = 54,
-    this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return PinkButton(
-      text: text,
-      onPressed: onPressed,
-      isLoading: isLoading,
-      isEnabled: isEnabled,
-      height: height,
-      width: width,
-      icon: icon,
-    );
-  }
-}
+export 'design/primary_button.dart' show PrimaryButton;
 
 class SecondaryButton extends StatelessWidget {
   final String text;

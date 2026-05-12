@@ -7,15 +7,21 @@ import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/onboarding_screen.dart';
 import '../../features/auth/presentation/phone_verification_screen.dart';
 import '../../features/auth/presentation/profile_setup_screen.dart';
-import '../../features/chat/presentation/chat_list_screen.dart';
 import '../../features/chat/presentation/chat_room_screen.dart';
+import '../../features/follow/presentation/following_list_screen.dart';
+import '../../features/growth_guide/presentation/growth_guide_detail_screen.dart';
+import '../../features/growth_guide/presentation/growth_guide_list_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/map/presentation/map_screen.dart';
+import '../../features/mypage/presentation/blocked_users_screen.dart';
 import '../../features/mypage/presentation/my_rooms_screen.dart';
 import '../../features/mypage/presentation/mypage_screen.dart';
 import '../../features/mypage/presentation/profile_edit_screen.dart';
 import '../../features/notification/presentation/notification_screen.dart';
 import '../../features/notification/presentation/notification_settings_screen.dart';
+import '../../features/review/presentation/review_summary_screen.dart';
+import '../../features/review/presentation/review_write_screen.dart';
+import '../../features/room/presentation/attendance_screen.dart';
 import '../../features/room/presentation/join_request_screen.dart';
 import '../../features/room/presentation/photo_detail_screen.dart';
 import '../../features/room/presentation/photo_grid_screen.dart';
@@ -96,7 +102,7 @@ final appRouter = GoRouter(
           routes: [
             GoRoute(
               path: '/chat',
-              builder: (context, state) => const ChatListScreen(),
+              builder: (context, state) => const MyRoomsScreen(),
             ),
           ],
         ),
@@ -190,13 +196,6 @@ final appRouter = GoRouter(
       builder: (context, state) => const ChildSetupScreen(popOnDone: true),
     ),
 
-    // My rooms
-    GoRoute(
-      path: '/my-rooms',
-      parentNavigatorKey: _rootNavigatorKey,
-      builder: (context, state) => const MyRoomsScreen(),
-    ),
-
     // Profile edit
     GoRoute(
       path: '/profile-edit',
@@ -209,6 +208,68 @@ final appRouter = GoRouter(
       path: '/inquiry',
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) => const InquiryScreen(),
+    ),
+
+    // 차단 사용자 관리
+    GoRoute(
+      path: '/blocked-users',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const BlockedUsersScreen(),
+    ),
+
+    // 출석 체크 (방 호스트 전용)
+    GoRoute(
+      path: '/rooms/:roomId/attendance',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) =>
+          AttendanceScreen(roomId: state.pathParameters['roomId']!),
+    ),
+
+    // 리뷰 작성 (query: roomId, extra: List<ReviewMember>)
+    GoRoute(
+      path: '/reviews/write',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) {
+        final roomId = state.uri.queryParameters['roomId'] ?? '';
+        final members =
+            (state.extra is List<ReviewMember>)
+                ? state.extra as List<ReviewMember>
+                : const <ReviewMember>[];
+        return ReviewWriteScreen(
+          args: ReviewWriteArgs(roomId: roomId, members: members),
+        );
+      },
+    ),
+
+    // 사용자 리뷰 요약
+    GoRoute(
+      path: '/users/:userId/reviews',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) =>
+          ReviewSummaryScreen(userId: state.pathParameters['userId']!),
+    ),
+
+    // 팔로잉 목록
+    GoRoute(
+      path: '/follow/following',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const FollowingListScreen(),
+    ),
+
+    // 발달 가이드
+    GoRoute(
+      path: '/growth-guide',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const GrowthGuideListScreen(),
+    ),
+    GoRoute(
+      path: '/growth-guide/:ageMonth',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) {
+        final ageMonth =
+            int.tryParse(state.pathParameters['ageMonth'] ?? '0') ?? 0;
+        return GrowthGuideDetailScreen(ageMonth: ageMonth);
+      },
     ),
   ],
 );

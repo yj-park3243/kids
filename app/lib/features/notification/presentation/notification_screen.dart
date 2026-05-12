@@ -6,7 +6,7 @@ import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../models/notification.dart';
 import '../../../widgets/app_bar.dart';
-import '../../../widgets/design/pink_blobs.dart';
+import '../../../widgets/design/accent_blobs.dart';
 import '../../../widgets/empty_state.dart';
 import '../../../widgets/loading.dart';
 import '../data/notification_repository.dart';
@@ -111,13 +111,13 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
             onPressed: _markAllAsRead,
             child: Text(
               '모두 읽음',
-              style: AppTextStyles.caption.copyWith(color: AppColors.pink500),
+              style: AppTextStyles.caption.copyWith(color: AppColors.primary),
             ),
           ),
         ],
       ),
       extendBodyBehindAppBar: true,
-      body: PinkBlobsBackground(child: SafeArea(child: _buildBody())),
+      body: AccentBlobsBackground(child: SafeArea(child: _buildBody())),
     );
   }
 

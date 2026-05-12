@@ -12,5 +12,6 @@ export default new DataSource({
   database: process.env.DB_NAME || 'kids',
   entities: [__dirname + '/../**/*.entity{.ts,.js}'],
   migrations: [__dirname + '/../migrations/*{.ts,.js}'],
-  synchronize: false,
+  // TODO: production에서는 false로. 현재는 개발 단계라 true.
+  synchronize: true,
 });

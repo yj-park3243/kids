@@ -137,11 +137,11 @@ class _ReportSheetState extends ConsumerState<_ReportSheet> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 16, vertical: 14),
                     decoration: BoxDecoration(
-                      color: isSel ? AppColors.pink50 : AppColors.bg2,
+                      color: isSel ? AppColors.primary50 : AppColors.bg2,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color:
-                            isSel ? AppColors.pink400 : Colors.transparent,
+                            isSel ? AppColors.primary400 : Colors.transparent,
                         width: 1.5,
                       ),
                     ),
@@ -152,7 +152,7 @@ class _ReportSheetState extends ConsumerState<_ReportSheet> {
                               ? Icons.radio_button_checked
                               : Icons.radio_button_unchecked,
                           color: isSel
-                              ? AppColors.pink500
+                              ? AppColors.primary
                               : AppColors.textHint,
                           size: 20,
                         ),

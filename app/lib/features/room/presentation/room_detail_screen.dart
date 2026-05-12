@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../support/presentation/report_sheet.dart';
@@ -11,11 +12,14 @@ import '../../../core/utils/date_utils.dart';
 import '../../../models/room.dart';
 import '../../../widgets/app_bar.dart';
 import '../../../widgets/common_button.dart';
-import '../../../widgets/design/pink_blobs.dart';
+import '../../../widgets/design/accent_blobs.dart';
 import '../../../widgets/empty_state.dart';
 import '../../../widgets/loading.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/room_detail_provider.dart';
+import 'widgets/category_badge.dart';
+// TODO: KakaoShareService 통합 (App-Features-B 담당)
+// import '../../../core/share/kakao_share_service.dart';
 
 class RoomDetailScreen extends ConsumerStatefulWidget {
   final String roomId;
@@ -44,7 +48,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
     if (state.isLoading && state.room == null) {
       return const Scaffold(
         backgroundColor: Colors.transparent,
-        body: PinkBlobsBackground(child: AppLoadingIndicator()),
+        body: AccentBlobsBackground(child: AppLoadingIndicator()),
       );
     }
 
@@ -53,7 +57,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
         backgroundColor: Colors.transparent,
         appBar: const CustomAppBar(title: ''),
         extendBodyBehindAppBar: true,
-        body: PinkBlobsBackground(
+        body: AccentBlobsBackground(
           child: SafeArea(
             child: ErrorState(
               message: state.error!,
@@ -69,6 +73,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
     final isHost = room.host.id == currentUserId;
     final isAccepted = room.myStatus == 'ACCEPTED';
     final isPending = room.myStatus == 'PENDING';
+    final isParticipant = isHost || isAccepted;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -76,6 +81,12 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
       appBar: CustomAppBar(
         title: '',
         actions: [
+          IconButton(
+            icon:
+                const Icon(Icons.share_rounded, color: AppColors.textPrimary),
+            tooltip: '공유',
+            onPressed: () => _shareRoom(room),
+          ),
           IconButton(
             icon: const Icon(Icons.photo_library_outlined,
                 color: AppColors.textPrimary),
@@ -90,6 +101,8 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
             onSelected: (value) {
               if (value == 'manage') {
                 context.push('/rooms/${widget.roomId}/requests');
+              } else if (value == 'attendance') {
+                _openAttendance(room);
               } else if (value == 'cancel') {
                 _cancelRoom(room);
               } else if (value == 'report') {
@@ -101,6 +114,11 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                 const PopupMenuItem(
                   value: 'manage',
                   child: Text('참여 관리'),
+                ),
+              if (isHost)
+                const PopupMenuItem(
+                  value: 'attendance',
+                  child: Text('출석 체크'),
                 ),
               if (isHost)
                 const PopupMenuItem(
@@ -118,7 +136,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
           ),
         ],
       ),
-      body: PinkBlobsBackground(
+      body: AccentBlobsBackground(
         child: SingleChildScrollView(
         padding: EdgeInsets.only(
           top: kToolbarHeight + MediaQuery.of(context).padding.top + 12,
@@ -127,25 +145,62 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Flash meeting strip
+            if (room.isFlashMeeting)
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFFFD66B), Color(0xFFFFAD3F)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.bolt_rounded,
+                        color: Colors.white, size: 18),
+                    const SizedBox(width: 6),
+                    Text(
+                      '⚡ 번개 모임 · 24시간 이내',
+                      style: AppTextStyles.body2Bold
+                          .copyWith(color: Colors.white),
+                    ),
+                  ],
+                ),
+              ),
+
             // Header
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Place type badge
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: AppColors.secondary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      AppConstants.placeTypes[room.placeType] ?? '기타',
-                      style: AppTextStyles.captionBold
-                          .copyWith(color: AppColors.secondary),
-                    ),
+                  // Badges row: place type + category
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: AppColors.secondary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          AppConstants.placeTypes[room.placeType] ?? '기타',
+                          style: AppTextStyles.captionBold
+                              .copyWith(color: AppColors.secondary),
+                        ),
+                      ),
+                      CategoryBadge(
+                        genderFilter: room.genderFilter,
+                        singleParentOnly: room.singleParentOnly,
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 12),
                   Text(room.title, style: AppTextStyles.heading1),
@@ -180,15 +235,28 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
             const SizedBox(height: 24),
 
             // Info section
-            _InfoSection(room: room),
+            _InfoSection(room: room, isParticipant: isParticipant),
 
             const SizedBox(height: 16),
 
-            // Map preview — 모임장 영역 자리. 탭하면 전체화면.
-            if (room.latitude != null && room.longitude != null)
+            // Map preview — 참여자에게만 노출.
+            if (isParticipant && room.latitude != null && room.longitude != null)
               _MapSection(room: room),
 
+            // 비참여자 안내 박스
+            if (!isParticipant)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: _LocationLockedBox(),
+              ),
+
             const SizedBox(height: 16),
+
+            // Required items
+            if (room.requiredItems.isNotEmpty) ...[
+              _RequiredItemsCard(items: room.requiredItems),
+              const SizedBox(height: 16),
+            ],
 
             // Members
             _MembersSection(room: room),
@@ -270,6 +338,48 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
     }
   }
 
+  void _shareRoom(Room room) {
+    // TODO: KakaoShareService().shareRoom(room); — App-Features-B 통합
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('공유 기능 준비 중'),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
+  /// 출석 체크 진입. 방장 + 모임 종료 후 24h 이내만 허용.
+  void _openAttendance(Room room) {
+    final completedAt = room.completedAt;
+    if (completedAt == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('모임 종료 후 출석 체크가 가능해요'),
+          backgroundColor: AppColors.warning,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+      return;
+    }
+    final hoursPassed = DateTime.now().difference(completedAt).inHours;
+    if (hoursPassed > 24) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('출석 체크 가능 시간(24시간)이 지났어요'),
+          backgroundColor: AppColors.warning,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+      return;
+    }
+    context.push('/rooms/${widget.roomId}/attendance');
+  }
+
   Future<void> _cancelRoom(Room room) async {
     final confirmed = await showCupertinoModalPopup<bool>(
       context: context,
@@ -315,8 +425,17 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
 
 class _InfoSection extends StatelessWidget {
   final Room room;
+  final bool isParticipant;
 
-  const _InfoSection({required this.room});
+  const _InfoSection({required this.room, required this.isParticipant});
+
+  /// 비참여자: 동 단위까지만. 참여자: placeName/address 우선.
+  String get _locationValue {
+    if (isParticipant) {
+      return room.placeName ?? room.placeAddress ?? room.regionDong;
+    }
+    return room.regionDong;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -352,7 +471,12 @@ class _InfoSection extends StatelessWidget {
           _InfoRow(
             icon: Icons.location_on_rounded,
             label: '장소',
-            value: room.placeName ?? room.placeAddress ?? room.regionDong,
+            value: _locationValue,
+            trailing: isParticipant &&
+                    room.latitude != null &&
+                    room.longitude != null
+                ? _NavigateButton(room: room)
+                : null,
           ),
           const Divider(height: 20, color: AppColors.divider),
           _InfoRow(
@@ -390,11 +514,13 @@ class _InfoRow extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
+  final Widget? trailing;
 
   const _InfoRow({
     required this.icon,
     required this.label,
     required this.value,
+    this.trailing,
   });
 
   @override
@@ -411,7 +537,140 @@ class _InfoRow extends StatelessWidget {
         Expanded(
           child: Text(value, style: AppTextStyles.body2Bold),
         ),
+        if (trailing != null) trailing!,
       ],
+    );
+  }
+}
+
+class _NavigateButton extends StatelessWidget {
+  final Room room;
+
+  const _NavigateButton({required this.room});
+
+  Future<void> _openNaverMaps(BuildContext context) async {
+    final lat = room.latitude!;
+    final lng = room.longitude!;
+    final name = Uri.encodeComponent(
+        room.placeName ?? room.placeAddress ?? room.title);
+    // 네이버 지도 길찾기 (목적지 좌표)
+    final appUri = Uri.parse(
+        'nmap://route/public?dlat=$lat&dlng=$lng&dname=$name&appname=com.growtogether.kids');
+    final webUri = Uri.parse(
+        'https://map.naver.com/v5/directions/-/-/$lng,$lat,$name/-/transit?c=15,0,0,0,dh');
+
+    try {
+      if (await canLaunchUrl(appUri)) {
+        await launchUrl(appUri, mode: LaunchMode.externalApplication);
+        return;
+      }
+    } catch (_) {}
+    await launchUrl(webUri, mode: LaunchMode.externalApplication);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton.icon(
+      onPressed: () => _openNaverMaps(context),
+      style: TextButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+        minimumSize: const Size(0, 32),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+      icon: const Icon(Icons.directions_rounded,
+          size: 16, color: AppColors.primary),
+      label: Text(
+        '길찾기',
+        style: AppTextStyles.caption.copyWith(
+          color: AppColors.primary,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+class _LocationLockedBox extends StatelessWidget {
+  const _LocationLockedBox();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.lock_outline_rounded,
+              size: 18, color: AppColors.textHint),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '참여 확정 후 정확한 장소가 공개됩니다',
+              style: AppTextStyles.caption
+                  .copyWith(color: AppColors.textSecondary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RequiredItemsCard extends StatelessWidget {
+  final List<String> items;
+
+  const _RequiredItemsCard({required this.items});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.checklist_rounded,
+                  size: 18, color: AppColors.primary),
+              const SizedBox(width: 6),
+              Text('준비물', style: AppTextStyles.body1Bold),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ...items.map(
+            (item) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_box_outline_blank_rounded,
+                      size: 18, color: AppColors.textHint),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(item, style: AppTextStyles.body2),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -597,6 +856,29 @@ class _MembersSection extends ConsumerWidget {
                                     style: AppTextStyles.caption.copyWith(
                                       fontSize: 9,
                                       color: AppColors.accentDark,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              // 한부모 배지는 singleParentOnly 방에서만, 그리고
+                              // 멤버의 isSingleParent 응답이 true일 때만 표시.
+                              if (room.singleParentOnly &&
+                                  member.isSingleParent == true) ...[
+                                const SizedBox(width: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 4, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        AppColors.lilac.withValues(alpha: 0.5),
+                                    borderRadius: BorderRadius.circular(3),
+                                  ),
+                                  child: Text(
+                                    '🤍 한부모',
+                                    style: AppTextStyles.caption.copyWith(
+                                      fontSize: 9,
+                                      color: AppColors.secondaryDark,
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),

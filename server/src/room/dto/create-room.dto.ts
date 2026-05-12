@@ -4,6 +4,7 @@ import {
   IsOptional,
   IsEnum,
   IsArray,
+  IsBoolean,
   IsNumber,
   Min,
   Max,
@@ -24,6 +25,12 @@ export enum PlaceType {
 export enum JoinType {
   FREE = 'FREE',
   APPROVAL = 'APPROVAL',
+}
+
+export enum GenderFilter {
+  ALL = 'ALL',
+  MOM_ONLY = 'MOM_ONLY',
+  DAD_ONLY = 'DAD_ONLY',
 }
 
 export class CreateRoomDto {
@@ -127,4 +134,27 @@ export class CreateRoomDto {
   @IsString({ each: true })
   @ArrayMaxSize(5)
   tags?: string[];
+
+  @ApiProperty({ enum: GenderFilter, required: false, default: 'ALL' })
+  @IsEnum(GenderFilter)
+  @IsOptional()
+  genderFilter?: GenderFilter;
+
+  @ApiProperty({ required: false, default: false })
+  @IsBoolean()
+  @IsOptional()
+  singleParentOnly?: boolean;
+
+  @ApiProperty({ required: false, default: false })
+  @IsBoolean()
+  @IsOptional()
+  isFlashMeeting?: boolean;
+
+  @ApiProperty({ required: false, example: ['기저귀', '물티슈'] })
+  @IsArray()
+  @IsOptional()
+  @IsString({ each: true })
+  @ArrayMaxSize(10)
+  @MaxLength(20, { each: true })
+  requiredItems?: string[];
 }

@@ -1,7 +1,7 @@
 name: app
 description: "같이크자 - 우리 아이 또래 친구를 동네에서 쉽게 만나는 육아 모임 플랫폼"
 publish_to: 'none'
-version: 1.0.0+18
+version: 1.0.0+21
 
 environment:
   sdk: ^3.9.2
@@ -41,6 +41,12 @@ dependencies:
   # Social login
   sign_in_with_apple: ^6.1.0
   google_sign_in: ^6.2.1
+
+  # Kakao share
+  kakao_flutter_sdk_share: ^1.9.0
+
+  # Deep links
+  app_links: ^6.3.0
 
   # UI
   cached_network_image: ^3.4.1

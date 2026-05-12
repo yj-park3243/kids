@@ -13,6 +13,29 @@ interface CreateNotificationInput {
   data?: any;
 }
 
+// 신규 type 알림용 기본 템플릿 (호출자가 title/body 안 넘기면 fallback).
+export function defaultTemplate(
+  type: string,
+  data?: any,
+): { title: string; body: string } | null {
+  switch (type) {
+    case 'NEW_FLASH':
+      return { title: '번개 모임 등록', body: '근처 번개 모임이 등록되었어요.' };
+    case 'REVIEW_REQUEST':
+      return { title: '후기 작성 요청', body: '모임은 어땠나요? 매너 점수를 남겨주세요.' };
+    case 'FOLLOW_NEW_ROOM':
+      return { title: '단골 부모의 새 방', body: '팔로우 중인 부모가 새 방을 만들었어요.' };
+    case 'NOSHOW_WARNING':
+      return { title: '노쇼 경고', body: '노쇼가 누적되었어요. 3회 도달 시 참여가 제한됩니다.' };
+    case 'GROWTH_UPDATE':
+      return { title: '발달 가이드', body: '아이의 새 월령 가이드가 도착했어요.' };
+    case 'REPORT_RESOLVED':
+      return { title: '신고 처리 결과', body: '신고하신 건이 처리되었어요.' };
+    default:
+      return null;
+  }
+}
+
 @Injectable()
 export class NotificationService {
   private readonly logger = new Logger(NotificationService.name);
@@ -26,18 +49,29 @@ export class NotificationService {
   ) {}
 
   async create(input: CreateNotificationInput) {
+    // title/body 가 비어있으면 type 별 기본 템플릿으로 폴백
+    let title = input.title;
+    let body = input.body;
+    if (!title || !body) {
+      const tpl = defaultTemplate(input.type, input.data);
+      if (tpl) {
+        title = title || tpl.title;
+        body = body || tpl.body;
+      }
+    }
+
     // Save notification to DB
     const notification = this.notificationRepository.create({
       userId: input.userId,
       type: input.type,
-      title: input.title,
-      body: input.body,
+      title,
+      body,
       data: input.data,
     });
     await this.notificationRepository.save(notification);
 
     // Send push notification
-    await this.sendPush(input.userId, input.title, input.body, input.data);
+    await this.sendPush(input.userId, title, body, { type: input.type, ...input.data });
 
     return notification;
   }

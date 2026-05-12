@@ -43,6 +43,21 @@ export class RoomQueryDto {
   @Transform(({ value }) => value === 'true' || value === true)
   costFree?: boolean;
 
+  @ApiProperty({ required: false, enum: ['ALL', 'MOM_ONLY', 'DAD_ONLY'] })
+  @IsString()
+  @IsOptional()
+  genderFilter?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  singleParentOnly?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  isFlashMeeting?: boolean;
+
   @ApiProperty({ required: false })
   @IsString()
   @IsOptional()

@@ -9,7 +9,7 @@ import '../../../widgets/design/avatar.dart';
 import '../../../widgets/design/baby_avatar.dart';
 import '../../../widgets/design/design_chip.dart';
 import '../../../widgets/design/glass_card.dart';
-import '../../../widgets/design/pink_blobs.dart';
+import '../../../widgets/design/accent_blobs.dart';
 import '../../auth/providers/auth_provider.dart';
 
 class MyPageScreen extends ConsumerWidget {
@@ -22,7 +22,7 @@ class MyPageScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: PinkBlobsBackground(
+      body: AccentBlobsBackground(
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 110),
@@ -32,9 +32,9 @@ class MyPageScreen extends ConsumerWidget {
                 Text('마이페이지', style: AppTextStyles.screenTitle),
                 const SizedBox(height: 20),
 
-                // Profile glass pink card
+                // Profile glass card
                 GlassCard(
-                  tone: GlassTone.pink,
+                  tone: GlassTone.white,
                   radius: 24,
                   padding: const EdgeInsets.all(20),
                   child: Column(
@@ -44,7 +44,7 @@ class MyPageScreen extends ConsumerWidget {
                           InitialAvatar(
                             label: user?.nickname ?? '?',
                             size: 64,
-                            tone: AvatarTone.pink,
+                            tone: AvatarTone.primary,
                             ring: true,
                             imageUrl: user?.profileImageUrl,
                           ),
@@ -95,13 +95,20 @@ class MyPageScreen extends ConsumerWidget {
                               child: Text(
                                 '편집',
                                 style: AppTextStyles.chip.copyWith(
-                                  color: AppColors.pink700,
+                                  color: AppColors.primary700,
                                 ),
                               ),
                             ),
                           ),
                         ],
                       ),
+                      if (user != null) ...[
+                        const SizedBox(height: 14),
+                        _MannerRow(
+                          mannerScore: user.mannerScore,
+                          noShowLevel: user.noShowLevel,
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -133,7 +140,7 @@ class MyPageScreen extends ConsumerWidget {
                                   size: 40,
                                   tone: child.gender == 'MALE'
                                       ? BabyAvatarTone.blue
-                                      : BabyAvatarTone.pink,
+                                      : BabyAvatarTone.primary,
                                 ),
                                 const SizedBox(width: 12),
                                 Text(child.nickname,
@@ -142,7 +149,7 @@ class MyPageScreen extends ConsumerWidget {
                                 Text(
                                   AppDateUtils.formatAgeMonths(age),
                                   style: AppTextStyles.caption.copyWith(
-                                    color: AppColors.pink700,
+                                    color: AppColors.primary700,
                                   ),
                                 ),
                                 if (child.gender != null) ...[
@@ -152,7 +159,7 @@ class MyPageScreen extends ConsumerWidget {
                                         child.gender == 'MALE' ? '남아' : '여아',
                                     tone: child.gender == 'MALE'
                                         ? ChipTone.lilac
-                                        : ChipTone.pinkGhost,
+                                        : ChipTone.primaryGhost,
                                     height: 22,
                                   ),
                                 ],
@@ -167,11 +174,6 @@ class MyPageScreen extends ConsumerWidget {
 
                 _menuSection([
                   _MenuItem(
-                    icon: Icons.event_note_rounded,
-                    label: '내 모임',
-                    onTap: () => context.push('/my-rooms'),
-                  ),
-                  _MenuItem(
                     icon: Icons.edit_rounded,
                     label: '프로필 수정',
                     onTap: () => context.push('/profile-edit'),
@@ -185,6 +187,12 @@ class MyPageScreen extends ConsumerWidget {
                     icon: Icons.notifications_none_rounded,
                     label: '알림 설정',
                     onTap: () => context.push('/notification-settings'),
+                  ),
+                  // TODO: register route /blocked-users → BlockedUsersScreen
+                  _MenuItem(
+                    icon: Icons.block_rounded,
+                    label: '차단한 유저',
+                    onTap: () => context.push('/blocked-users'),
                   ),
                 ]),
                 const SizedBox(height: 14),
@@ -214,7 +222,7 @@ class MyPageScreen extends ConsumerWidget {
                   _MenuItem(
                     icon: Icons.logout_rounded,
                     label: '로그아웃',
-                    color: AppColors.pink500,
+                    color: AppColors.primary,
                     onTap: () => _logout(context, ref),
                   ),
                   _MenuItem(
@@ -298,7 +306,7 @@ class MyPageScreen extends ConsumerWidget {
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text('로그아웃',
-                style: TextStyle(color: AppColors.pink500)),
+                style: TextStyle(color: AppColors.primary)),
           ),
         ],
       ),
@@ -376,5 +384,59 @@ Future<void> _openExternalUrl(String url) async {
   final uri = Uri.parse(url);
   if (await canLaunchUrl(uri)) {
     await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+}
+
+/// 매너 온도 + 노쇼 레벨 한 줄.
+class _MannerRow extends StatelessWidget {
+  final double mannerScore;
+  final String? noShowLevel;
+
+  const _MannerRow({required this.mannerScore, this.noShowLevel});
+
+  @override
+  Widget build(BuildContext context) {
+    // 36.5 기준 0~99 매핑. 단순 선형으로 색만 변경.
+    final ratio = (mannerScore / 99).clamp(0.0, 1.0);
+    return Row(
+      children: [
+        const Icon(Icons.thermostat_rounded, size: 16, color: AppColors.primary),
+        const SizedBox(width: 4),
+        Text(
+          '매너 온도 ${mannerScore.toStringAsFixed(1)}°C',
+          style: AppTextStyles.captionBold.copyWith(color: AppColors.primary700),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: ratio,
+              minHeight: 6,
+              backgroundColor: Colors.white.withValues(alpha: 0.6),
+              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+            ),
+          ),
+        ),
+        if (_noShowLabel(noShowLevel) != null) ...[
+          const SizedBox(width: 8),
+          Text(
+            _noShowLabel(noShowLevel)!,
+            style: AppTextStyles.caption.copyWith(color: AppColors.ink500),
+          ),
+        ],
+      ],
+    );
+  }
+
+  static String? _noShowLabel(String? level) {
+    switch (level) {
+      case 'OCCASIONAL':
+        return '노쇼 가끔';
+      case 'FREQUENT':
+        return '노쇼 잦음';
+      default:
+        return null;
+    }
   }
 }

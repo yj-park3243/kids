@@ -147,12 +147,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> completeProfile({
     required String nickname,
     String? profileImageUrl,
+    String? parentGender,
+    bool? isSingleParent,
   }) async {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
     try {
       final user = await _repository.setupProfile(
         nickname: nickname,
         profileImageUrl: profileImageUrl,
+        parentGender: parentGender,
+        isSingleParent: isSingleParent,
       );
       state = state.copyWith(status: AuthStatus.childSetup, user: user);
     } catch (e) {
@@ -163,22 +167,24 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  Future<void> addChild({
+  Future<Child> addChild({
     required String nickname,
     required int birthYear,
     required int birthMonth,
     String? gender,
   }) async {
-    try {
-      await _repository.addChild(
-        nickname: nickname,
-        birthYear: birthYear,
-        birthMonth: birthMonth,
-        gender: gender,
-      );
-    } catch (e) {
-      rethrow;
+    final child = await _repository.addChild(
+      nickname: nickname,
+      birthYear: birthYear,
+      birthMonth: birthMonth,
+      gender: gender,
+    );
+    final user = state.user;
+    if (user != null) {
+      final next = [...(user.children ?? <Child>[]), child];
+      state = state.copyWith(user: user.copyWith(children: next));
     }
+    return child;
   }
 
   Future<void> completeChildSetup() async {

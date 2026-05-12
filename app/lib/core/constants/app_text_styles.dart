@@ -149,7 +149,7 @@ class AppTextStyles {
   static TextStyle get tag => _base(
         fontSize: 12,
         fontWeight: FontWeight.w600,
-        color: AppColors.pink700,
+        color: AppColors.primary700,
         height: 1.2,
         letterSpacing: -0.2,
       );

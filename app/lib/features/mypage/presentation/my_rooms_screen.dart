@@ -5,7 +5,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../models/room.dart';
 import '../../../widgets/app_bar.dart';
-import '../../../widgets/design/pink_blobs.dart';
+import '../../../widgets/design/accent_blobs.dart';
 import '../../../widgets/empty_state.dart';
 import '../../../widgets/loading.dart';
 import '../../home/presentation/widgets/room_card.dart';
@@ -76,9 +76,9 @@ class _MyRoomsScreenState extends ConsumerState<MyRoomsScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: const CustomAppBar(title: '내 모임'),
+      appBar: const CustomAppBar(title: '내 방', showBack: false),
       extendBodyBehindAppBar: true,
-      body: PinkBlobsBackground(
+      body: AccentBlobsBackground(
         child: SafeArea(
           child: Column(
             children: [
@@ -88,12 +88,12 @@ class _MyRoomsScreenState extends ConsumerState<MyRoomsScreen>
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.7),
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: AppColors.pink200, width: 0.8),
+                  border: Border.all(color: AppColors.primary200, width: 0.8),
                 ),
                 child: TabBar(
                   controller: _tabController,
                   indicator: BoxDecoration(
-                    gradient: AppColors.pinkGradient,
+                    gradient: AppColors.primaryGradient,
                     borderRadius: BorderRadius.circular(999),
                   ),
                   labelColor: Colors.white,
@@ -149,7 +149,10 @@ class _MyRoomsScreenState extends ConsumerState<MyRoomsScreen>
           final room = rooms[index];
           return RoomCard(
             room: room,
-            onTap: () => context.push('/rooms/${room.id}'),
+            onOpenDetail: () => context.push('/rooms/${room.id}'),
+            onOpenChat: room.chatRoomId != null
+                ? () => context.push('/chat/${room.chatRoomId}')
+                : null,
           );
         },
       ),

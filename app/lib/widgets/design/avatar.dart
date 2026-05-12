@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 
-enum AvatarTone { pink, coral, lilac, mint, cream }
+enum AvatarTone { primary, coral, lilac, mint, cream }
 
-/// 이니셜/이모지 아바타. 그라디언트 원 + 선택적 핑크 ring.
+/// 이니셜/이모지 아바타. 그라디언트 원 + 선택적 primary ring.
 class InitialAvatar extends StatelessWidget {
   final String label;
   final double size;
@@ -16,23 +16,23 @@ class InitialAvatar extends StatelessWidget {
     super.key,
     required this.label,
     this.size = 40,
-    this.tone = AvatarTone.pink,
+    this.tone = AvatarTone.primary,
     this.ring = false,
     this.imageUrl,
   });
 
   List<Color> get _gradient {
     switch (tone) {
-      case AvatarTone.pink:
-        return const [Color(0xFFFF8EB5), Color(0xFFE84C88)];
+      case AvatarTone.primary:
+        return const [Color(0xFF9DD9D0), AppColors.primary];
       case AvatarTone.coral:
-        return const [Color(0xFFFFCABD), Color(0xFFFF8E7A)];
+        return const [Color(0xFFFFC0AC), AppColors.accentCoral];
       case AvatarTone.lilac:
-        return const [Color(0xFFE6D5FF), Color(0xFFB08AE8)];
+        return const [Color(0xFFD5C7F2), AppColors.accentLavender];
       case AvatarTone.mint:
-        return const [Color(0xFFD5F5E6), Color(0xFF7DCFA4)];
+        return const [Color(0xFFB9EAD2), Color(0xFF7DCFA4)];
       case AvatarTone.cream:
-        return const [Color(0xFFFFF7F1), Color(0xFFFFE0CC)];
+        return const [Color(0xFFFFEBC2), AppColors.accentYellow];
     }
   }
 
@@ -71,7 +71,7 @@ class InitialAvatar extends StatelessWidget {
           shape: BoxShape.circle,
           color: Colors.white,
           boxShadow: const [
-            BoxShadow(color: AppColors.pink500, blurRadius: 0, spreadRadius: 1.5),
+            BoxShadow(color: AppColors.primary, blurRadius: 0, spreadRadius: 1.5),
           ],
         ),
         child: circle,

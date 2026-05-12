@@ -47,30 +47,44 @@ class AppDateUtils {
   }
 
   static String formatRelativeTime(DateTime dateTime) {
-    final diff = DateTime.now().difference(dateTime);
+    final local = dateTime.toLocal();
+    final diff = DateTime.now().difference(local);
 
     if (diff.inSeconds < 60) return '방금 전';
     if (diff.inMinutes < 60) return '${diff.inMinutes}분 전';
     if (diff.inHours < 24) return '${diff.inHours}시간 전';
     if (diff.inDays < 7) return '${diff.inDays}일 전';
 
-    return DateFormat('M/d').format(dateTime);
+    return DateFormat('M/d').format(local);
   }
 
   static String formatChatTime(DateTime dateTime) {
+    final local = dateTime.toLocal();
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final msgDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
+    final msgDate = DateTime(local.year, local.month, local.day);
 
     if (msgDate == today) {
-      return DateFormat('a h:mm', 'ko').format(dateTime);
+      return DateFormat('a h:mm', 'ko').format(local);
     }
 
     final diff = today.difference(msgDate).inDays;
     if (diff == 1) return '어제';
-    if (diff < 7) return DateFormat('E', 'ko').format(dateTime);
+    if (diff < 7) return DateFormat('E', 'ko').format(local);
 
-    return DateFormat('M/d').format(dateTime);
+    return DateFormat('M/d').format(local);
+  }
+
+  /// 채팅방 헤더용 날짜 라벨 (오늘/어제/yyyy년 M월 d일 (E)).
+  static String formatChatDateHeader(DateTime dateTime) {
+    final local = dateTime.toLocal();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final msgDate = DateTime(local.year, local.month, local.day);
+    final diff = today.difference(msgDate).inDays;
+    if (diff == 0) return '오늘';
+    if (diff == 1) return '어제';
+    return DateFormat('yyyy년 M월 d일 (E)', 'ko').format(local);
   }
 
   static String formatCostDisplay(int cost) {

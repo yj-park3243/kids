@@ -53,6 +53,8 @@ class AuthRepository {
     String? regionDong,
     String? profileImageUrl,
     String? introduction,
+    String? parentGender,
+    bool? isSingleParent,
   }) async {
     final response = await _dio.post(ApiConstants.userProfile, data: {
       'nickname': nickname,
@@ -61,6 +63,8 @@ class AuthRepository {
       if (regionDong != null) 'regionDong': regionDong,
       'profileImageUrl': profileImageUrl,
       'introduction': introduction,
+      if (parentGender != null) 'parentGender': parentGender,
+      if (isSingleParent != null) 'isSingleParent': isSingleParent,
     });
     final data = response.data['data'] ?? response.data;
     return User.fromJson(data);

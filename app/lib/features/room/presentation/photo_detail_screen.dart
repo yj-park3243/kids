@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../models/room_photo.dart';
 import '../../../models/user.dart';
@@ -170,7 +171,8 @@ class _PhotoPageState extends ConsumerState<_PhotoPage> {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.screen, AppSpacing.lg, AppSpacing.screen, AppSpacing.xs),
           child: Text(
             '${p.uploaderNickname} · ${DateFormat('M월 d일 HH:mm').format(p.createdAt.toLocal())}',
             style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
@@ -181,23 +183,27 @@ class _PhotoPageState extends ConsumerState<_PhotoPage> {
           selected: p.childIds,
           onToggle: _toggleTag,
         ),
-        const Divider(height: 24),
+        AppSpacing.gapLgV,
+        const Divider(height: 1, indent: AppSpacing.screen, endIndent: AppSpacing.screen),
+        AppSpacing.gapLgV,
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text('댓글 ${_comments.length}', style: AppTextStyles.body2Bold),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screen),
+          child: Text('댓글 ${_comments.length}', style: AppTextStyles.sectionHead),
         ),
-        const SizedBox(height: 8),
+        AppSpacing.gapSm,
         if (_comments.isEmpty)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.screen, vertical: AppSpacing.md),
             child: Text(
               '아직 댓글이 없어요',
-              style: AppTextStyles.caption.copyWith(color: AppColors.textHint),
+              style: AppTextStyles.body2.copyWith(color: AppColors.textHint),
             ),
           )
         else
           ..._comments.map((c) => Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.screen, vertical: AppSpacing.sm),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -206,9 +212,12 @@ class _PhotoPageState extends ConsumerState<_PhotoPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(c.userNickname, style: AppTextStyles.body2Bold),
-                          const SizedBox(height: 2),
-                          Text(c.content, style: AppTextStyles.body2),
-                          const SizedBox(height: 2),
+                          AppSpacing.gapXxs,
+                          Text(
+                            c.content,
+                            style: AppTextStyles.body2.copyWith(height: 1.5),
+                          ),
+                          AppSpacing.gapXxs,
                           Text(
                             DateFormat('M월 d일 HH:mm').format(c.createdAt.toLocal()),
                             style: AppTextStyles.caption
@@ -220,7 +229,7 @@ class _PhotoPageState extends ConsumerState<_PhotoPage> {
                   ],
                 ),
               )),
-        const SizedBox(height: 80),
+        const SizedBox(height: 100),
       ],
     )
         .let((listView) => Stack(children: [
@@ -315,16 +324,18 @@ class _ChildTagsEditorState extends State<_ChildTagsEditor> {
     ];
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.screen, AppSpacing.md, AppSpacing.screen, AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           GestureDetector(
             onTap: _toggleExpand,
+            behavior: HitTestBehavior.opaque,
             child: Row(
               children: [
                 Text('아이 태그 (${widget.selected.length})',
-                    style: AppTextStyles.body2Bold),
+                    style: AppTextStyles.sectionHead),
                 const Spacer(),
                 Icon(
                   _expanded
@@ -336,23 +347,23 @@ class _ChildTagsEditorState extends State<_ChildTagsEditor> {
             ),
           ),
           if (_expanded) ...[
-            const SizedBox(height: 8),
+            AppSpacing.gapMdV,
             if (sorted.isEmpty)
               Text(
                 '방 멤버의 아이 정보가 없어요',
-                style: AppTextStyles.caption.copyWith(color: AppColors.textHint),
+                style: AppTextStyles.body2.copyWith(color: AppColors.textHint),
               )
             else
               Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: AppSpacing.xs,
+                runSpacing: AppSpacing.xs,
                 children: sorted.map((c) {
                   final picked = selectedSet.contains(c.id);
                   return GestureDetector(
                     onTap: () => widget.onToggle(c.id),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
+                          horizontal: AppSpacing.md, vertical: AppSpacing.sm),
                       decoration: BoxDecoration(
                         color: picked
                             ? AppColors.primary

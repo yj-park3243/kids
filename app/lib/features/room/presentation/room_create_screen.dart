@@ -15,9 +15,10 @@ import '../../../widgets/common_button.dart';
 import '../../../widgets/common_input.dart';
 import '../../../widgets/address_search_sheet.dart';
 import '../../../widgets/cupertino_picker_sheet.dart';
-import '../../../widgets/design/pink_blobs.dart';
+import '../../../widgets/design/accent_blobs.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/room_detail_provider.dart';
+import 'widgets/required_items_picker.dart';
 
 class RoomCreateScreen extends ConsumerStatefulWidget {
   const RoomCreateScreen({super.key});
@@ -50,6 +51,12 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
   final List<String> _tags = [];
   bool _isLoading = false;
   Child? _selectedChild;
+
+  // 신규 카테고리/번개/준비물
+  String _genderFilter = 'ALL'; // 'ALL' | 'MOM_ONLY' | 'DAD_ONLY'
+  bool _singleParentOnly = false;
+  bool _isFlashMeeting = false;
+  final List<String> _requiredItems = [];
 
   @override
   void initState() {
@@ -84,6 +91,17 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
   }
 
   Future<void> _selectDate() async {
+    if (_isFlashMeeting) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('번개 모임은 오늘 날짜로 고정돼요'),
+          backgroundColor: AppColors.warning,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+      return;
+    }
     final now = DateTime.now();
     final date = await showCupertinoDateSheet(
       context,
@@ -92,6 +110,24 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
       last: now.add(const Duration(days: 60)),
     );
     if (date != null) setState(() => _selectedDate = date);
+  }
+
+  /// 번개 모임 토글. ON 시 날짜는 오늘, 시작시간은 현재+1h로 자동.
+  void _toggleFlashMeeting(bool value) {
+    setState(() {
+      _isFlashMeeting = value;
+      if (value) {
+        final now = DateTime.now();
+        _selectedDate = DateTime(now.year, now.month, now.day);
+        final flashStart = now.add(const Duration(hours: 1));
+        _startTime = TimeOfDay(hour: flashStart.hour, minute: flashStart.minute);
+        // 종료시간이 시작 이전이면 초기화
+        if (_endTime != null &&
+            _toMinutes(_endTime!) <= _toMinutes(_startTime!)) {
+          _endTime = null;
+        }
+      }
+    });
   }
 
   Future<void> _selectTime(bool isStart) async {
@@ -109,13 +145,36 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
     final initial = isStart
         ? (_startTime ?? const TimeOfDay(hour: 14, minute: 0))
         : (_endTime ?? _addHour(_startTime!));
+
+    // 번개 모임 시작시간 최소값: 현재 + 1h
+    TimeOfDay? minStart;
+    if (_isFlashMeeting && isStart) {
+      final earliest = DateTime.now().add(const Duration(hours: 1));
+      minStart = TimeOfDay(hour: earliest.hour, minute: earliest.minute);
+    }
+
     final time = await showCupertinoTimeSheet(
       context,
       initial: initial,
       title: isStart ? '시작 시간' : '종료 시간',
-      minimum: isStart ? null : _startTime,
+      minimum: isStart ? minStart : _startTime,
     );
     if (time != null) {
+      // 번개 모임 가드 (피커가 minimum을 무시할 가능성 대비)
+      if (_isFlashMeeting && isStart && minStart != null &&
+          _toMinutes(time) < _toMinutes(minStart)) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('번개 모임은 1시간 이후부터 시작할 수 있어요'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+        return;
+      }
       setState(() {
         if (isStart) {
           _startTime = time;
@@ -244,6 +303,109 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
     );
   }
 
+  Widget _buildCategorySection() {
+    final me = ref.watch(authProvider).user;
+    final canSingleParent = me?.isSingleParent == true;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('참여 성별', style: AppTextStyles.body2Bold),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _GenderChip(
+                label: '전체',
+                isSelected: _genderFilter == 'ALL',
+                onTap: () => setState(() => _genderFilter = 'ALL'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _GenderChip(
+                label: '👩 엄마만',
+                isSelected: _genderFilter == 'MOM_ONLY',
+                onTap: () => setState(() => _genderFilter = 'MOM_ONLY'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _GenderChip(
+                label: '👨 아빠만',
+                isSelected: _genderFilter == 'DAD_ONLY',
+                onTap: () => setState(() => _genderFilter = 'DAD_ONLY'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '한부모 가정만 참여',
+                    style: AppTextStyles.body2Bold.copyWith(
+                      color: canSingleParent
+                          ? AppColors.textPrimary
+                          : AppColors.textHint,
+                    ),
+                  ),
+                  if (!canSingleParent) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      '한부모 가정 유저만 한부모 전용 방을 만들 수 있어요',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.textHint,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            Switch(
+              value: _singleParentOnly,
+              activeTrackColor: AppColors.primary,
+              onChanged: canSingleParent
+                  ? (v) => setState(() => _singleParentOnly = v)
+                  : null,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFlashMeetingToggle() {
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('⚡ 번개 모임 (24시간 이내)',
+                  style: AppTextStyles.body2Bold),
+              const SizedBox(height: 2),
+              Text(
+                '오늘 모일 사람을 빠르게 찾고 싶을 때',
+                style:
+                    AppTextStyles.caption.copyWith(color: AppColors.textHint),
+              ),
+            ],
+          ),
+        ),
+        Switch(
+          value: _isFlashMeeting,
+          activeTrackColor: AppColors.primary,
+          onChanged: _toggleFlashMeeting,
+        ),
+      ],
+    );
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -297,6 +459,10 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
         'costDescription':
             _costDescController.text.isNotEmpty ? _costDescController.text.trim() : null,
         'tags': _tags,
+        'genderFilter': _genderFilter,
+        'singleParentOnly': _singleParentOnly,
+        'isFlashMeeting': _isFlashMeeting,
+        'requiredItems': _requiredItems,
       };
 
       final room = await ref.read(roomRepositoryProvider).createRoom(roomData);
@@ -326,7 +492,7 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
       backgroundColor: Colors.transparent,
       appBar: const CustomAppBar(title: '모임 만들기'),
       extendBodyBehindAppBar: true,
-      body: PinkBlobsBackground(
+      body: AccentBlobsBackground(
         child: SafeArea(
         child: Form(
           key: _formKey,
@@ -335,6 +501,10 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
             children: [
               // 아이 선택
               _buildChildSelector(),
+              const SizedBox(height: 20),
+
+              // Gender filter / single-parent / category preview
+              _buildCategorySection(),
               const SizedBox(height: 20),
 
               // Title
@@ -356,6 +526,10 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
                 maxLines: 4,
                 maxLength: 500,
               ),
+              const SizedBox(height: 20),
+
+              // Flash meeting
+              _buildFlashMeetingToggle(),
               const SizedBox(height: 20),
 
               // Date
@@ -393,65 +567,28 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
               const SizedBox(height: 20),
 
               // Time
+              Text('시간', style: AppTextStyles.body2Bold),
+              const SizedBox(height: 8),
               Row(
                 children: [
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('시작 시간', style: AppTextStyles.body2Bold),
-                        const SizedBox(height: 8),
-                        GestureDetector(
-                          onTap: () => _selectTime(true),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 14),
-                            decoration: BoxDecoration(
-                              color: AppColors.surface,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppColors.divider),
-                            ),
-                            child: Text(
-                              _startTime?.format(context) ?? '선택',
-                              style: AppTextStyles.body1.copyWith(
-                                color: _startTime != null
-                                    ? AppColors.textPrimary
-                                    : AppColors.textHint,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                    child: _TimePickerCard(
+                      label: '시작',
+                      time: _startTime,
+                      placeholder: '시작 시간',
+                      onTap: () => _selectTime(true),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.arrow_forward_rounded,
+                      size: 18, color: AppColors.textHint),
+                  const SizedBox(width: 8),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('종료 시간', style: AppTextStyles.body2Bold),
-                        const SizedBox(height: 8),
-                        GestureDetector(
-                          onTap: () => _selectTime(false),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 14),
-                            decoration: BoxDecoration(
-                              color: AppColors.surface,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppColors.divider),
-                            ),
-                            child: Text(
-                              _endTime?.format(context) ?? '선택 (선택)',
-                              style: AppTextStyles.body1.copyWith(
-                                color: _endTime != null
-                                    ? AppColors.textPrimary
-                                    : AppColors.textHint,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                    child: _TimePickerCard(
+                      label: '종료 (선택)',
+                      time: _endTime,
+                      placeholder: '종료 시간',
+                      onTap: () => _selectTime(false),
                     ),
                   ),
                 ],
@@ -459,7 +596,7 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
               const SizedBox(height: 20),
 
               // Region — 주소 검색 (Daum 우편번호)
-              Text('지역 / 장소 주소', style: AppTextStyles.body2Bold),
+              Text('지역 / 장소', style: AppTextStyles.body2Bold),
               const SizedBox(height: 8),
               GestureDetector(
                 onTap: _selectAddress,
@@ -676,6 +813,17 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
               ],
               const SizedBox(height: 20),
 
+              // Required items
+              RequiredItemsPicker(
+                value: _requiredItems,
+                onChanged: (next) => setState(() {
+                  _requiredItems
+                    ..clear()
+                    ..addAll(next);
+                }),
+              ),
+              const SizedBox(height: 20),
+
               // Tags
               Text('태그 (최대 5개)', style: AppTextStyles.body2Bold),
               const SizedBox(height: 8),
@@ -837,6 +985,106 @@ class _OptionChip extends StatelessWidget {
                 fontSize: 11,
                 color: isSelected ? AppColors.primary : AppColors.textHint,
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GenderChip extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _GenderChip({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppColors.primary.withValues(alpha: 0.1)
+              : AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : AppColors.divider,
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: AppTextStyles.body2.copyWith(
+            color: isSelected ? AppColors.primary : AppColors.textSecondary,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TimePickerCard extends StatelessWidget {
+  const _TimePickerCard({
+    required this.label,
+    required this.time,
+    required this.placeholder,
+    required this.onTap,
+  });
+
+  final String label;
+  final TimeOfDay? time;
+  final String placeholder;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasValue = time != null;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: AppTextStyles.caption.copyWith(color: AppColors.textHint),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(
+                  child: Text(
+                    hasValue ? time!.format(context) : placeholder,
+                    style: AppTextStyles.body1Bold.copyWith(
+                      color: hasValue ? AppColors.primary : AppColors.textHint,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Icon(
+                  Icons.access_time_rounded,
+                  size: 18,
+                  color:
+                      hasValue ? AppColors.primary : AppColors.textHint,
+                ),
+              ],
             ),
           ],
         ),

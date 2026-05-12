@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-enum BabyAvatarTone { pink, coral, lilac, mint, cream, blue }
+enum BabyAvatarTone { primary, coral, lilac, mint, cream, blue }
 
 /// 아기 얼굴 placeholder: radial gradient + 눈 2개 + 볼터치 + 미소.
 class BabyAvatar extends StatelessWidget {
@@ -11,24 +11,24 @@ class BabyAvatar extends StatelessWidget {
   const BabyAvatar({
     super.key,
     this.size = 64,
-    this.tone = BabyAvatarTone.pink,
+    this.tone = BabyAvatarTone.primary,
     this.imageUrl,
   });
 
   List<Color> get _bgGradient {
     switch (tone) {
-      case BabyAvatarTone.pink:
-        return const [Color(0xFFFFE4EE), Color(0xFFFFB8D0)];
+      case BabyAvatarTone.primary:
+        return const [Color(0xFFCDF1ED), Color(0xFF9DD9D0)];
       case BabyAvatarTone.coral:
-        return const [Color(0xFFFFE4DC), Color(0xFFFFAD9A)];
+        return const [Color(0xFFFFE0D2), Color(0xFFFFC0AC)];
       case BabyAvatarTone.lilac:
-        return const [Color(0xFFF0E6FF), Color(0xFFD5C0F5)];
+        return const [Color(0xFFEEE5FA), Color(0xFFD5C7F2)];
       case BabyAvatarTone.mint:
         return const [Color(0xFFE0F5EB), Color(0xFFB9EAD2)];
       case BabyAvatarTone.cream:
-        return const [Color(0xFFFFF7F1), Color(0xFFFFE4D0)];
+        return const [Color(0xFFFFF3D6), Color(0xFFFFEBA8)];
       case BabyAvatarTone.blue:
-        return const [Color(0xFFE0EEFF), Color(0xFFB8D0FF)];
+        return const [Color(0xFFD9EAFF), Color(0xFFB1D5FF)];
     }
   }
 
@@ -101,7 +101,7 @@ class BabyAvatar extends StatelessWidget {
               decoration: BoxDecoration(
                 border: Border(
                   bottom: BorderSide(
-                    color: const Color(0xFF5A1336).withValues(alpha: 0.5),
+                    color: const Color(0xFF1A1A2E).withValues(alpha: 0.5),
                     width: size * 0.025,
                   ),
                 ),
@@ -120,7 +120,7 @@ class BabyAvatar extends StatelessWidget {
         width: s,
         height: s,
         decoration: const BoxDecoration(
-          color: Color(0xFF1A0F18),
+          color: Color(0xFF1A1A2E),
           shape: BoxShape.circle,
         ),
       );
@@ -129,7 +129,7 @@ class BabyAvatar extends StatelessWidget {
         width: s,
         height: s * 0.55,
         decoration: BoxDecoration(
-          color: const Color(0xFFFF8EB5).withValues(alpha: 0.45),
+          color: const Color(0xFFFF9476).withValues(alpha: 0.45),
           borderRadius: BorderRadius.circular(999),
         ),
       );

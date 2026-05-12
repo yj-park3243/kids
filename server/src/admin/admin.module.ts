@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -9,6 +9,7 @@ import { UserVisit } from '../user/entities/user-visit.entity';
 import { Room } from '../room/entities/room.entity';
 import { Child } from '../child/entities/child.entity';
 import { UserReport } from '../support/entities/user-report.entity';
+import { UserModule } from '../user/user.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { UserReport } from '../support/entities/user-report.entity';
         secret: configService.get('JWT_SECRET'),
       }),
     }),
+    forwardRef(() => UserModule),
   ],
   controllers: [AdminController],
   providers: [AdminService],

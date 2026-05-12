@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/storage/secure_storage.dart';
-import '../../../widgets/design/pink_blobs.dart';
+import '../../../widgets/design/accent_blobs.dart';
 import '../../auth/providers/auth_provider.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -93,7 +93,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: PinkBlobsBackground(
+      body: AccentBlobsBackground(
         strong: true,
         child: Center(
           child: FadeTransition(
@@ -111,7 +111,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   const SizedBox(height: 20),
                   ShaderMask(
                     shaderCallback: (bounds) =>
-                        AppColors.pinkTextGradient.createShader(bounds),
+                        AppColors.primaryTextGradient.createShader(bounds),
                     child: Text(
                       '같이크자',
                       style: AppTextStyles.display.copyWith(

@@ -20,6 +20,7 @@ import {
   AdminReportQueryDto,
   BanUserDto,
   VerifyUserDto,
+  CorrectIdentityDto,
 } from './dto/admin-query.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { AdminGuard } from '../common/guards/admin.guard';
@@ -76,6 +77,17 @@ export class AdminController {
   @ApiOperation({ summary: '본인인증 상태 수동 변경' })
   async verifyUser(@Param('id') userId: string, @Body() dto: VerifyUserDto) {
     return this.adminService.setPhoneVerified(userId, dto.isPhoneVerified);
+  }
+
+  @Patch('users/:id/correct-identity')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '부모 성별 / 한부모 여부 정정 (관리자)' })
+  async correctIdentity(
+    @Param('id') userId: string,
+    @Body() dto: CorrectIdentityDto,
+  ) {
+    return this.adminService.correctIdentity(userId, dto.parentGender ?? null, dto.isSingleParent);
   }
 
   @Get('rooms')

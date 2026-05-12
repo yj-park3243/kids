@@ -13,7 +13,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ChatService } from './chat.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { ListMessagesQueryDto, SendMessageDto } from './dto/chat.dto';
+import { ListMessagesQueryDto, MarkReadDto, SendMessageDto } from './dto/chat.dto';
 
 @ApiTags('Chat')
 @Controller('chat')
@@ -50,5 +50,16 @@ export class ChatController {
     @Body() dto: SendMessageDto,
   ) {
     return this.chatService.sendUserMessage(roomId, userId, dto.content);
+  }
+
+  @Post('rooms/:roomId/read')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: '채팅방 읽음 처리 (REST fallback)' })
+  async markRead(
+    @Param('roomId') roomId: string,
+    @CurrentUser('id') userId: string,
+    @Body() dto: MarkReadDto,
+  ) {
+    return this.chatService.markRoomRead(roomId, userId, dto?.asOf);
   }
 }

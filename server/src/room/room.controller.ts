@@ -48,8 +48,11 @@ export class RoomController {
 
   @Get('map')
   @ApiOperation({ summary: '지도 뷰용 방 조회' })
-  async getMapRooms(@Query() query: MapQueryDto) {
-    return this.roomService.getMapRooms(query);
+  async getMapRooms(
+    @CurrentUser('id') userId: string,
+    @Query() query: MapQueryDto,
+  ) {
+    return this.roomService.getMapRooms(userId, query);
   }
 
   @Get()

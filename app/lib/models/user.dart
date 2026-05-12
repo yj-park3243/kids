@@ -12,6 +12,13 @@ class User {
   final String? authProvider;
   final List<Child>? children;
   final String? createdAt;
+  final String? parentGender; // 'MOM' | 'DAD' | null
+  final bool isSingleParent;
+  final double mannerScore;
+  final List<String>? mannerTags; // 타 유저 프로필 조회 시만
+  final String? noShowLevel; // 'NONE' | 'OCCASIONAL' | 'FREQUENT'
+  final bool? isFollowing; // 타 유저 프로필 조회 시만
+  final bool? isBlocked; // 타 유저 프로필 조회 시만
 
   User({
     required this.id,
@@ -27,6 +34,13 @@ class User {
     this.authProvider,
     this.children,
     this.createdAt,
+    this.parentGender,
+    this.isSingleParent = false,
+    this.mannerScore = 36.5,
+    this.mannerTags,
+    this.noShowLevel,
+    this.isFollowing,
+    this.isBlocked,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -46,6 +60,15 @@ class User {
           ? (json['children'] as List).map((e) => Child.fromJson(e)).toList()
           : null,
       createdAt: json['createdAt'],
+      parentGender: json['parentGender'],
+      isSingleParent: json['isSingleParent'] ?? false,
+      mannerScore: (json['mannerScore'] as num?)?.toDouble() ?? 36.5,
+      mannerTags: json['mannerTags'] != null
+          ? (json['mannerTags'] as List).map((e) => e.toString()).toList()
+          : null,
+      noShowLevel: json['noShowLevel'],
+      isFollowing: json['isFollowing'],
+      isBlocked: json['isBlocked'],
     );
   }
 
@@ -61,6 +84,13 @@ class User {
         'isProfileComplete': isProfileComplete,
         'isPhoneVerified': isPhoneVerified,
         'authProvider': authProvider,
+        'parentGender': parentGender,
+        'isSingleParent': isSingleParent,
+        'mannerScore': mannerScore,
+        'mannerTags': mannerTags,
+        'noShowLevel': noShowLevel,
+        'isFollowing': isFollowing,
+        'isBlocked': isBlocked,
       };
 
   User copyWith({
@@ -77,6 +107,13 @@ class User {
     String? authProvider,
     List<Child>? children,
     String? createdAt,
+    String? parentGender,
+    bool? isSingleParent,
+    double? mannerScore,
+    List<String>? mannerTags,
+    String? noShowLevel,
+    bool? isFollowing,
+    bool? isBlocked,
   }) {
     return User(
       id: id ?? this.id,
@@ -92,6 +129,13 @@ class User {
       authProvider: authProvider ?? this.authProvider,
       children: children ?? this.children,
       createdAt: createdAt ?? this.createdAt,
+      parentGender: parentGender ?? this.parentGender,
+      isSingleParent: isSingleParent ?? this.isSingleParent,
+      mannerScore: mannerScore ?? this.mannerScore,
+      mannerTags: mannerTags ?? this.mannerTags,
+      noShowLevel: noShowLevel ?? this.noShowLevel,
+      isFollowing: isFollowing ?? this.isFollowing,
+      isBlocked: isBlocked ?? this.isBlocked,
     );
   }
 }

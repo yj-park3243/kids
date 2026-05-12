@@ -8,6 +8,7 @@ import {
   OneToMany,
   JoinColumn,
   Index,
+  Check,
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
 import { RoomMember } from './room-member.entity';
@@ -20,6 +21,7 @@ import { JoinRequest } from './join-request.entity';
 @Index(['ageMonthMin', 'ageMonthMax'])
 @Index(['latitude', 'longitude'])
 @Index(['regionDong', 'date', 'status'])
+@Check(`"gender_filter" IN ('ALL','MOM_ONLY','DAD_ONLY')`)
 export class Room {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -95,6 +97,21 @@ export class Room {
 
   @Column({ name: 'chat_room_id', type: 'uuid', nullable: true })
   chatRoomId: string;
+
+  @Column({ name: 'gender_filter', type: 'varchar', length: 20, default: 'ALL' })
+  genderFilter: string; // ALL, MOM_ONLY, DAD_ONLY
+
+  @Column({ name: 'single_parent_only', type: 'boolean', default: false })
+  singleParentOnly: boolean;
+
+  @Column({ name: 'is_flash_meeting', type: 'boolean', default: false })
+  isFlashMeeting: boolean;
+
+  @Column({ name: 'required_items', type: 'text', array: true, default: () => "'{}'" })
+  requiredItems: string[];
+
+  @Column({ name: 'completed_at', type: 'timestamp', nullable: true })
+  completedAt: Date;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

@@ -73,3 +73,14 @@ export class VerifyUserDto {
   @IsBoolean()
   isPhoneVerified: boolean;
 }
+
+export class CorrectIdentityDto {
+  @ApiProperty({ enum: ['MOM', 'DAD'], nullable: true, required: false })
+  @IsOptional()
+  @IsString()
+  parentGender?: 'MOM' | 'DAD' | null;
+
+  @ApiProperty({ example: false })
+  @IsBoolean()
+  isSingleParent: boolean;
+}

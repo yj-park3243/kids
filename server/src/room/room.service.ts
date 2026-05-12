@@ -4,9 +4,11 @@ import {
   ForbiddenException,
   ConflictException,
   BadRequestException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
 import { Room } from './entities/room.entity';
 import { RoomMember } from './entities/room-member.entity';
 import { JoinRequest } from './entities/join-request.entity';
@@ -17,10 +19,13 @@ import { UpdateRoomDto } from './dto/update-room.dto';
 import { RoomQueryDto, MapQueryDto, MyRoomQueryDto } from './dto/room-query.dto';
 import { ChatService } from '../chat/chat.service';
 import { NotificationService } from '../notification/notification.service';
+import { FollowService } from '../follow/follow.service';
+import { RoomVisibilityService } from './room-visibility.service';
 import {
   TelegramService,
   escapeHtml,
 } from '../common/services/telegram.service';
+import { GeocodingService } from '../common/services/geocoding.service';
 
 @Injectable()
 export class RoomService {
@@ -38,13 +43,68 @@ export class RoomService {
     private chatService: ChatService,
     private notificationService: NotificationService,
     private telegramService: TelegramService,
+    private roomVisibility: RoomVisibilityService,
+    private geocodingService: GeocodingService,
+    @Inject(forwardRef(() => FollowService))
+    private followService: FollowService,
   ) {}
 
   async create(userId: string, dto: CreateRoomDto) {
+    const host = await this.userRepository.findOne({ where: { id: userId } });
+    if (!host) throw new NotFoundException('사용자를 찾을 수 없습니다.');
+
+    // 번개 모임 검증: 오늘 + 현재 +1h 이후
+    if (dto.isFlashMeeting === true) {
+      const today = new Date().toISOString().slice(0, 10);
+      if (dto.date !== today) {
+        throw new BadRequestException({
+          code: 'FLASH_DATE_INVALID',
+          message: '번개 모임은 오늘 날짜만 가능합니다.',
+        });
+      }
+      const start = new Date(`${dto.date}T${dto.startTime}`);
+      const minStart = new Date(Date.now() + 60 * 60 * 1000);
+      if (start.getTime() < minStart.getTime()) {
+        throw new BadRequestException({
+          code: 'FLASH_START_INVALID',
+          message: '번개 모임은 현재 시각 +1시간 이후로만 설정 가능합니다.',
+        });
+      }
+    }
+
+    // 한부모 전용 방은 방장이 한부모일 때만 생성 가능
+    if (dto.singleParentOnly === true && host.isSingleParent !== true) {
+      throw new ForbiddenException({
+        code: 'SINGLE_PARENT_ONLY_REQUIRES_SINGLE_PARENT_HOST',
+        message: '한부모 전용 방은 한부모 가정 방장만 생성할 수 있습니다.',
+      });
+    }
+
+    // requiredItems 길이 검증 — DTO 에서 1차 검증되지만 방어적으로 한 번 더.
+    if (dto.requiredItems && dto.requiredItems.length > 10) {
+      throw new BadRequestException('준비물은 최대 10개까지 가능합니다.');
+    }
+    if (dto.requiredItems?.some((it) => (it ?? '').length > 20)) {
+      throw new BadRequestException('준비물 각 항목은 20자 이내여야 합니다.');
+    }
+
+    // 주소 → 좌표 변환 (클라이언트가 좌표를 직접 보낸 경우 우선 사용)
+    let latitude = dto.latitude;
+    let longitude = dto.longitude;
+    if ((latitude == null || longitude == null) && dto.placeAddress) {
+      const geo = await this.geocodingService.geocode(dto.placeAddress);
+      if (geo) {
+        latitude = geo.latitude;
+        longitude = geo.longitude;
+      }
+    }
+
     // Create room
     const room = this.roomRepository.create({
       hostId: userId,
       ...dto,
+      latitude,
+      longitude,
       cost: dto.cost || 0,
       status: 'RECRUITING',
       currentMembers: 1,
@@ -66,7 +126,6 @@ export class RoomService {
     await this.roomMemberRepository.save(member);
 
     // 텔레그램 관리자 알림
-    const host = await this.userRepository.findOne({ where: { id: userId } });
     void this.telegramService.sendAdminAlert(
       `🏠 <b>신규 모임 생성</b>\n` +
         `• 제목: ${escapeHtml(savedRoom.title)}\n` +
@@ -75,11 +134,32 @@ export class RoomService {
         `• 호스트: ${escapeHtml(host?.nickname ?? '-')} (<code>${escapeHtml(userId)}</code>)`,
     );
 
+    // 번개 모임 푸시 (fire-and-forget). 수신 대상 선별은 NotificationService 가 처리하지 않으므로
+    // 일단 모임 생성 사실만 발송한다. 더 정교한 매칭은 후속 작업.
+    if (savedRoom.isFlashMeeting) {
+      void this.notificationService
+        .create({
+          userId, // self 발송 placeholder — 실제 대상 매칭은 별도 워커가 필요. 검토 포인트.
+          type: 'NEW_FLASH',
+          title: '번개 모임 등록',
+          body: `[${savedRoom.title}] 번개 모임이 등록되었어요.`,
+          data: { roomId: savedRoom.id },
+        })
+        .catch(() => undefined);
+    }
+
+    // 팔로워에게 FOLLOW_NEW_ROOM 푸시 (fire-and-forget)
+    void this.followService
+      .dispatchFollowNewRoomNotification(savedRoom.id, userId)
+      .catch(() => undefined);
+
     // Fetch full room data
     return this.getDetail(savedRoom.id, userId);
   }
 
   async findAll(userId: string, query: RoomQueryDto) {
+    const viewer = await this.userRepository.findOne({ where: { id: userId } });
+
     const qb = this.roomRepository
       .createQueryBuilder('room')
       .leftJoinAndSelect('room.host', 'host')
@@ -114,6 +194,27 @@ export class RoomService {
     if (query.costFree) {
       qb.andWhere('room.cost = 0');
     }
+    if (query.genderFilter) {
+      qb.andWhere('room.genderFilter = :gf', { gf: query.genderFilter });
+    }
+    if (query.singleParentOnly !== undefined) {
+      qb.andWhere('room.singleParentOnly = :spo', { spo: query.singleParentOnly });
+    }
+    if (query.isFlashMeeting !== undefined) {
+      qb.andWhere('room.isFlashMeeting = :flash', { flash: query.isFlashMeeting });
+    }
+
+    // 자격 자동 필터: 본인 parentGender / isSingleParent 기준으로 참여 불가 방은 제외.
+    if (viewer) {
+      if (viewer.parentGender === 'MOM') {
+        qb.andWhere(`room.genderFilter <> 'DAD_ONLY'`);
+      } else if (viewer.parentGender === 'DAD') {
+        qb.andWhere(`room.genderFilter <> 'MOM_ONLY'`);
+      }
+      if (viewer.isSingleParent !== true) {
+        qb.andWhere(`room.singleParentOnly = false`);
+      }
+    }
 
     // Cursor-based pagination
     if (query.cursor) {
@@ -136,31 +237,42 @@ export class RoomService {
     const hasMore = rooms.length > limit;
     if (hasMore) rooms.pop();
 
-    const items = rooms.map((room) => ({
-      id: room.id,
-      title: room.title,
-      date: room.date,
-      startTime: room.startTime,
-      regionDong: room.regionDong,
-      ageMonthMin: room.ageMonthMin,
-      ageMonthMax: room.ageMonthMax,
-      placeType: room.placeType,
-      currentMembers: room.currentMembers,
-      maxMembers: room.maxMembers,
-      joinType: room.joinType,
-      cost: room.cost,
-      tags: room.tags,
-      status: room.status,
-      host: room.host
-        ? {
-            id: room.host.id,
-            nickname: room.host.nickname,
-            profileImageUrl: room.host.profileImageUrl,
-          }
-        : null,
-      latitude: room.latitude,
-      longitude: room.longitude,
-    }));
+    const items = rooms.map((room) => {
+      const masked = this.roomVisibility.maskCoordinatesForList({
+        id: room.id,
+        latitude: room.latitude,
+        longitude: room.longitude,
+      });
+      return {
+        id: room.id,
+        title: room.title,
+        date: room.date,
+        startTime: room.startTime,
+        regionDong: room.regionDong,
+        ageMonthMin: room.ageMonthMin,
+        ageMonthMax: room.ageMonthMax,
+        placeType: room.placeType,
+        currentMembers: room.currentMembers,
+        maxMembers: room.maxMembers,
+        joinType: room.joinType,
+        genderFilter: room.genderFilter,
+        singleParentOnly: room.singleParentOnly,
+        isFlashMeeting: room.isFlashMeeting,
+        cost: room.cost,
+        tags: room.tags,
+        status: room.status,
+        host: room.host
+          ? {
+              id: room.host.id,
+              nickname: room.host.nickname,
+              profileImageUrl: room.host.profileImageUrl,
+            }
+          : null,
+        // 마스킹된 좌표만 노출. placeName/placeAddress 는 응답에서 제외.
+        latitude: masked.latitude,
+        longitude: masked.longitude,
+      };
+    });
 
     return {
       items,
@@ -218,6 +330,9 @@ export class RoomService {
       id: m.user?.id,
       nickname: m.user?.nickname,
       profileImageUrl: m.user?.profileImageUrl,
+      parentGender: m.user?.parentGender,
+      isSingleParent: m.user?.isSingleParent,
+      mannerScore: m.user?.mannerScore != null ? Number(m.user.mannerScore) : undefined,
       children: m.user?.children?.map((c) => ({
         nickname: c.nickname,
         ageMonths: (now.getFullYear() - c.birthYear) * 12 + (now.getMonth() + 1 - c.birthMonth),
@@ -226,8 +341,11 @@ export class RoomService {
       isHost: m.isHost,
     }));
 
-    return {
+    const isMember = myStatus === 'ACCEPTED';
+
+    const response: any = {
       id: room.id,
+      hostId: room.hostId,
       title: room.title,
       description: room.description,
       date: room.date,
@@ -246,6 +364,10 @@ export class RoomService {
       maxMembers: room.maxMembers,
       currentMembers: room.currentMembers,
       joinType: room.joinType,
+      genderFilter: room.genderFilter,
+      singleParentOnly: room.singleParentOnly,
+      isFlashMeeting: room.isFlashMeeting,
+      requiredItems: room.requiredItems,
       cost: room.cost,
       costDescription: room.costDescription,
       tags: room.tags,
@@ -256,6 +378,10 @@ export class RoomService {
             nickname: room.host.nickname,
             profileImageUrl: room.host.profileImageUrl,
             regionSigungu: room.host.regionSigungu,
+            parentGender: room.host.parentGender,
+            isSingleParent: room.host.isSingleParent,
+            mannerScore:
+              room.host.mannerScore != null ? Number(room.host.mannerScore) : undefined,
           }
         : null,
       members,
@@ -265,6 +391,8 @@ export class RoomService {
       chatRoomId: room.chatRoomId,
       createdAt: room.createdAt,
     };
+
+    return this.roomVisibility.maskRoomForViewer(response, userId, isMember);
   }
 
   async update(userId: string, roomId: string, dto: UpdateRoomDto) {
@@ -366,6 +494,7 @@ export class RoomService {
       currentMembers: room.currentMembers,
       maxMembers: room.maxMembers,
       status: room.status,
+      chatRoomId: room.chatRoomId,
       host: room.host
         ? {
             id: room.host.id,
@@ -376,10 +505,24 @@ export class RoomService {
     }));
   }
 
-  async getMapRooms(query: MapQueryDto) {
+  async getMapRooms(userId: string, query: MapQueryDto) {
+    const viewer = await this.userRepository.findOne({ where: { id: userId } });
+    // 본인이 참여 자격이 없는 방(성별/한부모)은 지도에서도 보이지 않게 차단.
+    const applyEligibility = (qb: SelectQueryBuilder<Room>) => {
+      if (!viewer) return;
+      if (viewer.parentGender === 'MOM') {
+        qb.andWhere(`room.genderFilter <> 'DAD_ONLY'`);
+      } else if (viewer.parentGender === 'DAD') {
+        qb.andWhere(`room.genderFilter <> 'MOM_ONLY'`);
+      }
+      if (viewer.isSingleParent !== true) {
+        qb.andWhere(`room.singleParentOnly = false`);
+      }
+    };
+
     if (query.zoomLevel !== undefined && query.zoomLevel <= 13) {
       // Cluster mode
-      const clusters = await this.roomRepository
+      const clusterQb = this.roomRepository
         .createQueryBuilder('room')
         .select('room.regionDong', 'regionDong')
         .addSelect('COUNT(*)', 'count')
@@ -396,9 +539,9 @@ export class RoomService {
         .andWhere('room.date >= CURRENT_DATE')
         .andWhere('room.status IN (:...statuses)', {
           statuses: ['RECRUITING', 'CLOSED'],
-        })
-        .groupBy('room.regionDong')
-        .getRawMany();
+        });
+      applyEligibility(clusterQb);
+      const clusters = await clusterQb.groupBy('room.regionDong').getRawMany();
 
       return {
         mode: 'CLUSTER',
@@ -431,22 +574,59 @@ export class RoomService {
         qb.andWhere('room.ageMonthMax >= :ageMin', { ageMin: query.ageMonth - 3 });
       }
 
+      applyEligibility(qb);
+
       const rooms = await qb.getMany();
+
+      // viewer 가 참여 중(또는 방장)인 방은 정확한 좌표, 그 외는 fuzzy.
+      const roomIds = rooms.map((r) => r.id);
+      const memberRows = roomIds.length
+        ? await this.roomMemberRepository
+            .createQueryBuilder('m')
+            .select('m.roomId', 'roomId')
+            .where('m.userId = :userId', { userId })
+            .andWhere('m.roomId IN (:...ids)', { ids: roomIds })
+            .getRawMany()
+        : [];
+      const memberRoomIds = new Set<string>(memberRows.map((r) => r.roomId));
 
       return {
         mode: 'PIN',
-        pins: rooms.map((room) => ({
-          id: room.id,
-          title: room.title,
-          date: room.date,
-          startTime: room.startTime,
-          ageMonthMin: room.ageMonthMin,
-          ageMonthMax: room.ageMonthMax,
-          currentMembers: room.currentMembers,
-          maxMembers: room.maxMembers,
-          latitude: room.latitude,
-          longitude: room.longitude,
-        })),
+        pins: rooms.map((room) => {
+          const isInsider =
+            room.hostId === userId || memberRoomIds.has(room.id);
+          if (isInsider) {
+            return {
+              id: room.id,
+              title: room.title,
+              date: room.date,
+              startTime: room.startTime,
+              ageMonthMin: room.ageMonthMin,
+              ageMonthMax: room.ageMonthMax,
+              currentMembers: room.currentMembers,
+              maxMembers: room.maxMembers,
+              latitude: room.latitude,
+              longitude: room.longitude,
+            };
+          }
+          const masked = this.roomVisibility.maskCoordinatesForList({
+            id: room.id,
+            latitude: room.latitude,
+            longitude: room.longitude,
+          });
+          return {
+            id: room.id,
+            title: room.title,
+            date: room.date,
+            startTime: room.startTime,
+            ageMonthMin: room.ageMonthMin,
+            ageMonthMax: room.ageMonthMax,
+            currentMembers: room.currentMembers,
+            maxMembers: room.maxMembers,
+            latitude: masked.latitude,
+            longitude: masked.longitude,
+          };
+        }),
       };
     }
   }

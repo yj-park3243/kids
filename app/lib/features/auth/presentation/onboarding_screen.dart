@@ -5,7 +5,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/storage/secure_storage.dart';
 import '../../../widgets/common_button.dart';
-import '../../../widgets/design/pink_blobs.dart';
+import '../../../widgets/design/accent_blobs.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -59,7 +59,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: PinkBlobsBackground(
+      body: AccentBlobsBackground(
         child: SafeArea(
           child: Column(
             children: [
@@ -89,8 +89,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   controller: _pageController,
                   count: _pages.length,
                   effect: ExpandingDotsEffect(
-                    activeDotColor: AppColors.pink500,
-                    dotColor: AppColors.pink500.withValues(alpha: 0.2),
+                    activeDotColor: AppColors.primary,
+                    dotColor: AppColors.primary.withValues(alpha: 0.2),
                     dotHeight: 8,
                     dotWidth: 8,
                     expansionFactor: 3,

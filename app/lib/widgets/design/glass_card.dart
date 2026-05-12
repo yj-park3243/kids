@@ -1,11 +1,11 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_radius.dart';
 import '../../core/constants/app_shadows.dart';
 
-enum GlassTone { white, pink }
+enum GlassTone { white }
 
+/// 흰 베이스 카드. `accentColor` 지정 시 좌측 3px 컬러 보더 표시.
 class GlassCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
@@ -15,6 +15,8 @@ class GlassCard extends StatelessWidget {
   final double blur;
   final double? width;
   final double? height;
+  final Color? accentColor;
+  final double accentWidth;
 
   const GlassCard({
     super.key,
@@ -26,55 +28,60 @@ class GlassCard extends StatelessWidget {
     this.blur = 22,
     this.width,
     this.height,
+    this.accentColor,
+    this.accentWidth = 3,
   });
 
   @override
   Widget build(BuildContext context) {
     final borderRadius = BorderRadius.circular(radius);
 
-    final decoration = tone == GlassTone.pink
-        ? BoxDecoration(
-            borderRadius: borderRadius,
-            gradient: const LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [AppColors.glassPinkTop, AppColors.glassPinkBottom],
-            ),
-            border: Border.all(color: AppColors.glassBorder, width: 0.5),
-            boxShadow: AppShadows.glassPink,
-          )
-        : BoxDecoration(
-            borderRadius: borderRadius,
-            color: AppColors.glassWhite,
-            border: Border.all(color: AppColors.glassBorder, width: 0.5),
-            boxShadow: AppShadows.glass,
-          );
-
-    Widget content = ClipRRect(
+    final decoration = BoxDecoration(
       borderRadius: borderRadius,
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-        child: Container(
-          width: width,
-          height: height,
-          padding: padding,
-          decoration: decoration,
-          child: child,
-        ),
-      ),
+      color: AppColors.surface,
+      border: Border.all(color: AppColors.divider, width: 1),
+      boxShadow: AppShadows.glass,
     );
 
-    if (onTap != null) {
-      content = Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: borderRadius,
-          child: content,
+    Widget body = Container(
+      width: width,
+      height: height,
+      padding: padding,
+      decoration: decoration,
+      child: child,
+    );
+
+    if (accentColor != null) {
+      body = ClipRRect(
+        borderRadius: borderRadius,
+        child: Stack(
+          children: [
+            body,
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              child: Container(
+                width: accentWidth,
+                color: accentColor,
+              ),
+            ),
+          ],
         ),
       );
     }
 
-    return content;
+    if (onTap != null) {
+      body = Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: borderRadius,
+          child: body,
+        ),
+      );
+    }
+
+    return body;
   }
 }

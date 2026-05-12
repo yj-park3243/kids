@@ -10,6 +10,7 @@ import {
   WifiOutlined,
   EyeOutlined,
   TeamOutlined,
+  FlagOutlined,
 } from '@ant-design/icons';
 import {
   ResponsiveContainer,
@@ -132,6 +133,14 @@ export default function DashboardPage() {
             value={stats?.todayUsers ?? 0}
             icon={<UserAddOutlined />}
             color="#F9CA24"
+          />
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <StatCard
+            title="처리 대기 신고"
+            value={stats?.reportsPending ?? 0}
+            icon={<FlagOutlined />}
+            color="#FA8C16"
           />
         </Col>
       </Row>

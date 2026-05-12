@@ -4,6 +4,8 @@ import {
   ForbiddenException,
   ConflictException,
   BadRequestException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
@@ -14,6 +16,8 @@ import { User } from '../user/entities/user.entity';
 import { Child } from '../child/entities/child.entity';
 import { ChatService } from '../chat/chat.service';
 import { NotificationService } from '../notification/notification.service';
+import { BlockService } from '../block/block.service';
+import { NoShowService } from '../user/no-show.service';
 
 @Injectable()
 export class RoomParticipationService {
@@ -31,6 +35,10 @@ export class RoomParticipationService {
     private chatService: ChatService,
     private notificationService: NotificationService,
     private dataSource: DataSource,
+    @Inject(forwardRef(() => BlockService))
+    private blockService: BlockService,
+    @Inject(forwardRef(() => NoShowService))
+    private noShowService: NoShowService,
   ) {}
 
   async join(userId: string, roomId: string) {
@@ -83,6 +91,61 @@ export class RoomParticipationService {
       }
 
       const user = await this.userRepository.findOne({ where: { id: userId } });
+      if (!user) {
+        throw new NotFoundException('사용자를 찾을 수 없습니다.');
+      }
+
+      // ─── 자격 검증 ───
+      // 1. genderFilter
+      if (
+        (room.genderFilter === 'MOM_ONLY' && user.parentGender !== 'MOM') ||
+        (room.genderFilter === 'DAD_ONLY' && user.parentGender !== 'DAD')
+      ) {
+        throw new ForbiddenException({
+          code: 'GENDER_NOT_MATCH',
+          message: '방의 성별 조건과 맞지 않습니다.',
+        });
+      }
+      // 2. singleParentOnly
+      if (room.singleParentOnly === true && user.isSingleParent !== true) {
+        throw new ForbiddenException({
+          code: 'SINGLE_PARENT_REQUIRED',
+          message: '한부모 가정 전용 방입니다.',
+        });
+      }
+      // 3. 자녀 중 한 명 이상이 ageMonth 범위에 포함
+      const myChildren = await this.childRepository.find({ where: { userId } });
+      const now = new Date();
+      const childAges = myChildren.map(
+        (c) => (now.getFullYear() - c.birthYear) * 12 + (now.getMonth() + 1 - c.birthMonth),
+      );
+      const hasMatchingChild = childAges.some(
+        (m) => m >= room.ageMonthMin && m <= room.ageMonthMax,
+      );
+      if (!hasMatchingChild) {
+        throw new ForbiddenException({
+          code: 'AGE_NOT_MATCH',
+          message: '자녀 개월수가 방의 조건과 맞지 않습니다.',
+        });
+      }
+      // 4. 방장과 차단 관계 양방향
+      const blocked = await this.blockService.isBlockedEitherDirection(
+        userId,
+        room.hostId,
+      );
+      if (blocked) {
+        throw new ForbiddenException({
+          code: 'BLOCKED_BY_HOST',
+          message: '차단 관계로 참여할 수 없습니다.',
+        });
+      }
+      // 5. 노쇼 제한 중
+      if (user.canJoinAt && user.canJoinAt.getTime() > Date.now()) {
+        throw new ForbiddenException({
+          code: 'NOSHOW_RESTRICTED',
+          message: '노쇼 누적으로 참여가 제한되었습니다.',
+        });
+      }
 
       if (room.joinType === 'FREE') {
         // Direct join - add member within the transaction
@@ -175,6 +238,13 @@ export class RoomParticipationService {
         }
 
         await this.roomRepository.save(room);
+
+        // 시작 24시간 이내 본인 취소 → 노쇼 +0.5
+        const startDt = new Date(`${room.date}T${room.startTime}`);
+        const hoursBeforeStart = (startDt.getTime() - Date.now()) / (60 * 60 * 1000);
+        void this.noShowService
+          .incrementForCancellation(userId, hoursBeforeStart)
+          .catch(() => undefined);
 
         // Remove from chat room
         await this.chatService.removeMember(room.chatRoomId, userId);

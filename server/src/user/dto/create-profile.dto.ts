@@ -1,4 +1,11 @@
-import { IsString, IsOptional, MinLength, MaxLength } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  MinLength,
+  MaxLength,
+  IsIn,
+  IsBoolean,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateProfileDto {
@@ -33,4 +40,16 @@ export class CreateProfileDto {
   @IsOptional()
   @MaxLength(200)
   introduction?: string;
+
+  // 부모 성별 / 한부모 여부는 가입 후 수정 불가 (정정은 관리자 경로).
+  @ApiProperty({ enum: ['MOM', 'DAD'], example: 'MOM' })
+  @IsIn(['MOM', 'DAD'], {
+    message: 'PARENT_GENDER_REQUIRED',
+    context: { code: 'PARENT_GENDER_REQUIRED' },
+  })
+  parentGender: 'MOM' | 'DAD';
+
+  @ApiProperty({ example: false })
+  @IsBoolean()
+  isSingleParent: boolean;
 }

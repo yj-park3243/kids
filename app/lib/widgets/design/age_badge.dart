@@ -14,19 +14,19 @@ class AgeBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        gradient: solid ? AppColors.pinkGradient : null,
-        color: solid ? null : AppColors.pink100.withValues(alpha: 0.8),
+        gradient: solid ? AppColors.primaryGradient : null,
+        color: solid ? null : AppColors.primary100.withValues(alpha: 0.8),
         borderRadius: BorderRadius.circular(999),
         border: solid
             ? null
             : Border.all(
-                color: AppColors.pink300Real.withValues(alpha: 0.3),
+                color: AppColors.primary.withValues(alpha: 0.3),
               ),
       ),
       child: Text(
         label,
         style: AppTextStyles.chip.copyWith(
-          color: solid ? Colors.white : AppColors.pink700,
+          color: solid ? Colors.white : AppColors.primary700,
         ),
       ),
     );

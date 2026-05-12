@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:photo_manager/photo_manager.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../widgets/app_bar.dart';
 import '../data/photo_repository.dart';
@@ -161,9 +162,13 @@ class _PhotoUploadScreenState extends ConsumerState<PhotoUploadScreen> {
     }
     if (_assets.isEmpty) {
       return Center(
-        child: Text(
-          '사진이 없어요',
-          style: AppTextStyles.body2.copyWith(color: AppColors.textSecondary),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: Text(
+            '사진이 없어요',
+            style: AppTextStyles.body2
+                .copyWith(color: AppColors.textSecondary, height: 1.6),
+          ),
         ),
       );
     }
@@ -176,11 +181,11 @@ class _PhotoUploadScreenState extends ConsumerState<PhotoUploadScreen> {
         return false;
       },
       child: GridView.builder(
-        padding: const EdgeInsets.all(2),
+        padding: const EdgeInsets.all(AppSpacing.xxs),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 3,
-          crossAxisSpacing: 2,
-          mainAxisSpacing: 2,
+          crossAxisSpacing: AppSpacing.xxs,
+          mainAxisSpacing: AppSpacing.xxs,
         ),
         itemCount: _assets.length,
         itemBuilder: (_, i) {

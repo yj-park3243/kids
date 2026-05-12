@@ -23,3 +23,13 @@ export class SendMessageDto {
   @MaxLength(1000)
   content: string;
 }
+
+export class MarkReadDto {
+  @ApiProperty({
+    required: false,
+    description: '이 시점까지 읽음 처리 (ISO8601). 생략 시 서버 now()',
+  })
+  @IsOptional()
+  @IsString()
+  asOf?: string;
+}

@@ -23,4 +23,14 @@ export const usersApi = {
   setPhoneVerified(id: string, isPhoneVerified: boolean): Promise<{ success: boolean; isPhoneVerified: boolean }> {
     return client.patch(`/admin/users/${id}/verify`, { isPhoneVerified }).then((res) => res.data);
   },
+
+  correctIdentity(
+    id: string,
+    parentGender: 'MOM' | 'DAD' | null,
+    isSingleParent: boolean,
+  ): Promise<{ success: boolean }> {
+    return client
+      .patch(`/admin/users/${id}/correct-identity`, { parentGender, isSingleParent })
+      .then((res) => res.data);
+  },
 };

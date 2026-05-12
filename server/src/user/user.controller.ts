@@ -56,8 +56,11 @@ export class UserController {
 
   @Get(':userId')
   @ApiOperation({ summary: '다른 유저 프로필 조회' })
-  async getUserById(@Param('userId') userId: string) {
-    return this.userService.getUserById(userId);
+  async getUserById(
+    @CurrentUser('id') requesterId: string,
+    @Param('userId') userId: string,
+  ) {
+    return this.userService.getUserById(userId, requesterId);
   }
 
   @Delete('me')

@@ -60,6 +60,26 @@ class ApiConstants {
   // Chat
   static const String chatRooms = '/chat/rooms';
   static String chatMessages(String roomId) => '/chat/rooms/$roomId/messages';
+  static String chatRoomRead(String roomId) => '/chat/rooms/$roomId/read';
+
+  // Block
+  static const String blocks = '/blocks';
+  static String blockTarget(String targetUserId) => '/blocks/$targetUserId';
+
+  // Reviews
+  static String roomReviews(String roomId) => '/rooms/$roomId/reviews';
+  static String reviewById(String reviewId) => '/reviews/$reviewId';
+  static String userReviews(String userId) => '/users/$userId/reviews';
+
+  // Follows
+  static const String follows = '/follows';
+  static const String myFollows = '/follows/me';
+  static String followByTarget(String targetUserId) =>
+      '/follows/$targetUserId';
+
+  // Growth guide
+  static const String guides = '/guides';
+  static String guide(int ageMonth) => '/guides/$ageMonth';
 
   // Timeouts
   static const int connectTimeout = 10000;
