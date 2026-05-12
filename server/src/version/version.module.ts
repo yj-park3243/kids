@@ -8,5 +8,6 @@ import { VersionService } from './version.service';
   imports: [TypeOrmModule.forFeature([AppVersion])],
   controllers: [VersionController],
   providers: [VersionService],
+  exports: [VersionService],
 })
 export class VersionModule {}

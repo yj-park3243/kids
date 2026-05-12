@@ -10,6 +10,7 @@ export interface VersionInfo {
   forceUpdate: boolean;
   updateMessage: string | null;
   storeUrl: string | null;
+  bypassPhoneVerification: boolean;
 }
 
 @Injectable()
@@ -33,6 +34,7 @@ export class VersionService {
         forceUpdate: record.forceUpdate,
         updateMessage: record.updateMessage,
         storeUrl: record.storeUrl,
+        bypassPhoneVerification: record.bypassPhoneVerification,
       };
     }
 
@@ -44,6 +46,18 @@ export class VersionService {
       forceUpdate: false,
       updateMessage: null,
       storeUrl: null,
+      bypassPhoneVerification: false,
     };
+  }
+
+  /**
+   * 가입 시점에 KCP 본인인증을 우회할지 판단. platform row 중 하나라도 true 면 우회.
+   * (관리자가 IOS row만 true 로 켜도 글로벌 우회로 동작 — 심사 모드 해제 시 둘 다 false 로 둘 것)
+   */
+  async isPhoneVerificationBypassed(): Promise<boolean> {
+    const count = await this.appVersionRepository.count({
+      where: { bypassPhoneVerification: true },
+    });
+    return count > 0;
   }
 }

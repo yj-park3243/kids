@@ -18,9 +18,12 @@ import {
   AdminUserQueryDto,
   AdminRoomQueryDto,
   AdminReportQueryDto,
+  AdminInquiryQueryDto,
   BanUserDto,
   VerifyUserDto,
   CorrectIdentityDto,
+  ResolveReportDto,
+  ReplyInquiryDto,
 } from './dto/admin-query.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { AdminGuard } from '../common/guards/admin.guard';
@@ -128,5 +131,44 @@ export class AdminController {
   @ApiOperation({ summary: '신고 상세' })
   async getReport(@Param('id') reportId: string) {
     return this.adminService.getReport(reportId);
+  }
+
+  @Patch('reports/:id')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '신고 처리 (상태 + 관리자 조치 기록)' })
+  async resolveReport(
+    @Param('id') reportId: string,
+    @Body() dto: ResolveReportDto,
+  ) {
+    return this.adminService.resolveReport(reportId, dto);
+  }
+
+  // ─── 문의(1:1) 관리 ─────────────────────────────────────
+  @Get('inquiries')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '문의 목록' })
+  async getInquiries(@Query() query: AdminInquiryQueryDto) {
+    return this.adminService.getInquiries(query);
+  }
+
+  @Get('inquiries/:id')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '문의 상세' })
+  async getInquiry(@Param('id') id: string) {
+    return this.adminService.getInquiry(id);
+  }
+
+  @Patch('inquiries/:id')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '문의 답변' })
+  async replyInquiry(
+    @Param('id') id: string,
+    @Body() dto: ReplyInquiryDto,
+  ) {
+    return this.adminService.replyInquiry(id, dto);
   }
 }

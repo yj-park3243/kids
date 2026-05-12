@@ -106,7 +106,20 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
               } else if (value == 'cancel') {
                 _cancelRoom(room);
               } else if (value == 'report') {
-                showReportSheet(context, targetRoomId: widget.roomId);
+                // 방 자체 + 방 멤버들을 신고 후보로 제공.
+                final targets = <ReportTarget>[
+                  ReportTarget(label: '방 자체', roomId: widget.roomId),
+                  ...?room.members?.map((m) => ReportTarget(
+                        label: m.nickname,
+                        userId: m.id,
+                        isHost: m.isHost,
+                      )),
+                ];
+                showReportSheet(
+                  context,
+                  targetRoomId: widget.roomId,
+                  targets: targets,
+                );
               }
             },
             itemBuilder: (context) => [
@@ -949,6 +962,7 @@ class _BottomBar extends StatelessWidget {
   Widget _buildButton() {
     if (isHost || isAccepted) {
       return PrimaryButton(
+        key: const Key('btn-room-detail-chat'),
         text: '채팅방 입장',
         icon: Icons.chat_bubble_rounded,
         onPressed: onChat,
@@ -987,6 +1001,7 @@ class _BottomBar extends StatelessWidget {
     }
 
     return PrimaryButton(
+      key: const Key('btn-room-detail-join'),
       text: room.isApprovalRequired ? '참여 신청' : '참여하기',
       isLoading: isJoining,
       onPressed: onJoin,

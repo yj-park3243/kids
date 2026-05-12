@@ -18,7 +18,18 @@ class ApiHelper {
               'Authorization': 'Bearer $token',
           },
           validateStatus: (_) => true,
-        ));
+        )) {
+    // hang/실패 디버그용 — 모든 요청·응답 print.
+    _dio.interceptors.add(LogInterceptor(
+      request: true,
+      requestHeader: false,
+      requestBody: false,
+      responseHeader: false,
+      responseBody: false,
+      error: true,
+      logPrint: (o) => print('[E2E_DIO] $o'),
+    ));
+  }
 
   final Dio _dio;
 
@@ -28,7 +39,6 @@ class ApiHelper {
 
   // ─── auth ──────────────────────────────────────────────────────────
 
-  /// 이메일 회원가입. 응답에서 accessToken/refreshToken/user.id 추출.
   Future<RegisterResult> registerEmail({
     required String email,
     required String password,
@@ -68,10 +78,20 @@ class ApiHelper {
   Future<void> setupProfile({
     required String nickname,
     String? profileImageUrl,
+    String? parentGender, // MOM | DAD
+    bool? isSingleParent,
+    String regionSido = '서울특별시',
+    String regionSigungu = '강남구',
+    String regionDong = '역삼동',
   }) async {
     final res = await _dio.post('/users/profile', data: {
       'nickname': nickname,
       if (profileImageUrl != null) 'profileImageUrl': profileImageUrl,
+      if (parentGender != null) 'parentGender': parentGender,
+      if (isSingleParent != null) 'isSingleParent': isSingleParent,
+      'regionSido': regionSido,
+      'regionSigungu': regionSigungu,
+      'regionDong': regionDong,
     });
     _assertOk(res, 'setupProfile');
   }
@@ -95,22 +115,49 @@ class ApiHelper {
 
   // ─── room ──────────────────────────────────────────────────────────
 
-  /// 방 생성. 핵심 필드만 채움 — 나머지는 서버 default.
+  /// 풀 옵션 방 생성. 모든 필수 필드를 채워서 보낸다.
   Future<String> createRoom({
     required String title,
     required String description,
     String placeType = 'PLAYGROUND',
     String joinType = 'FREE',
+    String genderFilter = 'ALL',
+    bool singleParentOnly = false,
+    int ageMonthMin = 0,
+    int ageMonthMax = 84,
+    int maxMembers = 5,
+    String? date,
+    String startTime = '14:00',
+    String regionSido = '서울특별시',
+    String regionSigungu = '강남구',
+    String regionDong = '역삼동',
   }) async {
+    final d = date ?? _tomorrow();
     final res = await _dio.post('/rooms', data: {
       'title': title,
       'description': description,
       'placeType': placeType,
       'joinType': joinType,
+      'genderFilter': genderFilter,
+      'singleParentOnly': singleParentOnly,
+      'ageMonthMin': ageMonthMin,
+      'ageMonthMax': ageMonthMax,
+      'maxMembers': maxMembers,
+      'date': d,
+      'startTime': startTime,
+      'regionSido': regionSido,
+      'regionSigungu': regionSigungu,
+      'regionDong': regionDong,
     });
     _assertOk(res, 'createRoom');
     final data = _unwrap(res.data);
     return data['id'] as String;
+  }
+
+  /// 방 참여. status code 그대로 반환해서 거부 케이스 검증 가능.
+  Future<int> tryJoinRoom(String roomId) async {
+    final res = await _dio.post('/rooms/$roomId/join');
+    return res.statusCode ?? 0;
   }
 
   Future<void> joinRoom(String roomId) async {
@@ -154,9 +201,27 @@ class ApiHelper {
     return (data is List) ? data : (data['items'] as List? ?? []);
   }
 
-  // ─── report / block ────────────────────────────────────────────────
+  // ─── review ────────────────────────────────────────────────────────
 
-  /// reason: SPAM | ABUSE | INAPPROPRIATE | FRAUD | OTHER
+  /// score: 1~5, tags: 최대 10
+  Future<void> createReview({
+    required String roomId,
+    required String targetUserId,
+    int score = 5,
+    List<String> tags = const ['친절했어요'],
+    String? comment,
+  }) async {
+    final res = await _dio.post('/rooms/$roomId/reviews', data: {
+      'targetUserId': targetUserId,
+      'score': score,
+      'tags': tags,
+      if (comment != null) 'comment': comment,
+    });
+    _assertOk(res, 'createReview');
+  }
+
+  // ─── report ────────────────────────────────────────────────────────
+
   Future<void> reportUser({
     required String targetUserId,
     String reason = 'ABUSE',
@@ -169,9 +234,6 @@ class ApiHelper {
     });
     _assertOk(res, 'reportUser');
   }
-
-  // TODO: user-to-user block — 서버에 endpoint 구현 후 활성화.
-  // Future<void> blockUser(String targetUserId) async { ... }
 
   // ─── internal ──────────────────────────────────────────────────────
 
@@ -186,6 +248,13 @@ class ApiHelper {
   dynamic _unwrap(dynamic body) {
     if (body is Map && body.containsKey('data')) return body['data'];
     return body;
+  }
+
+  static String _tomorrow() {
+    final t = DateTime.now().add(const Duration(days: 1));
+    return '${t.year.toString().padLeft(4, '0')}-'
+        '${t.month.toString().padLeft(2, '0')}-'
+        '${t.day.toString().padLeft(2, '0')}';
   }
 }
 

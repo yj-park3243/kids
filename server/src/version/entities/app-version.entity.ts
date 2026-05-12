@@ -32,6 +32,14 @@ export class AppVersion {
   @Column({ name: 'store_url', type: 'text', nullable: true })
   storeUrl: string | null;
 
+  // 앱 심사 모드: true 이면 신규 가입 시 KCP 본인인증을 우회하고 더미 데이터로 자동 채움.
+  @Column({
+    name: 'bypass_phone_verification',
+    type: 'boolean',
+    default: false,
+  })
+  bypassPhoneVerification: boolean;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

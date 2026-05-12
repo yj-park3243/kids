@@ -302,6 +302,7 @@ class _InputBar extends StatelessWidget {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                     child: TextField(
+                      key: const Key('input-chat-message'),
                       controller: controller,
                       style: AppTextStyles.body1,
                       cursorColor: AppColors.primary,
@@ -320,6 +321,7 @@ class _InputBar extends StatelessWidget {
                   ),
                 ),
                 GestureDetector(
+                  key: const Key('btn-chat-send'),
                   onTap: onSend,
                   child: Container(
                     width: 40,

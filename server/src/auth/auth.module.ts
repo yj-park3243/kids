@@ -15,10 +15,12 @@ import { User } from '../user/entities/user.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { SocialAccount } from './entities/social-account.entity';
 import { TokenService } from './token.service';
+import { VersionModule } from '../version/version.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, RefreshToken, SocialAccount]),
+    VersionModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

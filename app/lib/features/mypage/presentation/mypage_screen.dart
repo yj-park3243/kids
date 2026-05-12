@@ -11,6 +11,7 @@ import '../../../widgets/design/design_chip.dart';
 import '../../../widgets/design/glass_card.dart';
 import '../../../widgets/design/accent_blobs.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../review/presentation/widgets/growth_grade.dart';
 
 class MyPageScreen extends ConsumerWidget {
   const MyPageScreen({super.key});
@@ -104,8 +105,8 @@ class MyPageScreen extends ConsumerWidget {
                       ),
                       if (user != null) ...[
                         const SizedBox(height: 14),
-                        _MannerRow(
-                          mannerScore: user.mannerScore,
+                        _GrowthRow(
+                          score: user.mannerScore,
                           noShowLevel: user.noShowLevel,
                         ),
                       ],
@@ -387,34 +388,33 @@ Future<void> _openExternalUrl(String url) async {
   }
 }
 
-/// 매너 온도 + 노쇼 레벨 한 줄.
-class _MannerRow extends StatelessWidget {
-  final double mannerScore;
+/// 쑥쑥 등급 + 노쇼 레벨 한 줄.
+class _GrowthRow extends StatelessWidget {
+  final double score;
   final String? noShowLevel;
 
-  const _MannerRow({required this.mannerScore, this.noShowLevel});
+  const _GrowthRow({required this.score, this.noShowLevel});
 
   @override
   Widget build(BuildContext context) {
-    // 36.5 기준 0~99 매핑. 단순 선형으로 색만 변경.
-    final ratio = (mannerScore / 99).clamp(0.0, 1.0);
+    final info = GrowthGradeInfo.fromScore(score);
     return Row(
       children: [
-        const Icon(Icons.thermostat_rounded, size: 16, color: AppColors.primary),
+        Text(info.emoji, style: const TextStyle(fontSize: 16)),
         const SizedBox(width: 4),
         Text(
-          '매너 온도 ${mannerScore.toStringAsFixed(1)}°C',
-          style: AppTextStyles.captionBold.copyWith(color: AppColors.primary700),
+          '쑥쑥 ${info.label}',
+          style: AppTextStyles.captionBold.copyWith(color: info.color),
         ),
         const SizedBox(width: 8),
         Expanded(
           child: ClipRRect(
             borderRadius: BorderRadius.circular(999),
             child: LinearProgressIndicator(
-              value: ratio,
+              value: info.progressToNext,
               minHeight: 6,
               backgroundColor: Colors.white.withValues(alpha: 0.6),
-              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+              valueColor: AlwaysStoppedAnimation<Color>(info.color),
             ),
           ),
         ),

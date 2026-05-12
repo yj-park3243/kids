@@ -25,6 +25,8 @@ import {
   TelegramService,
   escapeHtml,
 } from '../common/services/telegram.service';
+import { VersionService } from '../version/version.service';
+import { randomUUID } from 'crypto';
 
 type PhoneVerificationEntry = { code: string; expiresAt: number; verified: boolean };
 
@@ -57,7 +59,28 @@ export class AuthService {
     private googleService: GoogleService,
     private tokenService: TokenService,
     private telegramService: TelegramService,
+    private versionService: VersionService,
   ) {}
+
+  /**
+   * 앱 심사 모드(app_version.bypass_phone_verification=true)에서 신규 가입 시
+   * KCP 본인인증을 우회하기 위한 더미 데이터. ci/di 는 unique 제약이 있어 user 별로 unique.
+   */
+  private buildBypassIdentity(): Partial<User> {
+    const uniq = randomUUID();
+    return {
+      isPhoneVerified: true,
+      isVerified: true,
+      verifiedAt: new Date(),
+      phoneNumber: '01000000000',
+      realName: '심사용계정',
+      carrier: 'REVIEW',
+      birthDate: new Date('1990-01-01'),
+      gender: 'MALE',
+      ci: `REVIEW_${uniq}`,
+      di: `REVIEW_${uniq}`,
+    };
+  }
 
   private notifyNewSignup(provider: string, user: User): void {
     void this.telegramService.sendAdminAlert(
@@ -195,6 +218,9 @@ export class AuthService {
         ? `apple_${n.providerId}@privaterelay.kids.local`
         : null);
 
+    const bypass = await this.versionService.isPhoneVerificationBypassed();
+    const bypassFields = bypass ? this.buildBypassIdentity() : {};
+
     return await this.dataSource.transaction(async (manager) => {
       const newUser = manager.create(User, {
         authProvider: provider,
@@ -204,6 +230,7 @@ export class AuthService {
         profileImageUrl: n.profileImageUrl ?? undefined,
         isProfileComplete: false,
         lastLoginAt: new Date(),
+        ...bypassFields,
       });
       await manager.save(User, newUser);
 
@@ -237,6 +264,8 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
+    const bypass = await this.versionService.isPhoneVerificationBypassed();
+    const bypassFields = bypass ? this.buildBypassIdentity() : {};
     const user = await this.userRepository.save(
       this.userRepository.create({
         authProvider: 'EMAIL',
@@ -244,6 +273,7 @@ export class AuthService {
         passwordHash,
         isProfileComplete: false,
         lastLoginAt: new Date(),
+        ...bypassFields,
       }),
     );
 
@@ -451,6 +481,10 @@ export class AuthService {
 
   private sanitizeUser(user: User) {
     const { passwordHash, ...result } = user;
+    // pg numeric → string 으로 내려오므로 클라이언트 `as num` 캐스트 실패 방지.
+    if (result.mannerScore != null) {
+      result.mannerScore = Number(result.mannerScore);
+    }
     return result;
   }
 }

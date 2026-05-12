@@ -14,16 +14,30 @@ const _reasons = <Map<String, String>>[
   {'code': 'OTHER', 'label': '기타'},
 ];
 
-/// 신고 BottomSheet — 유저나 모임 상세에서 호출.
-/// 호출 예:
-/// ```
-/// showReportSheet(context, targetUserId: 'xxx');
-/// showReportSheet(context, targetRoomId: 'yyy');
-/// ```
+/// 방/유저 신고 시 사용할 후보 대상.
+class ReportTarget {
+  final String label; // "방 자체" / 닉네임 등
+  final String? userId; // 멤버 신고일 때
+  final String? roomId; // 방 자체 신고일 때
+  final bool isHost; // 호스트 표시용 — UI 강조
+  const ReportTarget({
+    required this.label,
+    this.userId,
+    this.roomId,
+    this.isHost = false,
+  });
+}
+
+/// 신고 BottomSheet — 방/유저 상세에서 호출.
+///
+/// - 단일 대상 신고: [targetUserId] 또는 [targetRoomId] 만 전달.
+/// - 방 신고에서 멤버 중 선택 가능: [targets] 에 후보 여러 개 전달 →
+///   사용자가 "방 자체" 또는 특정 멤버 선택 후 신고.
 Future<void> showReportSheet(
   BuildContext context, {
   String? targetUserId,
   String? targetRoomId,
+  List<ReportTarget> targets = const [],
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -32,6 +46,7 @@ Future<void> showReportSheet(
     builder: (_) => _ReportSheet(
       targetUserId: targetUserId,
       targetRoomId: targetRoomId,
+      targets: targets,
     ),
   );
 }
@@ -39,7 +54,12 @@ Future<void> showReportSheet(
 class _ReportSheet extends ConsumerStatefulWidget {
   final String? targetUserId;
   final String? targetRoomId;
-  const _ReportSheet({this.targetUserId, this.targetRoomId});
+  final List<ReportTarget> targets;
+  const _ReportSheet({
+    this.targetUserId,
+    this.targetRoomId,
+    this.targets = const [],
+  });
 
   @override
   ConsumerState<_ReportSheet> createState() => _ReportSheetState();
@@ -49,6 +69,8 @@ class _ReportSheetState extends ConsumerState<_ReportSheet> {
   String? _selected;
   final _detailController = TextEditingController();
   bool _submitting = false;
+  // 다중 후보 모드에서 선택된 인덱스. 단일 모드면 무의미.
+  int _selectedTargetIdx = 0;
 
   @override
   void dispose() {
@@ -65,9 +87,17 @@ class _ReportSheetState extends ConsumerState<_ReportSheet> {
     }
     setState(() => _submitting = true);
     try {
+      // 후보 multi-mode 면 선택된 후보의 userId/roomId 우선, 아니면 widget 인자.
+      String? userId = widget.targetUserId;
+      String? roomId = widget.targetRoomId;
+      if (widget.targets.isNotEmpty) {
+        final t = widget.targets[_selectedTargetIdx];
+        userId = t.userId;
+        roomId = t.roomId;
+      }
       await ref.read(supportRepositoryProvider).createReport(
-            targetUserId: widget.targetUserId,
-            targetRoomId: widget.targetRoomId,
+            targetUserId: userId,
+            targetRoomId: roomId,
             reason: _selected!,
             detail: _detailController.text.trim().isEmpty
                 ? null
@@ -125,12 +155,68 @@ class _ReportSheetState extends ConsumerState<_ReportSheet> {
                   AppTextStyles.body2.copyWith(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 20),
+            if (widget.targets.isNotEmpty) ...[
+              Text('신고 대상', style: AppTextStyles.body2Bold),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: List.generate(widget.targets.length, (i) {
+                  final t = widget.targets[i];
+                  final sel = _selectedTargetIdx == i;
+                  return InkWell(
+                    key: Key('report-target-$i'),
+                    borderRadius: BorderRadius.circular(999),
+                    onTap: () => setState(() => _selectedTargetIdx = i),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: sel ? AppColors.primary50 : AppColors.bg2,
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: sel
+                              ? AppColors.primary400
+                              : Colors.transparent,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (t.isHost)
+                            const Padding(
+                              padding: EdgeInsets.only(right: 4),
+                              child: Icon(Icons.star_rounded,
+                                  size: 14, color: AppColors.primary),
+                            ),
+                          Text(
+                            t.label,
+                            style: AppTextStyles.body2.copyWith(
+                              color: sel
+                                  ? AppColors.primary
+                                  : AppColors.ink700,
+                              fontWeight:
+                                  sel ? FontWeight.w600 : FontWeight.w400,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+              ),
+              const SizedBox(height: 20),
+              Text('신고 사유', style: AppTextStyles.body2Bold),
+              const SizedBox(height: 8),
+            ],
             ...List.generate(_reasons.length, (i) {
               final r = _reasons[i];
               final isSel = _selected == r['code'];
               return Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: InkWell(
+                  key: Key('report-reason-${r['code']}'),
                   borderRadius: BorderRadius.circular(12),
                   onTap: () => setState(() => _selected = r['code']),
                   child: Container(
@@ -174,6 +260,7 @@ class _ReportSheetState extends ConsumerState<_ReportSheet> {
             ),
             const SizedBox(height: 20),
             PrimaryButton(
+              key: const Key('btn-report-submit'),
               text: '신고하기',
               isLoading: _submitting,
               onPressed: _submit,

@@ -13,11 +13,15 @@ import { UserVisit } from '../user/entities/user-visit.entity';
 import { Room } from '../room/entities/room.entity';
 import { Child } from '../child/entities/child.entity';
 import { UserReport } from '../support/entities/user-report.entity';
+import { SupportInquiry } from '../support/entities/support-inquiry.entity';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import {
   AdminUserQueryDto,
   AdminRoomQueryDto,
   AdminReportQueryDto,
+  AdminInquiryQueryDto,
+  ResolveReportDto,
+  ReplyInquiryDto,
 } from './dto/admin-query.dto';
 import { UserService } from '../user/user.service';
 
@@ -36,6 +40,8 @@ export class AdminService {
     private childRepository: Repository<Child>,
     @InjectRepository(UserReport)
     private reportRepository: Repository<UserReport>,
+    @InjectRepository(SupportInquiry)
+    private inquiryRepository: Repository<SupportInquiry>,
     private jwtService: JwtService,
     private userService: UserService,
   ) {}
@@ -448,6 +454,9 @@ export class AdminService {
       reason: report.reason,
       status: report.status,
       detail: report.detail,
+      adminAction: report.adminAction,
+      adminNote: report.adminNote,
+      resolvedAt: report.resolvedAt,
       createdAt: report.createdAt,
       reporter: userMap.get(report.reporterId) ?? { id: report.reporterId },
       targetUser: report.targetUserId
@@ -455,5 +464,85 @@ export class AdminService {
         : null,
       targetRoom,
     };
+  }
+
+  /**
+   * 신고 처리 — 상태 변경 + 관리자 조치/메모 기록.
+   * adminAction 이 BAN_* 이면 신고 대상 유저를 ban 시키는 게 자연스럽지만,
+   * 별도 ban 엔드포인트와 분리해 두고 여기서는 메타만 저장한다.
+   */
+  async resolveReport(reportId: string, dto: ResolveReportDto) {
+    const report = await this.reportRepository.findOne({ where: { id: reportId } });
+    if (!report) {
+      throw new NotFoundException('신고를 찾을 수 없습니다.');
+    }
+    report.status = dto.status;
+    report.adminAction = dto.adminAction ?? null;
+    report.adminNote = dto.adminNote ?? null;
+    report.resolvedAt = new Date();
+    await this.reportRepository.save(report);
+    return { success: true };
+  }
+
+  // ─── 문의(1:1) 관리 ─────────────────────────────────────────
+
+  async getInquiries(query: AdminInquiryQueryDto) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const qb = this.inquiryRepository
+      .createQueryBuilder('i')
+      .orderBy('i.created_at', 'DESC');
+    if (query.status) qb.andWhere('i.status = :s', { s: query.status });
+
+    const [rows, total] = await qb
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
+    // user join — 직접 한 번에 fetch.
+    const userIds = Array.from(new Set(rows.map((r) => r.userId)));
+    const users = userIds.length
+      ? await this.userRepository.find({ where: { id: In(userIds) } })
+      : [];
+    const userMap = new Map(
+      users.map((u) => [u.id, { id: u.id, nickname: u.nickname, email: u.email }]),
+    );
+
+    return {
+      items: rows.map((r) => ({
+        id: r.id,
+        subject: r.subject,
+        message: r.message,
+        reply: r.reply,
+        status: r.status,
+        createdAt: r.createdAt,
+        repliedAt: r.repliedAt,
+        user: userMap.get(r.userId) ?? { id: r.userId },
+      })),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async getInquiry(id: string) {
+    const inquiry = await this.inquiryRepository.findOne({ where: { id } });
+    if (!inquiry) throw new NotFoundException('문의를 찾을 수 없습니다.');
+    const user = await this.userRepository.findOne({ where: { id: inquiry.userId } });
+    return {
+      ...inquiry,
+      user: user ? { id: user.id, nickname: user.nickname, email: user.email } : null,
+    };
+  }
+
+  async replyInquiry(id: string, dto: ReplyInquiryDto) {
+    const inquiry = await this.inquiryRepository.findOne({ where: { id } });
+    if (!inquiry) throw new NotFoundException('문의를 찾을 수 없습니다.');
+    inquiry.reply = dto.reply;
+    inquiry.status = dto.status ?? 'REPLIED';
+    inquiry.repliedAt = new Date();
+    await this.inquiryRepository.save(inquiry);
+    return { success: true };
   }
 }

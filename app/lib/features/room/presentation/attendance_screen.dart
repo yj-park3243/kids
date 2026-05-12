@@ -201,7 +201,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        '노쇼 처리된 멤버는 매너 점수에 반영돼요',
+                        '노쇼 처리된 멤버는 쑥쑥 등급에 반영돼요',
                         style: AppTextStyles.caption
                             .copyWith(color: AppColors.primary700),
                       ),

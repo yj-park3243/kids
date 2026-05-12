@@ -83,6 +83,7 @@ class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
                 const SizedBox(height: 40),
 
                 CommonInput(
+                  key: const Key('input-email'),
                   label: '이메일',
                   hint: 'example@email.com',
                   controller: _emailController,
@@ -93,6 +94,7 @@ class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
                 const SizedBox(height: 20),
 
                 CommonInput(
+                  key: const Key('input-password'),
                   label: '비밀번호',
                   hint: '비밀번호를 입력하세요',
                   controller: _passwordController,
@@ -128,6 +130,7 @@ class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
                 const SizedBox(height: 32),
 
                 PrimaryButton(
+                  key: const Key('btn-login-submit'),
                   text: '로그인',
                   isLoading: authState.status == AuthStatus.loading,
                   onPressed: _login,

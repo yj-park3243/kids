@@ -12,11 +12,18 @@ Future<void> main() async {
   final outDir = Platform.environment['TEST_RESULTS_DIR'] ?? 'test_results';
   await Directory(outDir).create(recursive: true);
 
+  // 주의:
+  //   - Flutter surface 캡처는 PopupMenu / BottomSheet 같은 Material overlay 를
+  //     못 잡고 흰 화면이 나오는 경우가 있다.
+  //   - `xcrun simctl io screenshot` 으로 native 캡처를 시도해 봤지만
+  //     integration_test 의 onScreenshot 시점과 시뮬 frame buffer 가 동기화되지
+  //     않아 모든 단계가 같은 frame 으로 잡히는 문제가 있었다. (Process.run /
+  //     Process.runSync 모두 동일). 그래서 단계별 시각 검증을 우선해 Flutter
+  //     surface 캡처만 사용한다 — overlay 화면은 한계 인정.
   await integrationDriver(
     onScreenshot: (name, bytes, [_]) async {
       final safe = name.replaceAll(RegExp(r'[\\/: ]'), '_');
-      final file = File(p.join(outDir, '$safe.png'));
-      await file.writeAsBytes(bytes);
+      await File(p.join(outDir, '$safe.png')).writeAsBytes(bytes);
       return true;
     },
   );

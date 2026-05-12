@@ -10,6 +10,7 @@ import '../../../widgets/design/accent_blobs.dart';
 import '../../../widgets/empty_state.dart';
 import '../../../widgets/loading.dart';
 import '../providers/follow_provider.dart';
+import '../../review/presentation/widgets/growth_grade.dart';
 
 class FollowingListScreen extends ConsumerWidget {
   const FollowingListScreen({super.key});
@@ -147,15 +148,7 @@ class _FollowingTile extends StatelessWidget {
                     Text(follow.regionSigungu,
                         style: AppTextStyles.caption),
                     const SizedBox(width: 8),
-                    const Icon(Icons.thermostat_rounded,
-                        size: 12, color: AppColors.primary),
-                    const SizedBox(width: 2),
-                    Text(
-                      '${follow.mannerScore.toStringAsFixed(1)}°C',
-                      style: AppTextStyles.caption.copyWith(
-                        color: AppColors.primary700,
-                      ),
-                    ),
+                    GrowthGradeChip(score: follow.mannerScore),
                   ],
                 ),
               ],

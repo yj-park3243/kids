@@ -115,6 +115,9 @@ app/ios/fastlane/test_output
 # ===== Claude Code (local state) =====
 .claude/
 
+# ===== E2E artifacts =====
+app/test_results/
+
 # ===== Misc =====
 tmp/
 temp/

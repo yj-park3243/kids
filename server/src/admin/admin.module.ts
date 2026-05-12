@@ -9,11 +9,12 @@ import { UserVisit } from '../user/entities/user-visit.entity';
 import { Room } from '../room/entities/room.entity';
 import { Child } from '../child/entities/child.entity';
 import { UserReport } from '../support/entities/user-report.entity';
+import { SupportInquiry } from '../support/entities/support-inquiry.entity';
 import { UserModule } from '../user/user.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, UserVisit, Room, Child, UserReport]),
+    TypeOrmModule.forFeature([User, UserVisit, Room, Child, UserReport, SupportInquiry]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

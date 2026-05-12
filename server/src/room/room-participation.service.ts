@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   ForbiddenException,
   ConflictException,
@@ -21,6 +22,8 @@ import { NoShowService } from '../user/no-show.service';
 
 @Injectable()
 export class RoomParticipationService {
+  private readonly logger = new Logger(RoomParticipationService.name);
+
   constructor(
     @InjectRepository(Room)
     private roomRepository: Repository<Room>,
@@ -170,24 +173,14 @@ export class RoomParticipationService {
         });
         await manager.getRepository(JoinRequest).save(joinRequest);
 
-        // Chat & notifications outside the critical section
-        await this.chatService.addMember(room.chatRoomId, userId);
-        await this.chatService.sendSystemMessage(
-          room.chatRoomId,
-          `${user?.nickname || '알 수 없음'}님이 참여했습니다.`,
-        );
-
-        await this.notificationService.create({
-          userId: room.hostId,
-          type: 'JOIN_REQUEST',
-          title: '참여 알림',
-          body: `${user?.nickname || '알 수 없음'}님이 [${room.title}]에 참여했습니다.`,
-          data: { roomId },
-        });
-
+        // 부수 효과(chat/notification)는 트랜잭션 밖에서 fire-and-forget — 외부 호출이
+        // hang 해도 join 자체가 막히지 않도록.
         return {
-          status: 'ACCEPTED',
+          status: 'ACCEPTED' as const,
           chatRoomId: room.chatRoomId,
+          hostId: room.hostId,
+          roomTitle: room.title,
+          userNickname: user?.nickname ?? '알 수 없음',
         };
       } else {
         // Approval needed
@@ -198,19 +191,50 @@ export class RoomParticipationService {
         });
         await manager.getRepository(JoinRequest).save(joinRequest);
 
-        // Notify host
-        await this.notificationService.create({
-          userId: room.hostId,
-          type: 'JOIN_REQUEST',
-          title: '참여 신청',
-          body: `${user?.nickname || '알 수 없음'}님이 [${room.title}]에 참여를 신청했습니다.`,
-          data: { roomId },
-        });
-
         return {
-          status: 'PENDING',
+          status: 'PENDING' as const,
+          hostId: room.hostId,
+          roomTitle: room.title,
+          userNickname: user?.nickname ?? '알 수 없음',
         };
       }
+    }).then((result) => {
+      // 트랜잭션 외부 — fire-and-forget side effects.
+      if (result.status === 'ACCEPTED' && 'chatRoomId' in result) {
+        void this.chatService
+          .sendSystemMessage(
+            result.chatRoomId!,
+            `${result.userNickname}님이 참여했습니다.`,
+          )
+          .catch((e) =>
+            this.logger.warn(`join chat side-effect 실패: ${e?.message}`),
+          );
+        void this.notificationService
+          .create({
+            userId: result.hostId,
+            type: 'JOIN_REQUEST',
+            title: '참여 알림',
+            body: `${result.userNickname}님이 [${result.roomTitle}]에 참여했습니다.`,
+            data: { roomId },
+          })
+          .catch((e) =>
+            this.logger.warn(`join notif side-effect 실패: ${e?.message}`),
+          );
+        return { status: 'ACCEPTED', chatRoomId: result.chatRoomId };
+      }
+      // PENDING
+      void this.notificationService
+        .create({
+          userId: result.hostId,
+          type: 'JOIN_REQUEST',
+          title: '참여 신청',
+          body: `${result.userNickname}님이 [${result.roomTitle}]에 참여를 신청했습니다.`,
+          data: { roomId },
+        })
+        .catch((e) =>
+          this.logger.warn(`join request notif side-effect 실패: ${e?.message}`),
+        );
+      return { status: 'PENDING' };
     });
   }
 

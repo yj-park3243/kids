@@ -188,7 +188,7 @@ class _MemberReviewCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          Text('매너 점수', style: AppTextStyles.body2Bold),
+          Text('쑥쑥 점수', style: AppTextStyles.body2Bold),
           const SizedBox(height: 6),
           _ScoreSlider(
             score: draft.score,

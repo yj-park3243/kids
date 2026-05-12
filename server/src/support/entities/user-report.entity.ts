@@ -29,7 +29,17 @@ export class UserReport {
 
   @Column({ type: 'varchar', length: 20, default: 'OPEN' })
   @Index()
-  status: string;
+  status: string; // OPEN | REVIEWED | RESOLVED | DISMISSED
+
+  // 관리자 처리 메타 — 신고 처리 시 채움.
+  @Column({ name: 'admin_action', type: 'varchar', length: 30, nullable: true })
+  adminAction: string | null; // NONE | WARNING | BAN_7D | BAN_PERMANENT
+
+  @Column({ name: 'admin_note', type: 'text', nullable: true })
+  adminNote: string | null;
+
+  @Column({ name: 'resolved_at', type: 'timestamp', nullable: true })
+  resolvedAt: Date | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt: Date;

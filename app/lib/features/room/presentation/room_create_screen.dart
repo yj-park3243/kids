@@ -509,6 +509,7 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
 
               // Title
               CommonInput(
+                key: const Key('input-room-title'),
                 label: '제목',
                 hint: '모임 제목을 입력하세요',
                 controller: _titleController,
@@ -872,6 +873,7 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
               const SizedBox(height: 40),
 
               PrimaryButton(
+                key: const Key('btn-room-create-submit'),
                 text: '모임 만들기',
                 isLoading: _isLoading,
                 icon: Icons.celebration_rounded,

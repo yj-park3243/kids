@@ -111,7 +111,8 @@ export class User {
   @Column({ name: 'is_single_parent', type: 'boolean', default: false })
   isSingleParent: boolean;
 
-  @Column({ name: 'manner_score', type: 'numeric', precision: 4, scale: 1, default: 36.5 })
+  // 쑥쑥 등급 점수. 가입 시 떡잎(10~29) 중간값 20 으로 시작. 신고/노쇼로 9 이하 떨어지면 새싹으로 강등.
+  @Column({ name: 'manner_score', type: 'numeric', precision: 4, scale: 1, default: 20 })
   mannerScore: number;
 
   @Column({ name: 'no_show_count', type: 'numeric', precision: 4, scale: 1, default: 0 })

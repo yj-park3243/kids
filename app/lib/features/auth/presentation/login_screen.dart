@@ -103,6 +103,7 @@ class LoginScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 10),
                 SocialLoginButton(
+                  key: const Key('btn-start-email'),
                   text: '이메일로 시작하기',
                   backgroundColor: Colors.white,
                   textColor: AppColors.ink900,

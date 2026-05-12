@@ -108,6 +108,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     Text('같이크자', style: AppTextStyles.sectionHead),
                     const Spacer(),
                     GlassIconButton(
+                      key: const Key('btn-home-create-room'),
+                      icon: Icons.add_rounded,
+                      onTap: () => context.push('/rooms/create'),
+                    ),
+                    const SizedBox(width: 8),
+                    GlassIconButton(
                       icon: Icons.search_rounded,
                       onTap: () {},
                     ),

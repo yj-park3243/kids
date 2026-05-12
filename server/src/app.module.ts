@@ -44,7 +44,8 @@ import { UserVisit } from './user/entities/user-visit.entity';
         password: configService.get('DB_PASSWORD'),
         database: configService.get('DB_NAME'),
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: configService.get('NODE_ENV') !== 'production',
+        // 아직 운영 전 — 엔티티 변경 자동 반영을 위해 강제로 켜둠.
+        synchronize: true,
         logging: configService.get('NODE_ENV') !== 'production',
         ssl: configService.get('NODE_ENV') === 'production'
           ? { rejectUnauthorized: false }

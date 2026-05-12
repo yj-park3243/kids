@@ -10,7 +10,7 @@ import '../../../widgets/empty_state.dart';
 import '../../../widgets/loading.dart';
 import '../data/review_repository.dart';
 import '../providers/review_provider.dart';
-import 'widgets/manner_temperature.dart';
+import 'widgets/growth_grade.dart';
 
 class ReviewSummaryScreen extends ConsumerWidget {
   final String userId;
@@ -53,14 +53,14 @@ class _Body extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 매너 온도 게이지
+          // 쑥쑥 등급 게이지
           GlassCard(
             tone: GlassTone.white,
             radius: 24,
             padding: const EdgeInsets.symmetric(vertical: 24),
             child: Column(
               children: [
-                MannerTemperature(score: agg.mannerScore, size: 140),
+                GrowthGrade(score: agg.mannerScore, size: 140),
                 const SizedBox(height: 12),
                 Text(
                   '받은 후기 ${agg.reviewCount}개',
