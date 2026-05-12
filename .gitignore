@@ -112,6 +112,9 @@ app/ios/fastlane/test_output
 *.dSYM.zip
 *.dSYM
 
+# ===== Claude Code (local state) =====
+.claude/
+
 # ===== Misc =====
 tmp/
 temp/
