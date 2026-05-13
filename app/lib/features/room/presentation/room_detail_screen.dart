@@ -16,6 +16,7 @@ import '../../../widgets/design/accent_blobs.dart';
 import '../../../widgets/empty_state.dart';
 import '../../../widgets/loading.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../review/presentation/review_write_screen.dart' show ReviewMember;
 import '../providers/room_detail_provider.dart';
 import 'widgets/category_badge.dart';
 // TODO: KakaoShareService 통합 (App-Features-B 담당)
@@ -311,6 +312,26 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
           if (room.chatRoomId != null) {
             context.push('/chat/${room.chatRoomId}');
           }
+        },
+        onReview: () {
+          // 본인을 제외한 멤버 → ReviewMember 변환.
+          final me = ref.read(authProvider).user?.id;
+          final targets = (room.members ?? [])
+              .where((m) => m.id != me)
+              .map((m) => ReviewMember(
+                    id: m.id,
+                    nickname: m.nickname,
+                    profileImageUrl: m.profileImageUrl,
+                  ))
+              .toList();
+          if (targets.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('후기를 작성할 대상 멤버가 없어요')),
+            );
+            return;
+          }
+          context.push('/reviews/write?roomId=${widget.roomId}',
+              extra: targets);
         },
       ),
     );
@@ -930,6 +951,7 @@ class _BottomBar extends StatelessWidget {
   final bool isJoining;
   final VoidCallback onJoin;
   final VoidCallback onChat;
+  final VoidCallback onReview;
 
   const _BottomBar({
     required this.room,
@@ -939,6 +961,7 @@ class _BottomBar extends StatelessWidget {
     required this.isJoining,
     required this.onJoin,
     required this.onChat,
+    required this.onReview,
   });
 
   @override
@@ -961,6 +984,30 @@ class _BottomBar extends StatelessWidget {
 
   Widget _buildButton() {
     if (isHost || isAccepted) {
+      // 모임 종료 후 — 채팅 + 후기 작성 두 버튼 노출.
+      if (room.status == 'COMPLETED') {
+        return Row(
+          children: [
+            Expanded(
+              child: SecondaryButton(
+                key: const Key('btn-room-detail-chat'),
+                text: '채팅방',
+                icon: Icons.chat_bubble_outline_rounded,
+                onPressed: onChat,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: PrimaryButton(
+                key: const Key('btn-room-detail-review'),
+                text: '후기 작성',
+                icon: Icons.rate_review_rounded,
+                onPressed: onReview,
+              ),
+            ),
+          ],
+        );
+      }
       return PrimaryButton(
         key: const Key('btn-room-detail-chat'),
         text: '채팅방 입장',

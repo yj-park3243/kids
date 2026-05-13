@@ -82,6 +82,7 @@ class ReviewWriteScreen extends ConsumerWidget {
                   const SizedBox(height: 8),
                 ],
                 PrimaryButton(
+                  key: const Key('btn-review-submit'),
                   text: state.allSubmitted ? '제출 완료' : '제출',
                   isLoading: state.isSubmitting,
                   isEnabled: !state.allSubmitted,
@@ -207,6 +208,7 @@ class _MemberReviewCard extends StatelessWidget {
           Text('후기 (선택)', style: AppTextStyles.body2Bold),
           const SizedBox(height: 6),
           TextField(
+            key: Key('input-review-comment-${member.id}'),
             enabled: !draft.submitted,
             maxLength: 200,
             maxLines: 3,

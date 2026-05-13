@@ -225,8 +225,115 @@ void main() {
           }
         }
       }
+
+      // ─── 모임 완료 후 후기 작성 ─────────────────────────────
+      // orchestrator 가 백그라운드로 room.status=COMPLETED 처리.
+      // 시뮬 client cache 갱신을 위해 충분히 wait 후 다시 진입.
+      await _pumpSeconds(tester, 45);
+      // 뒤로 → 홈 → 다시 방 카드 탭 (status 새로고침)
+      final backFromReport = find.byIcon(Icons.arrow_back_ios_new_rounded);
+      if (backFromReport.evaluate().isNotEmpty) {
+        await tester.tap(backFromReport.first);
+        await tester.pumpAndSettle(const Duration(seconds: 2));
+      }
+      // 홈 카드 재탭
+      final cards2 = find.byType(RoomCard);
+      if (cards2.evaluate().isNotEmpty) {
+        Finder target2 = cards2.first;
+        if (_targetRoomTitle.isNotEmpty) {
+          final t = find.text(_targetRoomTitle);
+          if (t.evaluate().isNotEmpty) {
+            target2 = find
+                .ancestor(of: t, matching: find.byType(RoomCard))
+                .first;
+          }
+        }
+        await tester.tap(target2);
+        await _pumpSeconds(tester, 3);
+        await _shot(tester, '18_room_detail_completed');
+
+        final reviewBtn = find.byKey(const Key('btn-room-detail-review'));
+        if (reviewBtn.evaluate().isNotEmpty) {
+          await tester.tap(reviewBtn);
+          await tester.pumpAndSettle(const Duration(seconds: 2));
+          await _shot(tester, '19_review_form');
+
+          // 후기 대상 멤버의 코멘트 입력 — Key 는 멤버 ID 기반이라 어떤
+          // EditableText 든 하나 잡혀 있으면 그 중 첫 번째에 입력.
+          final commentInputs = find.byWidgetPredicate((w) =>
+              w.runtimeType.toString() == 'TextField' &&
+              (w.key is ValueKey<String>) &&
+              (w.key as ValueKey<String>).value
+                  .startsWith('input-review-comment-'));
+          if (commentInputs.evaluate().isNotEmpty) {
+            await tester.enterText(
+              commentInputs.first,
+              '함께해서 즐거웠어요! (UI 자동화)',
+            );
+            await tester.pump(const Duration(milliseconds: 300));
+            await _shot(tester, '20_review_comment_entered');
+          }
+
+          final submitReview = find.byKey(const Key('btn-review-submit'));
+          if (submitReview.evaluate().isNotEmpty) {
+            await tester.tap(submitReview);
+            await _pumpSeconds(tester, 4);
+            await _shot(tester, '21_review_submitted');
+          }
+        } else {
+          await _shot(tester, '18_no_review_button');
+        }
+      }
+
+      // ─── 사용자 차단 해제 흐름 (마이페이지 → 차단한 유저) ─────
+      // orchestrator 가 USER → HOST 차단 사전 추가. UI 에서는 해제만.
+      // 후기 화면에서 뒤로(가능한 만큼) → 마이 탭 → 차단한 유저 → 해제.
+      for (var i = 0; i < 3; i++) {
+        final back = find.byIcon(Icons.arrow_back_ios_new_rounded);
+        if (back.evaluate().isEmpty) break;
+        await tester.tap(back.first);
+        await tester.pumpAndSettle(const Duration(seconds: 1));
+      }
+      // 하단 탭 "마이" — 텍스트로 찾기. NavigationBar 위젯.
+      final myTab = find.text('마이');
+      if (myTab.evaluate().isNotEmpty) {
+        await tester.tap(myTab.first);
+        await tester.pumpAndSettle(const Duration(seconds: 2));
+        await _shot(tester, '22_mypage');
+
+        // "차단한 유저" 메뉴 탭 — ListView 안에 있어 ensureVisible/scroll.
+        final blockMenu = find.text('차단한 유저');
+        if (blockMenu.evaluate().isNotEmpty) {
+          try {
+            await tester.ensureVisible(blockMenu.first);
+          } catch (_) {}
+          await tester.tap(blockMenu.first);
+          await tester.pumpAndSettle(const Duration(seconds: 2));
+          await _shot(tester, '23_blocked_users');
+
+          // 첫 차단 해제 버튼 — 동적 Key 라 prefix 매칭.
+          final unblock = find.byWidgetPredicate((w) =>
+              w.key is ValueKey<String> &&
+              (w.key as ValueKey<String>)
+                  .value
+                  .startsWith('btn-unblock-') &&
+              (w.key as ValueKey<String>).value != 'btn-unblock-confirm');
+          if (unblock.evaluate().isNotEmpty) {
+            await tester.tap(unblock.first);
+            await tester.pumpAndSettle(const Duration(seconds: 1));
+            await _shot(tester, '24_unblock_dialog');
+
+            final confirm = find.byKey(const Key('btn-unblock-confirm'));
+            if (confirm.evaluate().isNotEmpty) {
+              await tester.tap(confirm);
+              await _pumpSeconds(tester, 3);
+              await _shot(tester, '25_unblock_done');
+            }
+          }
+        }
+      }
     } else {
       await _shot(tester, '10_chat_unavailable');
     }
-  }, timeout: const Timeout(Duration(minutes: 5)));
+  }, timeout: const Timeout(Duration(minutes: 7)));
 }

@@ -130,6 +130,27 @@ rm -rf "$RESULTS_DIR"
 mkdir -p "$RESULTS_DIR"
 
 echo ""
+echo ">>> [백그라운드] 130초 후 USER 가 HOST 를 차단 — 차단 해제 시나리오용..."
+# 차단을 사전에 박으면 join(약 80초) 이 BLOCKED_BY_HOST 로 막힘.
+# 마이페이지 진입(약 240초) 전에 차단이 들어가야 fetch 에 잡힘.
+(
+  sleep 130
+  RESP=$(curl -sS -X POST "$API_URL/blocks" \
+    -H "Authorization: Bearer $USER_TOKEN" \
+    -H 'Content-Type: application/json' \
+    -d "{\"targetUserId\":\"$HOST_ID\"}")
+  echo "  ⚙ 차단 응답: $RESP"
+) &
+
+echo ""
+echo ">>> [백그라운드] 150초 후 room.status=COMPLETED — 후기 작성 시나리오용..."
+(
+  sleep 150
+  ssh_psql "UPDATE room SET status='COMPLETED', completed_at=NOW() WHERE id='$ROOM_ID';" >/dev/null 2>&1 || true
+  echo "  ⚙ room COMPLETED 처리됨 ($ROOM_ID)"
+) &
+
+echo ""
 echo ">>> [5/5] flutter drive — UI 풀 시나리오..."
 TEST_RESULTS_DIR="$RESULTS_DIR" SIM_UDID="$SIM_DEVICE" flutter drive \
   -d "$SIM_DEVICE" \

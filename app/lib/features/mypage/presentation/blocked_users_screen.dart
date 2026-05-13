@@ -80,6 +80,7 @@ class BlockedUsersScreen extends ConsumerWidget {
             child: const Text('취소'),
           ),
           TextButton(
+            key: const Key('btn-unblock-confirm'),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text(
               '해제',
@@ -161,6 +162,7 @@ class _BlockedUserTile extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           GestureDetector(
+            key: Key('btn-unblock-${user.targetUserId}'),
             onTap: onUnblock,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
