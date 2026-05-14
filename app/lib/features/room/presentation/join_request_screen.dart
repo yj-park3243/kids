@@ -121,6 +121,7 @@ class _JoinRequestScreenState extends ConsumerState<JoinRequestScreen> {
         itemBuilder: (context, index) {
           final request = _requests![index];
           return _RequestCard(
+            key: Key('join-request-${request.user.id}'),
             request: request,
             onAccept: () => _handleRequest(request.id, 'ACCEPT'),
             onReject: () => _handleRequest(request.id, 'REJECT'),
@@ -137,6 +138,7 @@ class _RequestCard extends StatelessWidget {
   final VoidCallback onReject;
 
   const _RequestCard({
+    super.key,
     required this.request,
     required this.onAccept,
     required this.onReject,
@@ -215,6 +217,7 @@ class _RequestCard extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton(
+                  key: Key('btn-accept-${request.user.id}'),
                   onPressed: onAccept,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
