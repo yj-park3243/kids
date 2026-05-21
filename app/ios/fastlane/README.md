@@ -55,6 +55,14 @@ Sign In with Apple capability 활성화 + 프로파일 재발급
 
 TestFlight 배포
 
+### ios submit
+
+```sh
+[bundle exec] fastlane ios submit
+```
+
+App Store 심사 제출 (TestFlight 에 올라간 빌드 사용)
+
 ----
 
 This README.md is auto-generated and will be re-generated every time [_fastlane_](https://fastlane.tools) is run.

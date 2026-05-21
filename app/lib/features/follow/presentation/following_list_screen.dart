@@ -140,17 +140,7 @@ class _FollowingTile extends StatelessWidget {
                   style: AppTextStyles.cardTitle.copyWith(fontSize: 15),
                 ),
                 const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(Icons.location_on_rounded,
-                        size: 12, color: AppColors.ink500),
-                    const SizedBox(width: 2),
-                    Text(follow.regionSigungu,
-                        style: AppTextStyles.caption),
-                    const SizedBox(width: 8),
-                    GrowthGradeChip(score: follow.mannerScore),
-                  ],
-                ),
+                GrowthGradeChip(score: follow.mannerScore),
               ],
             ),
           ),

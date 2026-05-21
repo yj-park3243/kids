@@ -9,7 +9,6 @@ import '../../../core/utils/validators.dart';
 import '../../../widgets/app_bar.dart';
 import '../../../widgets/common_button.dart';
 import '../../../core/constants/app_text_styles.dart';
-import '../../../widgets/address_search_sheet.dart';
 import '../../../widgets/common_input.dart';
 import '../../auth/providers/auth_provider.dart';
 
@@ -25,8 +24,6 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   late TextEditingController _nicknameController;
   late TextEditingController _introController;
   String? _profileImagePath;
-  String? _selectedSido;
-  String? _selectedSigungu;
   bool _isLoading = false;
 
   @override
@@ -35,18 +32,6 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
     final user = ref.read(authProvider).user;
     _nicknameController = TextEditingController(text: user?.nickname ?? '');
     _introController = TextEditingController(text: user?.introduction ?? '');
-    _selectedSido = user?.regionSido;
-    _selectedSigungu = user?.regionSigungu;
-  }
-
-  Future<void> _selectAddress() async {
-    final result = await showAddressSearchSheet(context);
-    if (result == null) return;
-    setState(() {
-      // 큰 덩어리만 — 시/도 + 시/군/구. dong/도로명/건물명은 저장 안 함.
-      _selectedSido = result.sido;
-      _selectedSigungu = result.sigungu;
-    });
   }
 
   @override
@@ -176,50 +161,15 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                   value: _parentGenderLabel(user?.parentGender),
                   onInfoTap: () => _showLockedInfoDialog(context),
                 ),
-                const SizedBox(height: 12),
-                _LockedField(
-                  label: '한부모 가정',
-                  value: (user?.isSingleParent ?? false) ? '예' : '아니오',
-                  onInfoTap: () => _showLockedInfoDialog(context),
-                ),
-                const SizedBox(height: 20),
-
-                // 지역 — 주소 검색 (Daum 우편번호). 큰 덩어리(시/도 + 시/군/구)만 저장.
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('지역', style: AppTextStyles.body2Bold),
-                ),
-                const SizedBox(height: 8),
-                GestureDetector(
-                  onTap: _selectAddress,
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.divider),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.search_rounded, color: AppColors.textHint, size: 20),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _selectedSido == null
-                              ? Text(
-                                  '주소 검색',
-                                  style: AppTextStyles.body2.copyWith(color: AppColors.textHint),
-                                )
-                              : Text(
-                                  '$_selectedSido ${_selectedSigungu ?? ''}'.trim(),
-                                  style: AppTextStyles.body1,
-                                ),
-                        ),
-                        const Icon(Icons.chevron_right_rounded, color: AppColors.textHint),
-                      ],
-                    ),
+                // 한부모 가정 항목 — 한부모 가정 계정에만 노출.
+                if (user?.isSingleParent ?? false) ...[
+                  const SizedBox(height: 12),
+                  _LockedField(
+                    label: '한부모 가정',
+                    value: '예',
+                    onInfoTap: () => _showLockedInfoDialog(context),
                   ),
-                ),
+                ],
                 const SizedBox(height: 40),
 
                 PrimaryButton(

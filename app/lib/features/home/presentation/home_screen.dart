@@ -16,6 +16,7 @@ import '../../../widgets/empty_state.dart';
 import '../../../widgets/loading.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../growth_guide/presentation/widgets/growth_guide_widget.dart';
+import '../../notice/presentation/widgets/pinned_notice_banner.dart';
 import '../providers/home_provider.dart';
 import 'widgets/native_ad_card.dart';
 import 'widgets/room_card.dart';
@@ -63,8 +64,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final authState = ref.watch(authProvider);
     final selectedChild = ref.watch(selectedChildProvider);
     final children = authState.user?.children ?? [];
-    final regionDong = authState.user?.regionDong ?? '동네';
-    final regionSigungu = authState.user?.regionSigungu ?? '';
 
     ref.listen<Child?>(selectedChildProvider, (prev, next) {
       if (prev?.id != next?.id) {
@@ -128,6 +127,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ),
 
+              // 공지사항 배너 — 앱바 바로 아래
+              const PinnedNoticeBanner(),
+
               // Child switcher (glass card)
               if (selectedChild != null)
                 Padding(
@@ -170,11 +172,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     ),
                                   ),
                                 ],
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                '$regionSigungu $regionDong · 활동 반경 3km',
-                                style: AppTextStyles.caption,
                               ),
                             ],
                           ),

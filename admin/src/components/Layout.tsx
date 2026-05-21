@@ -7,6 +7,7 @@ import {
   HomeOutlined,
   FlagOutlined,
   MessageOutlined,
+  NotificationOutlined,
   ReadOutlined,
   SettingOutlined,
   LogoutOutlined,
@@ -54,6 +55,11 @@ export default function Layout() {
       label: '문의 관리',
     },
     {
+      key: '/notices',
+      icon: <NotificationOutlined />,
+      label: '공지사항',
+    },
+    {
       key: '/guides',
       icon: <ReadOutlined />,
       label: '📘 발달 가이드',
@@ -94,9 +100,11 @@ export default function Layout() {
         ? '/reports'
         : location.pathname.startsWith('/inquiries')
           ? '/inquiries'
-          : location.pathname.startsWith('/guides')
-            ? '/guides'
-            : location.pathname;
+          : location.pathname.startsWith('/notices')
+            ? '/notices'
+            : location.pathname.startsWith('/guides')
+              ? '/guides'
+              : location.pathname;
 
   return (
     <AntLayout style={{ minHeight: '100vh' }}>

@@ -13,11 +13,15 @@ class MapFilterPanel extends StatefulWidget {
     required this.filter,
     required this.childAgeMonth,
     required this.onChanged,
+    this.isSingleParent = false,
   });
 
   final MapFilter filter;
   final int? childAgeMonth;
   final ValueChanged<MapFilter> onChanged;
+
+  /// 한부모 가정 계정 여부 — 한부모 전용 필터 노출 조건.
+  final bool isSingleParent;
 
   @override
   State<MapFilterPanel> createState() => _MapFilterPanelState();
@@ -159,9 +163,10 @@ class _MapFilterPanelState extends State<MapFilterPanel> {
             children: [
               _toggle('무료만', _f.freeOnly,
                   () => _emit(_f.copyWith(freeOnly: !_f.freeOnly))),
-              _toggle('한부모만', _f.singleParentOnly,
-                  () => _emit(
-                      _f.copyWith(singleParentOnly: !_f.singleParentOnly))),
+              if (widget.isSingleParent)
+                _toggle('한부모만', _f.singleParentOnly,
+                    () => _emit(
+                        _f.copyWith(singleParentOnly: !_f.singleParentOnly))),
               _toggle('번개모임만', _f.flashOnly,
                   () => _emit(_f.copyWith(flashOnly: !_f.flashOnly))),
             ],

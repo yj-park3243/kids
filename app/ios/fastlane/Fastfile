@@ -161,4 +161,37 @@ platform :ios do
 
     UI.success("TestFlight 업로드 완료!")
   end
+
+  desc "App Store 심사 제출 (TestFlight 에 올라간 빌드 사용)"
+  lane :submit do
+    api_key = app_store_connect_api_key(
+      key_id: ENV["ASC_KEY_ID"],
+      issuer_id: ENV["ASC_ISSUER_ID"],
+      key_filepath: ENV["ASC_KEY_PATH"],
+    )
+
+    File.read(File.join(APP_DIR, "pubspec.yaml")) =~ /version:\s*([\d.]+)\+(\d+)/
+    app_version = $1
+    build_num = $2
+    UI.message("App Store 심사 제출: v#{app_version} (build #{build_num})")
+
+    upload_to_app_store(
+      api_key: api_key,
+      app_identifier: ENV["APP_IDENTIFIER"],
+      app_version: app_version,
+      build_number: build_num,
+      skip_binary_upload: true,
+      skip_metadata: true,
+      skip_screenshots: true,
+      submit_for_review: true,
+      automatic_release: true,
+      force: true,
+      precheck_include_in_app_purchases: false,
+      submission_information: {
+        export_compliance_uses_encryption: false,
+      },
+    )
+
+    UI.success("App Store 심사 제출 완료!")
+  end
 end

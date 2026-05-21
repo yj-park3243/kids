@@ -59,18 +59,6 @@ class MyPageScreen extends ConsumerWidget {
                                   user?.nickname ?? '사용자',
                                   style: AppTextStyles.cardTitle.copyWith(fontSize: 17),
                                 ),
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    const Icon(Icons.location_on_rounded,
-                                        size: 12, color: AppColors.ink500),
-                                    const SizedBox(width: 2),
-                                    Text(
-                                      '${user?.regionSigungu ?? ''} ${user?.regionDong ?? ''}',
-                                      style: AppTextStyles.caption,
-                                    ),
-                                  ],
-                                ),
                                 const SizedBox(height: 6),
                                 DesignChip(
                                   label: '#KIDS-${_familyHash(user?.id)}',
@@ -199,6 +187,11 @@ class MyPageScreen extends ConsumerWidget {
                 const SizedBox(height: 14),
 
                 _menuSection([
+                  _MenuItem(
+                    icon: Icons.campaign_outlined,
+                    label: '공지사항',
+                    onTap: () => context.push('/notices'),
+                  ),
                   _MenuItem(
                     icon: Icons.mail_outline_rounded,
                     label: '1:1 문의',

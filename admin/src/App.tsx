@@ -11,6 +11,7 @@ import RoomsPage from './pages/RoomsPage';
 import RoomDetailPage from './pages/RoomDetailPage';
 import ReportsPage from './pages/ReportsPage';
 import InquiriesPage from './pages/InquiriesPage';
+import NoticesPage from './pages/NoticesPage';
 import GuidesPage from './pages/GuidesPage';
 
 export default function App() {
@@ -41,6 +42,7 @@ export default function App() {
             <Route path="/rooms/:id" element={<RoomDetailPage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/inquiries" element={<InquiriesPage />} />
+            <Route path="/notices" element={<NoticesPage />} />
             <Route path="/guides" element={<GuidesPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

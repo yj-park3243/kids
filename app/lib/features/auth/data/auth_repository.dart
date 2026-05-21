@@ -48,9 +48,6 @@ class AuthRepository {
   // Setup Profile
   Future<User> setupProfile({
     required String nickname,
-    String? regionSido,
-    String? regionSigungu,
-    String? regionDong,
     String? profileImageUrl,
     String? introduction,
     String? parentGender,
@@ -58,9 +55,6 @@ class AuthRepository {
   }) async {
     final response = await _dio.post(ApiConstants.userProfile, data: {
       'nickname': nickname,
-      if (regionSido != null) 'regionSido': regionSido,
-      if (regionSigungu != null) 'regionSigungu': regionSigungu,
-      if (regionDong != null) 'regionDong': regionDong,
       'profileImageUrl': profileImageUrl,
       'introduction': introduction,
       if (parentGender != null) 'parentGender': parentGender,

@@ -17,7 +17,7 @@ import {
 import { DeleteOutlined, SaveOutlined } from '@ant-design/icons';
 import MDEditor from '@uiw/react-md-editor';
 import { guidesApi } from '../api/guides';
-import type { Guide, GuideListItem } from '../types';
+import type { GuideListItem } from '../types';
 
 const { Title, Text } = Typography;
 

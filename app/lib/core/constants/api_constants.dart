@@ -82,6 +82,11 @@ class ApiConstants {
   static const String guides = '/guides';
   static String guide(int ageMonth) => '/guides/$ageMonth';
 
+  // Notice
+  static const String notices = '/notices';
+  static const String noticesPinned = '/notices/pinned';
+  static String noticeById(String id) => '/notices/$id';
+
   // Timeouts
   static const int connectTimeout = 10000;
   static const int receiveTimeout = 15000;

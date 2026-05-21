@@ -17,6 +17,8 @@ import '../../features/mypage/presentation/blocked_users_screen.dart';
 import '../../features/mypage/presentation/my_rooms_screen.dart';
 import '../../features/mypage/presentation/mypage_screen.dart';
 import '../../features/mypage/presentation/profile_edit_screen.dart';
+import '../../features/notice/presentation/notice_detail_screen.dart';
+import '../../features/notice/presentation/notice_list_screen.dart';
 import '../../features/notification/presentation/notification_screen.dart';
 import '../../features/notification/presentation/notification_settings_screen.dart';
 import '../../features/review/presentation/review_summary_screen.dart';
@@ -270,6 +272,19 @@ final appRouter = GoRouter(
             int.tryParse(state.pathParameters['ageMonth'] ?? '0') ?? 0;
         return GrowthGuideDetailScreen(ageMonth: ageMonth);
       },
+    ),
+
+    // 공지사항
+    GoRoute(
+      path: '/notices',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const NoticeListScreen(),
+    ),
+    GoRoute(
+      path: '/notices/:noticeId',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) =>
+          NoticeDetailScreen(noticeId: state.pathParameters['noticeId']!),
     ),
   ],
 );

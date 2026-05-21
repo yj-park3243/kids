@@ -359,42 +359,22 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '한부모 가정만 참여',
-                    style: AppTextStyles.body2Bold.copyWith(
-                      color: canSingleParent
-                          ? AppColors.textPrimary
-                          : AppColors.textHint,
-                    ),
-                  ),
-                  if (!canSingleParent) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      '한부모 가정 유저만 한부모 전용 방을 만들 수 있어요',
-                      style: AppTextStyles.caption.copyWith(
-                        color: AppColors.textHint,
-                      ),
-                    ),
-                  ],
-                ],
+        // 한부모 전용 방 옵션 — 한부모 가정 계정에만 노출.
+        if (canSingleParent) ...[
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: Text('한부모 가정만 참여', style: AppTextStyles.body2Bold),
               ),
-            ),
-            Switch(
-              value: _singleParentOnly,
-              activeTrackColor: AppColors.primary,
-              onChanged: canSingleParent
-                  ? (v) => setState(() => _singleParentOnly = v)
-                  : null,
-            ),
-          ],
-        ),
+              Switch(
+                value: _singleParentOnly,
+                activeTrackColor: AppColors.primary,
+                onChanged: (v) => setState(() => _singleParentOnly = v),
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }

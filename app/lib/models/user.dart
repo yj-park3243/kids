@@ -4,9 +4,6 @@ class User {
   final String? email;
   final String? profileImageUrl;
   final String? introduction;
-  final String? regionSido;
-  final String? regionSigungu;
-  final String? regionDong;
   final bool isProfileComplete;
   final bool isPhoneVerified;
   final String? authProvider;
@@ -26,9 +23,6 @@ class User {
     this.email,
     this.profileImageUrl,
     this.introduction,
-    this.regionSido,
-    this.regionSigungu,
-    this.regionDong,
     this.isProfileComplete = false,
     this.isPhoneVerified = false,
     this.authProvider,
@@ -50,9 +44,6 @@ class User {
       email: json['email'],
       profileImageUrl: json['profileImageUrl'],
       introduction: json['introduction'],
-      regionSido: json['regionSido'],
-      regionSigungu: json['regionSigungu'],
-      regionDong: json['regionDong'],
       isProfileComplete: json['isProfileComplete'] ?? false,
       isPhoneVerified: json['isPhoneVerified'] ?? false,
       authProvider: json['authProvider'],
@@ -78,9 +69,6 @@ class User {
         'email': email,
         'profileImageUrl': profileImageUrl,
         'introduction': introduction,
-        'regionSido': regionSido,
-        'regionSigungu': regionSigungu,
-        'regionDong': regionDong,
         'isProfileComplete': isProfileComplete,
         'isPhoneVerified': isPhoneVerified,
         'authProvider': authProvider,
@@ -99,9 +87,6 @@ class User {
     String? email,
     String? profileImageUrl,
     String? introduction,
-    String? regionSido,
-    String? regionSigungu,
-    String? regionDong,
     bool? isProfileComplete,
     bool? isPhoneVerified,
     String? authProvider,
@@ -121,9 +106,6 @@ class User {
       email: email ?? this.email,
       profileImageUrl: profileImageUrl ?? this.profileImageUrl,
       introduction: introduction ?? this.introduction,
-      regionSido: regionSido ?? this.regionSido,
-      regionSigungu: regionSigungu ?? this.regionSigungu,
-      regionDong: regionDong ?? this.regionDong,
       isProfileComplete: isProfileComplete ?? this.isProfileComplete,
       isPhoneVerified: isPhoneVerified ?? this.isPhoneVerified,
       authProvider: authProvider ?? this.authProvider,

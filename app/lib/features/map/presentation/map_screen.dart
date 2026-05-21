@@ -8,6 +8,7 @@ import '../../../core/location/location_service.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../models/room.dart';
 import '../../../providers/selected_child_provider.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../room/providers/room_detail_provider.dart';
 import '../map_filter.dart';
 import '../widgets/map_filter_panel.dart';
@@ -195,6 +196,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               filter: _filter,
               childAgeMonth: _filter.ageMonth,
               onChanged: _onFilterChanged,
+              isSingleParent:
+                  ref.watch(authProvider).user?.isSingleParent == true,
             ),
           ),
 

@@ -21,6 +21,7 @@ import { BlockModule } from './block/block.module';
 import { FollowModule } from './follow/follow.module';
 import { GrowthGuideModule } from './growth-guide/growth-guide.module';
 import { ShareModule } from './share/share.module';
+import { NoticeModule } from './notice/notice.module';
 import { ActivityTrackerInterceptor } from './common/interceptors/activity-tracker.interceptor';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { CommonModule } from './common/common.module';
@@ -73,6 +74,7 @@ import { UserVisit } from './user/entities/user-visit.entity';
     FollowModule,
     GrowthGuideModule,
     ShareModule,
+    NoticeModule,
   ],
   providers: [
     {
