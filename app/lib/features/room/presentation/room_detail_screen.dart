@@ -8,6 +8,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../support/presentation/report_sheet.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/location/location_service.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../models/room.dart';
 import '../../../widgets/app_bar.dart';
@@ -46,27 +47,31 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
     final authState = ref.watch(authProvider);
     final currentUserId = authState.user?.id;
 
-    if (state.isLoading && state.room == null) {
+    // room 이 아직 없으면 본문을 그리지 않는다. isLoading 플래그와 무관하게
+    // room == null 이면 항상 early return — 로드 전 초기 프레임
+    // (isLoading=false, error=null, room=null)에서 state.room! 가 크래시하던
+    // 것을 방지한다.
+    if (state.room == null) {
+      if (state.error != null) {
+        return Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: const CustomAppBar(title: ''),
+          extendBodyBehindAppBar: true,
+          body: AccentBlobsBackground(
+            child: SafeArea(
+              child: ErrorState(
+                message: state.error!,
+                onRetry: () => ref
+                    .read(roomDetailProvider(widget.roomId).notifier)
+                    .loadRoom(),
+              ),
+            ),
+          ),
+        );
+      }
       return const Scaffold(
         backgroundColor: Colors.transparent,
         body: AccentBlobsBackground(child: AppLoadingIndicator()),
-      );
-    }
-
-    if (state.error != null && state.room == null) {
-      return Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: const CustomAppBar(title: ''),
-        extendBodyBehindAppBar: true,
-        body: AccentBlobsBackground(
-          child: SafeArea(
-            child: ErrorState(
-              message: state.error!,
-              onRetry: () =>
-                  ref.read(roomDetailProvider(widget.roomId).notifier).loadRoom(),
-            ),
-          ),
-        ),
       );
     }
 
@@ -457,7 +462,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
   }
 }
 
-class _InfoSection extends StatelessWidget {
+class _InfoSection extends ConsumerWidget {
   final Room room;
   final bool isParticipant;
 
@@ -472,7 +477,22 @@ class _InfoSection extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // 거리 — 참여 중이 아닌 방만, 내 위치가 있을 때.
+    String? distanceText;
+    if (!isParticipant &&
+        room.latitude != null &&
+        room.longitude != null) {
+      final myPos = ref.watch(currentPositionProvider).valueOrNull;
+      if (myPos != null) {
+        distanceText = formatDistance(distanceKm(
+          myPos.latitude,
+          myPos.longitude,
+          room.latitude!,
+          room.longitude!,
+        ));
+      }
+    }
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(16),
@@ -513,6 +533,14 @@ class _InfoSection extends StatelessWidget {
                 : null,
           ),
           const Divider(height: 20, color: AppColors.divider),
+          if (distanceText != null) ...[
+            _InfoRow(
+              icon: Icons.near_me_rounded,
+              label: '거리',
+              value: '내 위치에서 약 $distanceText',
+            ),
+            const Divider(height: 20, color: AppColors.divider),
+          ],
           _InfoRow(
             icon: Icons.child_care_rounded,
             label: '대상',

@@ -1,4 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- 위치 권한 선언 시 Play가 GPS 하드웨어를 필수로 간주하지 않도록 명시 -->
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+    <uses-feature android:name="android.hardware.location.network" android:required="false" />
     <application
         android:label="같이크자"
         android:name="${applicationName}"
@@ -36,6 +41,10 @@
         <meta-data
             android:name="com.naver.maps.map.CLIENT_ID"
             android:value="vwcyomo2zx" />
+        <!-- Google AdMob -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-5100715769469045~8048586416" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

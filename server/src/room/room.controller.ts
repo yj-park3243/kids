@@ -55,6 +55,12 @@ export class RoomController {
     return this.roomService.getMapRooms(userId, query);
   }
 
+  @Get('geocode')
+  @ApiOperation({ summary: '주소 → 좌표 변환' })
+  async geocode(@Query('address') address: string) {
+    return this.roomService.geocode(address);
+  }
+
   @Get()
   @ApiOperation({ summary: '방 목록 조회 (약속날짜 지난 방 제외)' })
   async findAll(

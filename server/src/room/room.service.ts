@@ -26,6 +26,7 @@ import {
   escapeHtml,
 } from '../common/services/telegram.service';
 import { GeocodingService } from '../common/services/geocoding.service';
+import { fallbackCoord } from '../common/services/region-coords';
 
 @Injectable()
 export class RoomService {
@@ -97,6 +98,17 @@ export class RoomService {
         latitude = geo.latitude;
         longitude = geo.longitude;
       }
+    }
+    // 지오코딩이 실패해도 모임이 반드시 지도에 핀으로 찍히도록,
+    // 시군구/동 기반 대략 좌표로 폴백한다.
+    if (latitude == null || longitude == null) {
+      const fb = fallbackCoord(
+        dto.regionSido,
+        dto.regionSigungu,
+        dto.regionDong,
+      );
+      latitude = fb.lat;
+      longitude = fb.lng;
     }
 
     // Create room
@@ -237,6 +249,18 @@ export class RoomService {
     const hasMore = rooms.length > limit;
     if (hasMore) rooms.pop();
 
+    // 내가 방장이거나 참여 중인 방 — 클라이언트에서 거리 표시를 생략한다.
+    const roomIds = rooms.map((r) => r.id);
+    const memberRows = roomIds.length
+      ? await this.roomMemberRepository
+          .createQueryBuilder('m')
+          .select('m.roomId', 'roomId')
+          .where('m.userId = :userId', { userId })
+          .andWhere('m.roomId IN (:...ids)', { ids: roomIds })
+          .getRawMany()
+      : [];
+    const memberRoomIds = new Set<string>(memberRows.map((r) => r.roomId));
+
     const items = rooms.map((room) => {
       const masked = this.roomVisibility.maskCoordinatesForList({
         id: room.id,
@@ -268,6 +292,7 @@ export class RoomService {
               profileImageUrl: room.host.profileImageUrl,
             }
           : null,
+        joined: room.hostId === userId || memberRoomIds.has(room.id),
         // 마스킹된 좌표만 노출. placeName/placeAddress 는 응답에서 제외.
         latitude: masked.latitude,
         longitude: masked.longitude,
@@ -520,6 +545,54 @@ export class RoomService {
       }
     };
 
+    // 사용자가 지정한 필터 — 클러스터/핀 모드 공통 적용.
+    const applyFilters = (qb: SelectQueryBuilder<Room>) => {
+      if (query.dateFrom) {
+        qb.andWhere('room.date >= :dateFrom', { dateFrom: query.dateFrom });
+      }
+      if (query.dateTo) {
+        qb.andWhere('room.date <= :dateTo', { dateTo: query.dateTo });
+      }
+      if (query.startTimeFrom) {
+        qb.andWhere('room.startTime >= :stf', { stf: query.startTimeFrom });
+      }
+      if (query.startTimeTo) {
+        qb.andWhere('room.startTime <= :stt', { stt: query.startTimeTo });
+      }
+      if (query.ageMonth !== undefined) {
+        qb.andWhere('room.ageMonthMin <= :ageMax', {
+          ageMax: query.ageMonth + 3,
+        });
+        qb.andWhere('room.ageMonthMax >= :ageMin', {
+          ageMin: query.ageMonth - 3,
+        });
+      }
+      if (query.placeType) {
+        qb.andWhere('room.placeType = :placeType', {
+          placeType: query.placeType,
+        });
+      }
+      if (query.joinType) {
+        qb.andWhere('room.joinType = :joinType', { joinType: query.joinType });
+      }
+      if (query.costFree) {
+        qb.andWhere('room.cost = 0');
+      }
+      if (query.genderFilter) {
+        qb.andWhere('room.genderFilter = :gf', { gf: query.genderFilter });
+      }
+      if (query.singleParentOnly !== undefined) {
+        qb.andWhere('room.singleParentOnly = :spo', {
+          spo: query.singleParentOnly,
+        });
+      }
+      if (query.isFlashMeeting !== undefined) {
+        qb.andWhere('room.isFlashMeeting = :flash', {
+          flash: query.isFlashMeeting,
+        });
+      }
+    };
+
     if (query.zoomLevel !== undefined && query.zoomLevel <= 13) {
       // Cluster mode
       const clusterQb = this.roomRepository
@@ -541,6 +614,7 @@ export class RoomService {
           statuses: ['RECRUITING', 'CLOSED'],
         });
       applyEligibility(clusterQb);
+      applyFilters(clusterQb);
       const clusters = await clusterQb.groupBy('room.regionDong').getRawMany();
 
       return {
@@ -569,12 +643,8 @@ export class RoomService {
           statuses: ['RECRUITING', 'CLOSED'],
         });
 
-      if (query.ageMonth !== undefined) {
-        qb.andWhere('room.ageMonthMin <= :ageMax', { ageMax: query.ageMonth + 3 });
-        qb.andWhere('room.ageMonthMax >= :ageMin', { ageMin: query.ageMonth - 3 });
-      }
-
       applyEligibility(qb);
+      applyFilters(qb);
 
       const rooms = await qb.getMany();
 
@@ -593,27 +663,16 @@ export class RoomService {
       return {
         mode: 'PIN',
         pins: rooms.map((room) => {
-          const isInsider =
+          // joined: 방장이거나 멤버 — 클라이언트에서 거리 표시를 생략한다.
+          const joined =
             room.hostId === userId || memberRoomIds.has(room.id);
-          if (isInsider) {
-            return {
-              id: room.id,
-              title: room.title,
-              date: room.date,
-              startTime: room.startTime,
-              ageMonthMin: room.ageMonthMin,
-              ageMonthMax: room.ageMonthMax,
-              currentMembers: room.currentMembers,
-              maxMembers: room.maxMembers,
-              latitude: room.latitude,
-              longitude: room.longitude,
-            };
-          }
-          const masked = this.roomVisibility.maskCoordinatesForList({
-            id: room.id,
-            latitude: room.latitude,
-            longitude: room.longitude,
-          });
+          const coord = joined
+            ? { latitude: room.latitude, longitude: room.longitude }
+            : this.roomVisibility.maskCoordinatesForList({
+                id: room.id,
+                latitude: room.latitude,
+                longitude: room.longitude,
+              });
           return {
             id: room.id,
             title: room.title,
@@ -623,11 +682,27 @@ export class RoomService {
             ageMonthMax: room.ageMonthMax,
             currentMembers: room.currentMembers,
             maxMembers: room.maxMembers,
-            latitude: masked.latitude,
-            longitude: masked.longitude,
+            placeType: room.placeType,
+            joinType: room.joinType,
+            genderFilter: room.genderFilter,
+            singleParentOnly: room.singleParentOnly,
+            isFlashMeeting: room.isFlashMeeting,
+            regionDong: room.regionDong,
+            joined,
+            latitude: coord.latitude,
+            longitude: coord.longitude,
           };
         }),
       };
     }
+  }
+
+  /** 주소 문자열을 좌표로 변환 — 클라이언트가 방 생성 전 호출. */
+  async geocode(address: string) {
+    const result = await this.geocodingService.geocode(address ?? '');
+    return {
+      latitude: result?.latitude ?? null,
+      longitude: result?.longitude ?? null,
+    };
   }
 }

@@ -82,6 +82,7 @@ class _EmailRegisterScreenState extends ConsumerState<EmailRegisterScreen> {
                 const SizedBox(height: 40),
 
                 CommonInput(
+                  key: const Key('input-register-email'),
                   label: '이메일',
                   hint: 'example@email.com',
                   controller: _emailController,
@@ -92,6 +93,7 @@ class _EmailRegisterScreenState extends ConsumerState<EmailRegisterScreen> {
                 const SizedBox(height: 20),
 
                 CommonInput(
+                  key: const Key('input-register-password'),
                   label: '비밀번호',
                   hint: '8자 이상, 영문+숫자+특수문자',
                   controller: _passwordController,
@@ -109,6 +111,7 @@ class _EmailRegisterScreenState extends ConsumerState<EmailRegisterScreen> {
                 const SizedBox(height: 20),
 
                 CommonInput(
+                  key: const Key('input-register-password-confirm'),
                   label: '비밀번호 확인',
                   hint: '비밀번호를 다시 입력하세요',
                   controller: _confirmPasswordController,
@@ -133,6 +136,7 @@ class _EmailRegisterScreenState extends ConsumerState<EmailRegisterScreen> {
                 const SizedBox(height: 40),
 
                 PrimaryButton(
+                  key: const Key('btn-register-submit'),
                   text: '회원가입',
                   isLoading: authState.status == AuthStatus.loading,
                   onPressed: _register,

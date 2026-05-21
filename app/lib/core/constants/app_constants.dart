@@ -1,3 +1,5 @@
+import 'dart:io';
+
 class AppConstants {
   AppConstants._();
 
@@ -26,6 +28,11 @@ class AppConstants {
     'KAKAO_NATIVE_APP_KEY',
     defaultValue: 'TODO_KAKAO_NATIVE_APP_KEY',
   );
+
+  // AdMob 네이티브 광고 단위 ID — 플랫폼별로 분리.
+  static String get nativeAdUnitId => Platform.isIOS
+      ? 'ca-app-pub-5100715769469045/2796259730'
+      : 'ca-app-pub-5100715769469045/9170096390';
 
   // Place types
   static const Map<String, String> placeTypes = {

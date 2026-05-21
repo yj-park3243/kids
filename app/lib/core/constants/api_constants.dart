@@ -43,6 +43,7 @@ class ApiConstants {
   static const String rooms = '/rooms';
   static const String myRooms = '/rooms/my';
   static const String roomsMap = '/rooms/map';
+  static const String roomsGeocode = '/rooms/geocode';
 
   // Notifications
   static const String notifications = '/notifications';

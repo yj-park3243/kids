@@ -43,6 +43,8 @@
 	</array>
 	<key>NMFClientId</key>
 	<string>vwcyomo2zx</string>
+	<key>GADApplicationIdentifier</key>
+	<string>ca-app-pub-5100715769469045~1414895302</string>
 	<key>NSCameraUsageDescription</key>
 	<string>프로필 사진을 촬영하기 위해 카메라 접근이 필요합니다.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

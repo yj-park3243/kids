@@ -42,6 +42,8 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
   String? _regionSigungu;
   String? _regionDong;
   String? _fullAddress;
+  double? _latitude;
+  double? _longitude;
   String _placeType = 'PLAYGROUND';
   int _ageMin = 0;
   int _ageMax = 36;
@@ -204,7 +206,25 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
       _regionSigungu = result.sigungu;
       _regionDong = result.dong;
       _fullAddress = result.fullAddress;
+      _latitude = null;
+      _longitude = null;
     });
+    // 모임이 지도에 핀으로 찍히도록 좌표를 미리 확보한다 (도로명 우선).
+    final query = result.roadAddress.isNotEmpty
+        ? result.roadAddress
+        : result.jibunAddress;
+    if (query.isEmpty) return;
+    try {
+      final geo = await ref.read(roomRepositoryProvider).geocode(query);
+      if (mounted && geo.lat != null && geo.lng != null) {
+        setState(() {
+          _latitude = geo.lat;
+          _longitude = geo.lng;
+        });
+      }
+    } catch (_) {
+      // 지오코딩 실패해도 방 생성은 진행 — 서버가 placeAddress 로 재시도.
+    }
   }
 
   void _addTag() {
@@ -453,6 +473,8 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
         'placeType': _placeType,
         if (_fullAddress != null && _fullAddress!.isNotEmpty)
           'placeAddress': _fullAddress,
+        if (_latitude != null) 'latitude': _latitude,
+        if (_longitude != null) 'longitude': _longitude,
         'maxMembers': _maxMembers,
         'joinType': _joinType,
         'cost': _isFree ? 0 : int.tryParse(_costController.text) ?? 0,
@@ -520,6 +542,7 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
 
               // Description
               CommonInput(
+                key: const Key('input-room-description'),
                 label: '설명',
                 hint: '모임에 대한 설명을 입력하세요',
                 controller: _descriptionController,
@@ -537,6 +560,7 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
               Text('날짜', style: AppTextStyles.body2Bold),
               const SizedBox(height: 8),
               GestureDetector(
+                key: const Key('btn-room-date'),
                 onTap: _selectDate,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -574,6 +598,7 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
                 children: [
                   Expanded(
                     child: _TimePickerCard(
+                      key: const Key('btn-room-start-time'),
                       label: '시작',
                       time: _startTime,
                       placeholder: '시작 시간',
@@ -600,6 +625,7 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
               Text('지역 / 장소', style: AppTextStyles.body2Bold),
               const SizedBox(height: 8),
               GestureDetector(
+                key: const Key('btn-room-address'),
                 onTap: _selectAddress,
                 child: Container(
                   width: double.infinity,
@@ -1037,6 +1063,7 @@ class _GenderChip extends StatelessWidget {
 
 class _TimePickerCard extends StatelessWidget {
   const _TimePickerCard({
+    super.key,
     required this.label,
     required this.time,
     required this.placeholder,

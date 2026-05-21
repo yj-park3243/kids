@@ -17,6 +17,7 @@ import '../../../widgets/loading.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../growth_guide/presentation/widgets/growth_guide_widget.dart';
 import '../providers/home_provider.dart';
+import 'widgets/native_ad_card.dart';
 import 'widgets/room_card.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -491,6 +492,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       );
     }
 
+    final rooms = homeState.rooms;
+    final adCount = _adCount(rooms.length);
     return RefreshIndicator(
       onRefresh: () async {
         await ref.read(homeProvider.notifier).loadRooms(refresh: true);
@@ -499,9 +502,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       child: ListView.builder(
         controller: _scrollController,
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 110),
-        itemCount: homeState.rooms.length + (homeState.isLoadingMore ? 1 : 0),
+        itemCount: rooms.length + adCount + (homeState.isLoadingMore ? 1 : 0),
         itemBuilder: (context, index) {
-          if (index == homeState.rooms.length) {
+          // 더보기 로딩 인디케이터 (맨 끝)
+          if (homeState.isLoadingMore && index == rooms.length + adCount) {
             return const Padding(
               padding: EdgeInsets.all(16),
               child: Center(
@@ -512,7 +516,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             );
           }
-          final room = homeState.rooms[index];
+          // 광고 슬롯 — 6번째 카드 뒤(index 6), 이후 8개 간격(index 6+9k)
+          if (index >= _firstAdIndex &&
+              (index - _firstAdIndex) % _adStride == 0) {
+            final adSlot = (index - _firstAdIndex) ~/ _adStride;
+            return NativeAdCard(key: ValueKey('native-ad-$adSlot'));
+          }
+          // 방 카드
+          final roomIndex = index -
+              (index < _firstAdIndex
+                  ? 0
+                  : 1 + ((index - _firstAdIndex) ~/ _adStride));
+          final room = rooms[roomIndex];
           return RoomCard(
             room: room,
             onTap: () => context.push('/rooms/${room.id}'),
@@ -521,4 +536,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
     );
   }
+
+  // 광고 배치: 방 6개마다 첫 광고, 이후 8개 간격.
+  static const int _firstAdIndex = 6; // 첫 광고의 표시 인덱스
+  static const int _adStride = 9; // 광고 사이 표시 인덱스 간격(방 8 + 광고 1)
+
+  int _adCount(int roomCount) =>
+      roomCount < 6 ? 0 : 1 + ((roomCount - 6) ~/ 8);
 }

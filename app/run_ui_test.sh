@@ -129,18 +129,9 @@ echo ">>> [4/5] $RESULTS_DIR 초기화..."
 rm -rf "$RESULTS_DIR"
 mkdir -p "$RESULTS_DIR"
 
-echo ""
-echo ">>> [백그라운드] 130초 후 USER 가 HOST 를 차단 — 차단 해제 시나리오용..."
-# 차단을 사전에 박으면 join(약 80초) 이 BLOCKED_BY_HOST 로 막힘.
-# 마이페이지 진입(약 240초) 전에 차단이 들어가야 fetch 에 잡힘.
-(
-  sleep 130
-  RESP=$(curl -sS -X POST "$API_URL/blocks" \
-    -H "Authorization: Bearer $USER_TOKEN" \
-    -H 'Content-Type: application/json' \
-    -d "{\"targetUserId\":\"$HOST_ID\"}")
-  echo "  ⚙ 차단 응답: $RESP"
-) &
+# 차단 시드는 시뮬 시나리오 안에서 직접 API 호출(후기 작성 직후) — orchestrator
+# background sleep 은 시뮬 진행과 동기화가 안 돼 타이밍이 어긋났다.
+# USER_TOKEN / HOST_ID 를 dart-define 으로 넘긴다.
 
 echo ""
 echo ">>> [백그라운드] 150초 후 room.status=COMPLETED — 후기 작성 시나리오용..."
@@ -160,7 +151,9 @@ TEST_RESULTS_DIR="$RESULTS_DIR" SIM_UDID="$SIM_DEVICE" flutter drive \
   --dart-define=ENVIRONMENT=production \
   --dart-define=UI_TEST_EMAIL="$USER_EMAIL" \
   --dart-define=UI_TEST_PASSWORD="$PASSWORD" \
-  --dart-define=UI_TARGET_ROOM_TITLE="$ROOM_TITLE"
+  --dart-define=UI_TARGET_ROOM_TITLE="$ROOM_TITLE" \
+  --dart-define=UI_USER_TOKEN="$USER_TOKEN" \
+  --dart-define=UI_HOST_ID="$HOST_ID"
 
 echo ""
 echo "=============================="

@@ -21,6 +21,7 @@
 
 import 'dart:io' show Platform;
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -34,6 +35,11 @@ const _email = String.fromEnvironment('UI_TEST_EMAIL', defaultValue: '');
 const _password = String.fromEnvironment('UI_TEST_PASSWORD', defaultValue: '');
 const _targetRoomTitle =
     String.fromEnvironment('UI_TARGET_ROOM_TITLE', defaultValue: '');
+// 차단 해제 시나리오용 — 시뮬 안에서 직접 차단 API 를 호출해 시점을 정확히
+// 맞춘다 (orchestrator background sleep 은 시뮬 진행과 동기화가 안 됨).
+const _userToken = String.fromEnvironment('UI_USER_TOKEN', defaultValue: '');
+const _hostId = String.fromEnvironment('UI_HOST_ID', defaultValue: '');
+const _apiBase = String.fromEnvironment('API_BASE_URL', defaultValue: '');
 
 Future<void> _shot(WidgetTester tester, String label) async {
   await tester.pumpAndSettle(const Duration(milliseconds: 500));
@@ -285,8 +291,25 @@ void main() {
         }
       }
 
+      // ─── 차단 시드: 시뮬 안에서 직접 API 호출 (시점 정확) ──────
+      // 후기 작성이 끝난 지금 시점에 차단을 넣어야 join/후기 멤버에 영향 없음.
+      if (_userToken.isNotEmpty && _hostId.isNotEmpty && _apiBase.isNotEmpty) {
+        try {
+          await Dio().post(
+            '$_apiBase/v1/blocks',
+            data: {'targetUserId': _hostId},
+            options: Options(
+              headers: {'Authorization': 'Bearer $_userToken'},
+              validateStatus: (_) => true,
+            ),
+          );
+          print('[UI_TEST] 차단 시드 완료');
+        } catch (e) {
+          print('[UI_TEST] 차단 시드 실패: $e');
+        }
+      }
+
       // ─── 사용자 차단 해제 흐름 (마이페이지 → 차단한 유저) ─────
-      // orchestrator 가 USER → HOST 차단 사전 추가. UI 에서는 해제만.
       // 후기 화면에서 뒤로(가능한 만큼) → 마이 탭 → 차단한 유저 → 해제.
       for (var i = 0; i < 3; i++) {
         final back = find.byIcon(Icons.arrow_back_ios_new_rounded);

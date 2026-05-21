@@ -95,6 +95,57 @@ export class MapQueryDto {
   @IsInt()
   @IsOptional()
   zoomLevel?: number;
+
+  // ─── 필터 (방 목록 RoomQueryDto 와 동일 체계) ───────────────────
+  @ApiProperty({ required: false, description: '모임 날짜 하한 YYYY-MM-DD' })
+  @IsString()
+  @IsOptional()
+  dateFrom?: string;
+
+  @ApiProperty({ required: false, description: '모임 날짜 상한 YYYY-MM-DD' })
+  @IsString()
+  @IsOptional()
+  dateTo?: string;
+
+  @ApiProperty({ required: false, description: '시작 시간 하한 HH:mm' })
+  @IsString()
+  @IsOptional()
+  startTimeFrom?: string;
+
+  @ApiProperty({ required: false, description: '시작 시간 상한 HH:mm' })
+  @IsString()
+  @IsOptional()
+  startTimeTo?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  placeType?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  joinType?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  costFree?: boolean;
+
+  @ApiProperty({ required: false, enum: ['ALL', 'MOM_ONLY', 'DAD_ONLY'] })
+  @IsString()
+  @IsOptional()
+  genderFilter?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  singleParentOnly?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  isFlashMeeting?: boolean;
 }
 
 export class MyRoomQueryDto {

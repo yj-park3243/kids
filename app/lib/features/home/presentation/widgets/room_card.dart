@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/constants/app_text_styles.dart';
+import '../../../../core/location/location_service.dart';
 import '../../../../core/utils/date_utils.dart';
 import '../../../../models/room.dart';
 import '../../../../widgets/design/age_badge.dart';
 import '../../../../widgets/design/design_chip.dart';
 import '../../../../widgets/design/glass_card.dart';
 
-class RoomCard extends StatelessWidget {
+class RoomCard extends ConsumerWidget {
   final Room room;
   final VoidCallback? onTap;
   final VoidCallback? onOpenDetail;
@@ -25,7 +27,21 @@ class RoomCard extends StatelessWidget {
   bool get _hasActions => onOpenDetail != null || onOpenChat != null;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // 거리 — 참여 중인 방은 표시하지 않는다.
+    final myPos = ref.watch(currentPositionProvider).valueOrNull;
+    String? distanceText;
+    if (room.latitude != null &&
+        room.longitude != null &&
+        !room.joined &&
+        myPos != null) {
+      distanceText = formatDistance(distanceKm(
+        myPos.latitude,
+        myPos.longitude,
+        room.latitude!,
+        room.longitude!,
+      ));
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
       child: GlassCard(
@@ -111,13 +127,27 @@ class RoomCard extends StatelessWidget {
                       const Icon(Icons.location_on_rounded,
                           size: 12, color: AppColors.ink500),
                       const SizedBox(width: 3),
-                      Expanded(
+                      Flexible(
                         child: Text(
                           room.regionDong,
                           style: AppTextStyles.caption,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      if (distanceText != null) ...[
+                        const SizedBox(width: 4),
+                        const Icon(Icons.near_me_rounded,
+                            size: 11, color: AppColors.primary),
+                        const SizedBox(width: 2),
+                        Text(
+                          distanceText,
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                      const Spacer(),
                       DesignChip(
                         label: '${room.currentMembers}/${room.maxMembers}명',
                         tone: room.isFull ? ChipTone.ink : ChipTone.primarySolid,

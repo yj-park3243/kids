@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/response_utils.dart';
 import '../../../models/room.dart';
 
 class RoomRepository {
@@ -31,8 +32,7 @@ class RoomRepository {
     final response =
         await _dio.get('${ApiConstants.rooms}/$roomId/join-requests');
     final data = response.data['data'] ?? response.data;
-    final items = data['items'] as List<dynamic>? ?? data as List<dynamic>;
-    return items
+    return extractItems(data)
         .map((e) => JoinRequest.fromJson(e as Map<String, dynamic>))
         .toList();
   }
@@ -62,8 +62,9 @@ class RoomRepository {
       queryParameters: {'type': type, 'status': status},
     );
     final data = response.data['data'] ?? response.data;
-    final items = data['items'] as List<dynamic>? ?? data as List<dynamic>;
-    return items.map((e) => Room.fromJson(e as Map<String, dynamic>)).toList();
+    return extractItems(data)
+        .map((e) => Room.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   // Map
@@ -72,17 +73,30 @@ class RoomRepository {
     required double swLng,
     required double neLat,
     required double neLng,
-    int? ageMonth,
     int? zoomLevel,
+    Map<String, dynamic>? filters,
   }) async {
     final response = await _dio.get(ApiConstants.roomsMap, queryParameters: {
       'swLat': swLat,
       'swLng': swLng,
       'neLat': neLat,
       'neLng': neLng,
-      if (ageMonth != null) 'ageMonth': ageMonth,
       if (zoomLevel != null) 'zoomLevel': zoomLevel,
+      ...?filters,
     });
     return response.data['data'] ?? response.data;
+  }
+
+  /// 주소 → 좌표. 방 생성 시 핀이 찍히도록 좌표를 확보한다.
+  Future<({double? lat, double? lng})> geocode(String address) async {
+    final response = await _dio.get(
+      ApiConstants.roomsGeocode,
+      queryParameters: {'address': address},
+    );
+    final data = response.data['data'] ?? response.data;
+    return (
+      lat: (data['latitude'] as num?)?.toDouble(),
+      lng: (data['longitude'] as num?)?.toDouble(),
+    );
   }
 }

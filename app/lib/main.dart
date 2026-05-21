@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:kakao_flutter_sdk_common/kakao_flutter_sdk_common.dart';
 import 'core/constants/app_colors.dart';
@@ -26,8 +27,12 @@ void main() async {
       WidgetsFlutterBinding.ensureInitialized();
 
       // 1) Flutter framework 에러
+      // 기존 핸들러를 보관해 함께 호출한다 — 디버그 콘솔 출력은 물론,
+      // integration_test 하니스가 자기 onError 를 유지하도록. 체인 없이
+      // 덮어쓰면 테스트 binding 이 깨져 모든 단계가 타임아웃된다.
+      final originalOnError = FlutterError.onError;
       FlutterError.onError = (details) {
-        FlutterError.presentError(details);
+        originalOnError?.call(details);
         unawaited(ErrorReporter.instance.report(
           details.exceptionAsString(),
           stackTrace: details.stack?.toString(),
@@ -62,6 +67,9 @@ void main() async {
         clientId: AppConstants.naverMapClientId,
         onAuthFailed: (ex) => debugPrint('NaverMap auth failed: $ex'),
       );
+
+      // AdMob — 광고 SDK는 백그라운드로 초기화 (UI 부트를 막지 않도록).
+      unawaited(MobileAds.instance.initialize());
 
       // Kakao SDK — 공유 기능에 필요. TODO: 실제 네이티브 앱 키 주입.
       KakaoSdk.init(

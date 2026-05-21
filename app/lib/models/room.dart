@@ -36,6 +36,8 @@ class Room {
   final bool isFlashMeeting;
   final List<String> requiredItems;
   final DateTime? completedAt;
+  // 방 목록 응답 전용 — 내가 방장이거나 참여 중. 거리 표시 생략 판정.
+  final bool joined;
 
   Room({
     required this.id,
@@ -73,6 +75,7 @@ class Room {
     this.isFlashMeeting = false,
     this.requiredItems = const [],
     this.completedAt,
+    this.joined = false,
   });
 
   bool get isRecruiting => status == 'RECRUITING';
@@ -129,6 +132,7 @@ class Room {
       completedAt: json['completedAt'] != null
           ? DateTime.tryParse(json['completedAt'].toString())
           : null,
+      joined: json['joined'] ?? false,
     );
   }
 }
@@ -245,6 +249,14 @@ class MapPin {
   final int maxMembers;
   final double latitude;
   final double longitude;
+  final String placeType;
+  final String joinType;
+  final String genderFilter;
+  final bool singleParentOnly;
+  final bool isFlashMeeting;
+  final String regionDong;
+  // 내가 방장이거나 참여 중인 방 — 거리 표시를 생략한다.
+  final bool joined;
 
   MapPin({
     required this.id,
@@ -257,7 +269,16 @@ class MapPin {
     required this.maxMembers,
     required this.latitude,
     required this.longitude,
+    this.placeType = 'OTHER',
+    this.joinType = 'FREE',
+    this.genderFilter = 'ALL',
+    this.singleParentOnly = false,
+    this.isFlashMeeting = false,
+    this.regionDong = '',
+    this.joined = false,
   });
+
+  bool get isFull => currentMembers >= maxMembers;
 
   factory MapPin.fromJson(Map<String, dynamic> json) {
     return MapPin(
@@ -271,6 +292,13 @@ class MapPin {
       maxMembers: json['maxMembers'] ?? 0,
       latitude: (json['latitude'] as num?)?.toDouble() ?? 0,
       longitude: (json['longitude'] as num?)?.toDouble() ?? 0,
+      placeType: json['placeType'] ?? 'OTHER',
+      joinType: json['joinType'] ?? 'FREE',
+      genderFilter: json['genderFilter'] ?? 'ALL',
+      singleParentOnly: json['singleParentOnly'] ?? false,
+      isFlashMeeting: json['isFlashMeeting'] ?? false,
+      regionDong: json['regionDong'] ?? '',
+      joined: json['joined'] ?? false,
     );
   }
 }

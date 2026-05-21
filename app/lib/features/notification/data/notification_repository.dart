@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/response_utils.dart';
 import '../../../models/notification.dart';
 
 class NotificationRepository {
@@ -15,8 +16,7 @@ class NotificationRepository {
       queryParameters: queryParams,
     );
     final data = response.data['data'] ?? response.data;
-    final items = data['items'] as List<dynamic>? ?? data as List<dynamic>;
-    return items
+    return extractItems(data)
         .map((e) => AppNotification.fromJson(e as Map<String, dynamic>))
         .toList();
   }

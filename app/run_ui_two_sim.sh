@@ -131,6 +131,8 @@ mkdir -p "$RESULTS_DIR"
 
 drive_role() {
   local role="$1" sim="$2" email="$3"
+  # 시뮬에 남은 옛 target .app 재사용 방지 — uninstall + BUILD_ID 로 캐시 무효화.
+  xcrun simctl uninstall "$sim" kr.kids.app >/dev/null 2>&1 || true
   TEST_RESULTS_DIR="$RESULTS_DIR" flutter drive \
     -d "$sim" \
     --driver=test_driver/integration_test.dart \
@@ -140,7 +142,8 @@ drive_role() {
     --dart-define=UI_TEST_EMAIL="$email" \
     --dart-define=UI_TEST_PASSWORD="$PASSWORD" \
     --dart-define=UI_TEST_ROLE="$role" \
-    --dart-define=UI_TARGET_ROOM_TITLE="$ROOM_TITLE" 2>&1 | sed "s/^/[$role] /"
+    --dart-define=UI_TARGET_ROOM_TITLE="$ROOM_TITLE" \
+    --dart-define=BUILD_ID="twosim-${TS}-${role}-${RANDOM}" 2>&1 | sed "s/^/[$role] /"
 }
 
 echo ""
