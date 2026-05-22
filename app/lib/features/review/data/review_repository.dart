@@ -33,8 +33,8 @@ class ReviewAggregate {
       }
     }
     return ReviewAggregate(
-      mannerScore: (json['mannerScore'] as num?)?.toDouble() ?? 36.5,
-      reviewCount: (json['reviewCount'] as num?)?.toInt() ?? 0,
+      mannerScore: double.tryParse('${json['mannerScore'] ?? ''}') ?? 36.5,
+      reviewCount: int.tryParse('${json['reviewCount'] ?? ''}') ?? 0,
       scoreDistribution: dist,
       topTags: tags,
     );

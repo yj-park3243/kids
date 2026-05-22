@@ -59,7 +59,8 @@ class User {
       createdAt: json['createdAt'],
       parentGender: json['parentGender'],
       isSingleParent: json['isSingleParent'] ?? false,
-      mannerScore: (json['mannerScore'] as num?)?.toDouble() ?? 36.5,
+      // 서버 numeric 컬럼은 JSON 에 문자열로 올 수 있어 num 캐스트 대신 파싱.
+      mannerScore: double.tryParse('${json['mannerScore'] ?? ''}') ?? 36.5,
       mannerTags: json['mannerTags'] != null
           ? (json['mannerTags'] as List).map((e) => e.toString()).toList()
           : null,
@@ -67,7 +68,7 @@ class User {
       isFollowing: json['isFollowing'],
       isBlocked: json['isBlocked'],
       regionSigungu: json['regionSigungu'],
-      roomCount: (json['roomCount'] as num?)?.toInt(),
+      roomCount: int.tryParse('${json['roomCount'] ?? ''}'),
       status: json['status'] ?? 'ACTIVE',
     );
   }

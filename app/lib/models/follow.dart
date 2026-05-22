@@ -18,7 +18,7 @@ class Follow {
       targetUserId: json['targetUserId'] ?? '',
       nickname: json['nickname'] ?? '',
       profileImageUrl: json['profileImageUrl'],
-      mannerScore: (json['mannerScore'] as num?)?.toDouble() ?? 36.5,
+      mannerScore: double.tryParse('${json['mannerScore'] ?? ''}') ?? 36.5,
       followedAt: json['followedAt'],
     );
   }
