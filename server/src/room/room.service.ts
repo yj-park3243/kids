@@ -481,6 +481,49 @@ export class RoomService {
     return { success: true };
   }
 
+  /** 모임 종료 — 방장이 언제든지 종료 가능. 출석 체크/후기의 기준점이 된다. */
+  async complete(userId: string, roomId: string) {
+    const room = await this.roomRepository.findOne({
+      where: { id: roomId },
+      relations: ['members'],
+    });
+
+    if (!room) {
+      throw new NotFoundException('방을 찾을 수 없습니다.');
+    }
+
+    if (room.hostId !== userId) {
+      throw new ForbiddenException('방장만 모임을 종료할 수 있습니다.');
+    }
+
+    if (room.status === 'COMPLETED') {
+      throw new BadRequestException('이미 종료된 모임입니다.');
+    }
+
+    if (room.status === 'CANCELLED') {
+      throw new BadRequestException('취소된 모임은 종료할 수 없습니다.');
+    }
+
+    room.status = 'COMPLETED';
+    room.completedAt = new Date();
+    await this.roomRepository.save(room);
+
+    // Notify all members
+    for (const member of room.members) {
+      if (member.userId !== userId) {
+        await this.notificationService.create({
+          userId: member.userId,
+          type: 'ROOM_COMPLETED',
+          title: '모임 종료',
+          body: `[${room.title}] 모임이 종료되었습니다. 출석 체크와 후기를 남겨주세요.`,
+          data: { roomId: room.id },
+        });
+      }
+    }
+
+    return { success: true };
+  }
+
   async getMyRooms(userId: string, query: MyRoomQueryDto) {
     const qb = this.roomRepository
       .createQueryBuilder('room')

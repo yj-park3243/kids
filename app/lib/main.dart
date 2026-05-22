@@ -116,8 +116,18 @@ class KidsApp extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
       ],
-      builder: (context, child) =>
-          _AppBootstrap(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) => GestureDetector(
+        // 빈 영역 탭 / 스크롤 시 키보드 닫기 — 모든 화면 공통.
+        behavior: HitTestBehavior.translucent,
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        child: NotificationListener<ScrollStartNotification>(
+          onNotification: (_) {
+            FocusManager.instance.primaryFocus?.unfocus();
+            return false;
+          },
+          child: _AppBootstrap(child: child ?? const SizedBox.shrink()),
+        ),
+      ),
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(

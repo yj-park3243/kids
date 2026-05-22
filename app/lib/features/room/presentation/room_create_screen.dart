@@ -72,13 +72,13 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
     });
   }
 
-  /// 선택된 아이의 개월수 기준으로 범위 자동 설정 (±3개월)
+  /// 선택된 아이의 개월수 기준으로 범위 자동 설정 (±6개월)
   void _applyChildAgeRange(Child child) {
     final ageMonths = AppDateUtils.calculateAgeMonths(child.birthYear, child.birthMonth);
     setState(() {
       _selectedChild = child;
-      _ageMin = max(0, ageMonths - 3);
-      _ageMax = min(84, ageMonths + 3);
+      _ageMin = max(0, ageMonths - 6);
+      _ageMax = min(84, ageMonths + 6);
     });
   }
 

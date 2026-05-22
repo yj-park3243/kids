@@ -52,6 +52,11 @@ class RoomRepository {
     await _dio.delete('${ApiConstants.rooms}/$roomId');
   }
 
+  /// 모임 종료 — 방장이 언제든지 종료. 출석 체크/후기의 기준점.
+  Future<void> completeRoom(String roomId) async {
+    await _dio.post('${ApiConstants.rooms}/$roomId/complete');
+  }
+
   // My rooms
   Future<List<Room>> getMyRooms({
     String type = 'ALL',

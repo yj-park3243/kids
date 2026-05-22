@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pull_down_button/pull_down_button.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
@@ -82,10 +83,10 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
     final isParticipant = isHost || isAccepted;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      extendBodyBehindAppBar: true,
+      backgroundColor: AppColors.background,
       appBar: CustomAppBar(
-        title: '',
+        title: room.title,
+        backgroundColor: AppColors.background,
         actions: [
           IconButton(
             icon:
@@ -99,68 +100,68 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
             tooltip: '사진첩',
             onPressed: () => context.push('/rooms/${widget.roomId}/photos'),
           ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert_rounded,
-                color: AppColors.textPrimary),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
-            onSelected: (value) {
-              if (value == 'manage') {
-                context.push('/rooms/${widget.roomId}/requests');
-              } else if (value == 'attendance') {
-                _openAttendance(room);
-              } else if (value == 'cancel') {
-                _cancelRoom(room);
-              } else if (value == 'report') {
-                // 방 자체 + 방 멤버들을 신고 후보로 제공.
-                final targets = <ReportTarget>[
-                  ReportTarget(label: '방 자체', roomId: widget.roomId),
-                  ...?room.members?.map((m) => ReportTarget(
-                        label: m.nickname,
-                        userId: m.id,
-                        isHost: m.isHost,
-                      )),
-                ];
-                showReportSheet(
-                  context,
-                  targetRoomId: widget.roomId,
-                  targets: targets,
-                );
-              }
-            },
+          PullDownButton(
             itemBuilder: (context) => [
               if (isHost && room.isApprovalRequired)
-                const PopupMenuItem(
-                  value: 'manage',
-                  child: Text('참여 관리'),
+                PullDownMenuItem(
+                  title: '참여 관리',
+                  icon: Icons.group_rounded,
+                  onTap: () =>
+                      context.push('/rooms/${widget.roomId}/requests'),
                 ),
               if (isHost)
-                const PopupMenuItem(
-                  value: 'attendance',
-                  child: Text('출석 체크'),
+                PullDownMenuItem(
+                  title: '출석 체크',
+                  icon: Icons.how_to_reg_rounded,
+                  onTap: () => _openAttendance(room),
+                ),
+              if (isHost && room.status != 'COMPLETED')
+                PullDownMenuItem(
+                  title: '모임 종료',
+                  icon: Icons.event_available_rounded,
+                  onTap: () => _completeRoom(room),
                 ),
               if (isHost)
-                const PopupMenuItem(
-                  value: 'cancel',
-                  child:
-                      Text('모임 취소', style: TextStyle(color: AppColors.error)),
+                PullDownMenuItem(
+                  title: '모임 취소',
+                  icon: Icons.cancel_outlined,
+                  isDestructive: true,
+                  onTap: () => _cancelRoom(room),
                 ),
               if (!isHost)
-                const PopupMenuItem(
-                  value: 'report',
-                  child: Text('신고하기',
-                      style: TextStyle(color: AppColors.error)),
+                PullDownMenuItem(
+                  title: '신고하기',
+                  icon: Icons.flag_outlined,
+                  isDestructive: true,
+                  onTap: () {
+                    // 방 자체 + 방 멤버들을 신고 후보로 제공.
+                    final targets = <ReportTarget>[
+                      ReportTarget(label: '방 자체', roomId: widget.roomId),
+                      ...?room.members?.map((m) => ReportTarget(
+                            label: m.nickname,
+                            userId: m.id,
+                            isHost: m.isHost,
+                          )),
+                    ];
+                    showReportSheet(
+                      context,
+                      targetRoomId: widget.roomId,
+                      targets: targets,
+                    );
+                  },
                 ),
             ],
+            buttonBuilder: (context, showMenu) => IconButton(
+              onPressed: showMenu,
+              icon: const Icon(Icons.more_vert_rounded,
+                  color: AppColors.textPrimary),
+            ),
           ),
         ],
       ),
       body: AccentBlobsBackground(
         child: SingleChildScrollView(
-        padding: EdgeInsets.only(
-          top: kToolbarHeight + MediaQuery.of(context).padding.top + 12,
-          bottom: 120,
-        ),
+        padding: const EdgeInsets.only(top: 12, bottom: 120),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -221,8 +222,6 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  Text(room.title, style: AppTextStyles.heading1),
                   if (room.description != null && room.description!.trim().isNotEmpty) ...[
                     const SizedBox(height: 12),
                     Container(
@@ -457,6 +456,57 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
             ),
           );
         }
+      }
+    }
+  }
+
+  /// 모임 종료 — 방장 전용. 확인 후 상태를 COMPLETED 로 전환.
+  Future<void> _completeRoom(Room room) async {
+    final confirmed = await showCupertinoModalPopup<bool>(
+      context: context,
+      builder: (ctx) => CupertinoActionSheet(
+        title: const Text('모임 종료'),
+        message: const Text(
+            '이 모임을 종료할까요?\n종료하면 출석 체크와 후기 작성이 가능해집니다.'),
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('모임 종료하기'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('닫기'),
+        ),
+      ),
+    );
+
+    if (confirmed != true) return;
+    try {
+      await ref.read(roomRepositoryProvider).completeRoom(widget.roomId);
+      if (mounted) {
+        ref.read(roomDetailProvider(widget.roomId).notifier).loadRoom();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('모임이 종료되었습니다'),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('모임 종료에 실패했습니다'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
       }
     }
   }
@@ -838,9 +888,17 @@ class _FullscreenMap extends StatelessWidget {
       body: NaverMap(
         options: NaverMapViewOptions(
           initialCameraPosition: NCameraPosition(target: target, zoom: 16),
+          locationButtonEnable: true,
         ),
-        onMapReady: (controller) {
+        onMapReady: (controller) async {
           controller.addOverlay(NMarker(id: 'fs_marker', position: target));
+          // 내 위치 오버레이 표시.
+          final pos = await LocationService.instance.getCurrentPosition();
+          if (pos != null) {
+            final overlay = controller.getLocationOverlay();
+            overlay.setPosition(NLatLng(pos.latitude, pos.longitude));
+            overlay.setIsVisible(true);
+          }
         },
       ),
     );

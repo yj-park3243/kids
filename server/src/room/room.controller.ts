@@ -98,6 +98,15 @@ export class RoomController {
     return this.roomService.cancel(userId, roomId);
   }
 
+  @Post(':roomId/complete')
+  @ApiOperation({ summary: '모임 종료 (방장)' })
+  async complete(
+    @CurrentUser('id') userId: string,
+    @Param('roomId') roomId: string,
+  ) {
+    return this.roomService.complete(userId, roomId);
+  }
+
   @Post(':roomId/join')
   @ApiOperation({ summary: '참여 신청' })
   async join(

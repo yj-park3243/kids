@@ -444,14 +444,14 @@ class _PinCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 12,
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 14,
             offset: const Offset(0, 4),
           ),
         ],
@@ -498,26 +498,26 @@ class _PinCard extends StatelessWidget {
               ],
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 14),
           Row(
             children: [
               const Icon(Icons.calendar_today_rounded,
-                  size: 14, color: AppColors.textSecondary),
-              const SizedBox(width: 4),
+                  size: 16, color: AppColors.textSecondary),
+              const SizedBox(width: 5),
               Text(
                 AppDateUtils.formatDateTime(pin.date, pin.startTime),
-                style: AppTextStyles.caption,
+                style: AppTextStyles.body2,
               ),
               const Spacer(),
               Text(
                 '${pin.ageMonthMin}~${pin.ageMonthMax}개월',
-                style: AppTextStyles.caption
+                style: AppTextStyles.body2
                     .copyWith(color: AppColors.secondary),
               ),
               const SizedBox(width: 12),
               Text(
                 '${pin.currentMembers}/${pin.maxMembers}명',
-                style: AppTextStyles.caption,
+                style: AppTextStyles.body2,
               ),
             ],
           ),
