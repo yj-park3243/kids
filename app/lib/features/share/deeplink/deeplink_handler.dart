@@ -7,7 +7,6 @@ import 'package:go_router/go_router.dart';
 /// 지원 형식:
 ///   kids://room/:id
 ///   https://growtogether.kr/room/:id
-///   https://growtogether.kr/growth-guide/:ageMonth
 class DeeplinkHandler {
   DeeplinkHandler._();
   static final DeeplinkHandler instance = DeeplinkHandler._();
@@ -54,10 +53,6 @@ class DeeplinkHandler {
         router.push('/rooms/${segments.first}');
         return;
       }
-      if (host == 'growth-guide' && segments.isNotEmpty) {
-        router.push('/growth-guide/${segments.first}');
-        return;
-      }
     }
 
     // 2) 유니버설 링크: https://growtogether.kr/room/:id
@@ -66,10 +61,6 @@ class DeeplinkHandler {
       final id = segments[1];
       if (type == 'room' || type == 'rooms') {
         router.push('/rooms/$id');
-        return;
-      }
-      if (type == 'growth-guide') {
-        router.push('/growth-guide/$id');
         return;
       }
     }

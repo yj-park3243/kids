@@ -83,6 +83,26 @@ class AuthRepository {
     return Child.fromJson(data);
   }
 
+  // Update Child
+  Future<Child> updateChild({
+    required String childId,
+    String? nickname,
+    int? birthYear,
+    int? birthMonth,
+    String? gender,
+    String? photoUrl,
+  }) async {
+    final response = await _dio.patch('${ApiConstants.children}/$childId', data: {
+      if (nickname != null) 'nickname': nickname,
+      if (birthYear != null) 'birthYear': birthYear,
+      if (birthMonth != null) 'birthMonth': birthMonth,
+      if (gender != null) 'gender': gender,
+      if (photoUrl != null) 'photoUrl': photoUrl,
+    });
+    final data = response.data['data'] ?? response.data;
+    return Child.fromJson(data);
+  }
+
   // Check Nickname
   Future<bool> checkNickname(String nickname) async {
     final response = await _dio.get(

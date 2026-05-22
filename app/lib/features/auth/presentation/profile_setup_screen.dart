@@ -29,7 +29,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   bool _isGeneratingNickname = false;
   bool _isLoading = false;
 
-  // 부모 정체성 — 'MOM' | 'DAD'. 가입 후 변경 불가.
+  // 부모 유형 — 'MOM' | 'DAD'. 가입 후 변경 불가.
   String? _parentGender;
   String? _parentGenderError;
 
@@ -181,7 +181,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
 
     // parentGender 필수
     if (_parentGender == null) {
-      setState(() => _parentGenderError = '부모 정체성을 선택해 주세요');
+      setState(() => _parentGenderError = '부모 유형을 선택해 주세요');
       return;
     }
 
@@ -374,8 +374,8 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
 
                 const SizedBox(height: 28),
 
-                // 부모 정체성 (필수, 가입 후 변경 불가)
-                Text('부모 정체성', style: AppTextStyles.body2Bold),
+                // 부모 유형 (필수, 가입 후 변경 불가)
+                Text('부모 유형', style: AppTextStyles.body2Bold),
                 const SizedBox(height: 8),
                 Row(
                   children: [
@@ -463,7 +463,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   }
 }
 
-/// 부모 정체성 선택 카드. 핑크 글래스 톤.
+/// 부모 유형 선택 카드. 핑크 글래스 톤.
 class _ParentGenderOption extends StatelessWidget {
   final String emoji;
   final String label;

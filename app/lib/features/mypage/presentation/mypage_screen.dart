@@ -2,10 +2,12 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/date_utils.dart';
+import '../../../models/user.dart';
 import '../../../widgets/design/avatar.dart';
 import '../../../widgets/design/baby_avatar.dart';
 import '../../../widgets/design/design_chip.dart';
@@ -149,6 +151,12 @@ class MyPageScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('등록된 아이', style: AppTextStyles.body1Bold),
+                        const SizedBox(height: 4),
+                        Text(
+                          '사진을 탭하면 변경할 수 있어요',
+                          style: AppTextStyles.caption
+                              .copyWith(color: AppColors.ink500),
+                        ),
                         const SizedBox(height: 12),
                         ...user.children!.asMap().entries.map((entry) {
                           final idx = entry.key;
@@ -162,11 +170,40 @@ class MyPageScreen extends ConsumerWidget {
                             ),
                             child: Row(
                               children: [
-                                BabyAvatar(
-                                  size: 40,
-                                  tone: child.gender == 'MALE'
-                                      ? BabyAvatarTone.blue
-                                      : BabyAvatarTone.primary,
+                                GestureDetector(
+                                  onTap: () =>
+                                      _editChildPhoto(context, ref, child),
+                                  child: Stack(
+                                    clipBehavior: Clip.none,
+                                    children: [
+                                      BabyAvatar(
+                                        size: 40,
+                                        tone: child.gender == 'MALE'
+                                            ? BabyAvatarTone.blue
+                                            : BabyAvatarTone.primary,
+                                        imageUrl: child.photoUrl,
+                                      ),
+                                      Positioned(
+                                        right: -2,
+                                        bottom: -2,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(3),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.primary,
+                                            shape: BoxShape.circle,
+                                            border: Border.all(
+                                                color: Colors.white,
+                                                width: 1.5),
+                                          ),
+                                          child: const Icon(
+                                            Icons.camera_alt_rounded,
+                                            size: 10,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                                 const SizedBox(width: 12),
                                 Text(child.nickname,
@@ -387,6 +424,43 @@ class MyPageScreen extends ConsumerWidget {
           );
         }
       }
+    }
+  }
+
+  /// 등록된 아이의 프로필 사진을 갤러리에서 다시 골라 교체한다.
+  void _editChildPhoto(
+      BuildContext context, WidgetRef ref, Child child) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final img = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1280,
+      imageQuality: 85,
+    );
+    if (img == null) return;
+
+    try {
+      final photoUrl =
+          await ref.read(authRepositoryProvider).uploadImage(img.path);
+      await ref.read(authProvider.notifier).updateChild(
+            childId: child.id,
+            photoUrl: photoUrl,
+          );
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('아이 사진을 변경했습니다'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: const Text('사진 변경에 실패했습니다'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+      );
     }
   }
 }

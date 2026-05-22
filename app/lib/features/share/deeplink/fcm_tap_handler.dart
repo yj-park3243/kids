@@ -33,7 +33,6 @@ class FcmTapHandler {
     final type = (data['type'] ?? '').toString();
     final roomId = data['roomId']?.toString();
     final chatRoomId = data['chatRoomId']?.toString();
-    final ageMonth = data['ageMonth']?.toString();
 
     if (kDebugMode) {
       debugPrint('FCM tap: type=$type data=$data');
@@ -57,9 +56,6 @@ class FcmTapHandler {
         if (roomId != null) {
           router.push('/reviews/write?roomId=$roomId');
         }
-        return;
-      case 'GROWTH_UPDATE':
-        if (ageMonth != null) router.push('/growth-guide/$ageMonth');
         return;
       case 'NOSHOW_WARNING':
       case 'REPORT_RESOLVED':

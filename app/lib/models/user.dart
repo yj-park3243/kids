@@ -148,6 +148,7 @@ class Child {
   final int birthMonth;
   final int? ageMonths;
   final String? gender;
+  final String? photoUrl;
   final String? createdAt;
 
   Child({
@@ -157,6 +158,7 @@ class Child {
     required this.birthMonth,
     this.ageMonths,
     this.gender,
+    this.photoUrl,
     this.createdAt,
   });
 
@@ -168,6 +170,7 @@ class Child {
       birthMonth: json['birthMonth'] ?? 0,
       ageMonths: json['ageMonths'],
       gender: json['gender'],
+      photoUrl: json['photoUrl'],
       createdAt: json['createdAt'],
     );
   }
@@ -177,5 +180,6 @@ class Child {
         'birthYear': birthYear,
         'birthMonth': birthMonth,
         'gender': gender,
+        'photoUrl': photoUrl,
       };
 }

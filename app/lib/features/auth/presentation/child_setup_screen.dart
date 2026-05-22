@@ -51,7 +51,7 @@ class _ChildSetupScreenState extends ConsumerState<ChildSetupScreen> {
       if (_children[i].nicknameController.text.trim().isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${i + 1}번째 아이의 태명/별명을 입력해 주세요'),
+            content: Text('${i + 1}번째 아이의 이름을 입력해 주세요'),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -372,8 +372,8 @@ class _ChildCard extends StatelessWidget {
 
           // Nickname
           CommonInput(
-            label: '태명/별명',
-            hint: '아이의 태명이나 별명',
+            label: '아이 이름',
+            hint: '아이 이름',
             controller: data.nicknameController,
             maxLength: 10,
           ),

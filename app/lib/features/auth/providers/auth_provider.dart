@@ -199,6 +199,32 @@ class AuthNotifier extends StateNotifier<AuthState> {
     return child;
   }
 
+  Future<Child> updateChild({
+    required String childId,
+    String? nickname,
+    int? birthYear,
+    int? birthMonth,
+    String? gender,
+    String? photoUrl,
+  }) async {
+    final child = await _repository.updateChild(
+      childId: childId,
+      nickname: nickname,
+      birthYear: birthYear,
+      birthMonth: birthMonth,
+      gender: gender,
+      photoUrl: photoUrl,
+    );
+    final user = state.user;
+    if (user != null && user.children != null) {
+      final next = [
+        for (final c in user.children!) c.id == childId ? child : c,
+      ];
+      state = state.copyWith(user: user.copyWith(children: next));
+    }
+    return child;
+  }
+
   Future<void> completeChildSetup() async {
     state = state.copyWith(status: AuthStatus.loading);
     try {

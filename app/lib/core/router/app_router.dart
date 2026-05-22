@@ -9,8 +9,6 @@ import '../../features/auth/presentation/phone_verification_screen.dart';
 import '../../features/auth/presentation/profile_setup_screen.dart';
 import '../../features/chat/presentation/chat_room_screen.dart';
 import '../../features/follow/presentation/following_list_screen.dart';
-import '../../features/growth_guide/presentation/growth_guide_detail_screen.dart';
-import '../../features/growth_guide/presentation/growth_guide_list_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/map/presentation/map_screen.dart';
 import '../../features/mypage/presentation/appeal_screen.dart';
@@ -273,22 +271,6 @@ final appRouter = GoRouter(
       path: '/follow/following',
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) => const FollowingListScreen(),
-    ),
-
-    // 발달 가이드
-    GoRoute(
-      path: '/growth-guide',
-      parentNavigatorKey: _rootNavigatorKey,
-      builder: (context, state) => const GrowthGuideListScreen(),
-    ),
-    GoRoute(
-      path: '/growth-guide/:ageMonth',
-      parentNavigatorKey: _rootNavigatorKey,
-      builder: (context, state) {
-        final ageMonth =
-            int.tryParse(state.pathParameters['ageMonth'] ?? '0') ?? 0;
-        return GrowthGuideDetailScreen(ageMonth: ageMonth);
-      },
     ),
 
     // 공지사항
