@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -377,7 +378,7 @@ class MyPageScreen extends ConsumerWidget {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('탈퇴 처리에 실패했습니다'),
+              content: Text(_deleteErrorMessage(e)),
               backgroundColor: AppColors.error,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
@@ -388,6 +389,22 @@ class MyPageScreen extends ConsumerWidget {
       }
     }
   }
+}
+
+/// 탈퇴 실패 시 서버가 내려준 사유 메시지를 추출한다.
+/// (예: '진행 중인 모임이 있어 탈퇴할 수 없습니다')
+String _deleteErrorMessage(Object e) {
+  if (e is DioException) {
+    final data = e.response?.data;
+    if (data is Map) {
+      final error = data['error'];
+      if (error is Map && error['message'] is String) {
+        return error['message'] as String;
+      }
+      if (data['message'] is String) return data['message'] as String;
+    }
+  }
+  return '탈퇴 처리에 실패했습니다';
 }
 
 String _familyHash(String? id) {

@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../models/user.dart';
+import '../../../providers/selected_child_provider.dart';
+import '../../home/providers/home_provider.dart';
 import '../data/auth_repository.dart';
 
 // Repository provider
@@ -44,8 +46,16 @@ class AuthState {
 
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthRepository _repository;
+  final Ref _ref;
 
-  AuthNotifier(this._repository) : super(const AuthState());
+  AuthNotifier(this._repository, this._ref) : super(const AuthState());
+
+  /// 로그아웃·탈퇴 시 이전 사용자에 종속된 캐시성 상태를 초기화한다.
+  /// (selectedChild, 홈 목록 등 — 계정 전환 시 이전 데이터 잔존 방지)
+  void _clearUserScopedState() {
+    _ref.invalidate(selectedChildProvider);
+    _ref.invalidate(homeProvider);
+  }
 
   Future<void> checkAuth() async {
     state = state.copyWith(status: AuthStatus.loading);
@@ -204,10 +214,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> logout() async {
     await _repository.logout();
+    _clearUserScopedState();
     state = const AuthState(status: AuthStatus.unauthenticated);
   }
 
   void setUnauthenticated() {
+    _clearUserScopedState();
     state = const AuthState(status: AuthStatus.unauthenticated);
   }
 
@@ -218,5 +230,5 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   final repository = ref.watch(authRepositoryProvider);
-  return AuthNotifier(repository);
+  return AuthNotifier(repository, ref);
 });
