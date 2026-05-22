@@ -7,15 +7,11 @@ import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../models/user.dart';
 import '../../../providers/selected_child_provider.dart';
-import '../../../widgets/design/baby_avatar.dart';
-import '../../../widgets/design/design_chip.dart';
-import '../../../widgets/design/glass_card.dart';
 import '../../../widgets/design/accent_blobs.dart';
 import '../../../widgets/design/primary_button.dart';
 import '../../../widgets/empty_state.dart';
 import '../../../widgets/loading.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../growth_guide/presentation/widgets/growth_guide_widget.dart';
 import '../../notice/presentation/widgets/pinned_notice_banner.dart';
 import '../providers/home_provider.dart';
 import 'widgets/native_ad_card.dart';
@@ -30,6 +26,14 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   final _scrollController = ScrollController();
+  final _searchController = TextEditingController();
+
+  // 칩 영역(아이 선택 + 필터) 접기/펴기 상태.
+  bool _filtersExpanded = true;
+
+  // 인라인 검색바 표시 여부 및 검색어.
+  bool _searchOpen = false;
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -55,7 +59,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _searchController.dispose();
     super.dispose();
+  }
+
+  void _toggleSearch() {
+    setState(() {
+      _searchOpen = !_searchOpen;
+      if (!_searchOpen) {
+        _searchController.clear();
+        _searchQuery = '';
+      }
+    });
   }
 
   @override
@@ -114,8 +129,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     const SizedBox(width: 8),
                     GlassIconButton(
-                      icon: Icons.search_rounded,
-                      onTap: () {},
+                      icon: _searchOpen
+                          ? Icons.close_rounded
+                          : Icons.search_rounded,
+                      onTap: _toggleSearch,
                     ),
                     const SizedBox(width: 8),
                     GlassIconButton(
@@ -130,159 +147,175 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               // 공지사항 배너 — 앱바 바로 아래
               const PinnedNoticeBanner(),
 
-              // Child switcher (glass card)
-              if (selectedChild != null)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                  child: GlassCard(
-                    tone: GlassTone.white,
-                    radius: 20,
-                    padding: const EdgeInsets.all(14),
-                    onTap: () => _showChildSelectorSheet(children, selectedChild),
-                    child: Row(
-                      children: [
-                        BabyAvatar(
-                          size: 58,
-                          tone: selectedChild.gender == 'MALE'
-                              ? BabyAvatarTone.blue
-                              : BabyAvatarTone.primary,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Row(
-                                children: [
-                                  Text(
-                                    selectedChild.nickname,
-                                    style: AppTextStyles.cardTitle,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    AppDateUtils.formatAgeMonths(
-                                      AppDateUtils.calculateAgeMonths(
-                                        selectedChild.birthYear,
-                                        selectedChild.birthMonth,
-                                      ),
-                                    ),
-                                    style: AppTextStyles.caption.copyWith(
-                                      color: AppColors.primary700,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Icon(Icons.keyboard_arrow_down_rounded,
-                            color: AppColors.ink500),
-                      ],
-                    ),
-                  ),
-                ),
+              // 인라인 검색바 — 돋보기 아이콘으로 토글.
+              if (_searchOpen) _buildSearchBar(),
 
-              // 아이 선택 칩
-              if (children.isNotEmpty) ...[
-                SizedBox(
-                  height: 36,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    children: [
-                      _childChip(
-                        '전체',
-                        null,
-                        selectedChild == null,
-                        () => ref.read(selectedChildProvider.notifier).clear(),
-                      ),
-                      ...children.map((child) {
-                        final ageMonths = AppDateUtils.calculateAgeMonths(
-                            child.birthYear, child.birthMonth);
-                        return _childChip(
-                          child.nickname,
-                          AppDateUtils.formatAgeMonths(ageMonths),
-                          selectedChild?.id == child.id,
-                          () => ref
-                              .read(selectedChildProvider.notifier)
-                              .select(child),
-                        );
-                      }),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 10),
-              ],
-
-              // Filter chips
-              SizedBox(
-                height: 36,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
+              // 필터 영역 토글 버튼.
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+                child: Row(
                   children: [
-                    _paddedChip(DesignChip(
-                      label: '전체',
-                      selected: homeState.dateFilter == DateFilter.all,
-                      onTap: () => ref
-                          .read(homeProvider.notifier)
-                          .setDateFilter(DateFilter.all),
-                    )),
-                    _paddedChip(DesignChip(
-                      label: '오늘',
-                      selected: homeState.dateFilter == DateFilter.today,
-                      onTap: () => ref
-                          .read(homeProvider.notifier)
-                          .setDateFilter(DateFilter.today),
-                    )),
-                    _paddedChip(DesignChip(
-                      label: '내일',
-                      selected: homeState.dateFilter == DateFilter.tomorrow,
-                      onTap: () => ref
-                          .read(homeProvider.notifier)
-                          .setDateFilter(DateFilter.tomorrow),
-                    )),
-                    _paddedChip(DesignChip(
-                      label: '이번 주',
-                      selected: homeState.dateFilter == DateFilter.thisWeek,
-                      onTap: () => ref
-                          .read(homeProvider.notifier)
-                          .setDateFilter(DateFilter.thisWeek),
-                    )),
-                    Container(
-                      width: 1,
-                      height: 18,
-                      margin: const EdgeInsets.symmetric(vertical: 9, horizontal: 6),
-                      color: AppColors.dividerStrong,
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => setState(
+                          () => _filtersExpanded = !_filtersExpanded),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.tune_rounded,
+                            size: 16,
+                            color: AppColors.primary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '필터',
+                            style: AppTextStyles.chip.copyWith(
+                              color: AppColors.primary700,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(width: 2),
+                          Icon(
+                            _filtersExpanded
+                                ? Icons.keyboard_arrow_up_rounded
+                                : Icons.keyboard_arrow_down_rounded,
+                            size: 18,
+                            color: AppColors.primary,
+                          ),
+                        ],
+                      ),
                     ),
-                    _paddedChip(DesignChip(
-                      label: '장소 전체',
-                      selected: homeState.placeTypeFilter == null,
-                      onTap: () => ref
-                          .read(homeProvider.notifier)
-                          .setPlaceTypeFilter(null),
-                    )),
-                    ...AppConstants.placeTypes.entries.map(
-                      (e) => _paddedChip(DesignChip(
-                        label: e.value,
-                        selected: homeState.placeTypeFilter == e.key,
-                        onTap: () => ref
-                            .read(homeProvider.notifier)
-                            .setPlaceTypeFilter(e.key),
-                      )),
-                    ),
+                    const Spacer(),
                   ],
                 ),
               ),
-              const SizedBox(height: 8),
 
-              // 발달 가이드 요약 — 선택된 자녀(없으면 첫째) 기준.
-              if ((selectedChild ?? (children.isNotEmpty ? children.first : null)) !=
-                  null)
-                GrowthGuideWidget(
-                  child: selectedChild ?? children.first,
-                ),
+              // 아이 선택 칩 + 필터 칩 — 함께 접고 펼친다.
+              AnimatedSize(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeInOut,
+                child: _filtersExpanded
+                    ? Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const SizedBox(height: 8),
+                          // 아이 선택 칩 — 아이가 2명 이상일 때만.
+                          if (children.length >= 2) ...[
+                            SizedBox(
+                              height: 36,
+                              child: ListView(
+                                scrollDirection: Axis.horizontal,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 20),
+                                children: [
+                                  _childChip(
+                                    '전체',
+                                    null,
+                                    selectedChild == null,
+                                    () => ref
+                                        .read(selectedChildProvider.notifier)
+                                        .clear(),
+                                  ),
+                                  ...children.map((child) {
+                                    final ageMonths =
+                                        AppDateUtils.calculateAgeMonths(
+                                            child.birthYear,
+                                            child.birthMonth);
+                                    return _childChip(
+                                      child.nickname,
+                                      AppDateUtils.formatAgeMonths(ageMonths),
+                                      selectedChild?.id == child.id,
+                                      () => ref
+                                          .read(
+                                              selectedChildProvider.notifier)
+                                          .select(child),
+                                    );
+                                  }),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                          ],
+
+                          // Filter chips
+                          SizedBox(
+                            height: 36,
+                            child: ListView(
+                              scrollDirection: Axis.horizontal,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 20),
+                              children: [
+                                _paddedChip(_filterChip(
+                                  label: '전체',
+                                  color: AppColors.primary,
+                                  selected:
+                                      homeState.dateFilter == DateFilter.all,
+                                  onTap: () => ref
+                                      .read(homeProvider.notifier)
+                                      .setDateFilter(DateFilter.all),
+                                )),
+                                _paddedChip(_filterChip(
+                                  label: '오늘',
+                                  color: AppColors.accentCoral,
+                                  selected: homeState.dateFilter ==
+                                      DateFilter.today,
+                                  onTap: () => ref
+                                      .read(homeProvider.notifier)
+                                      .setDateFilter(DateFilter.today),
+                                )),
+                                _paddedChip(_filterChip(
+                                  label: '내일',
+                                  color: AppColors.accentSky,
+                                  selected: homeState.dateFilter ==
+                                      DateFilter.tomorrow,
+                                  onTap: () => ref
+                                      .read(homeProvider.notifier)
+                                      .setDateFilter(DateFilter.tomorrow),
+                                )),
+                                _paddedChip(_filterChip(
+                                  label: '이번 주',
+                                  color: AppColors.accentLavender,
+                                  selected: homeState.dateFilter ==
+                                      DateFilter.thisWeek,
+                                  onTap: () => ref
+                                      .read(homeProvider.notifier)
+                                      .setDateFilter(DateFilter.thisWeek),
+                                )),
+                                Container(
+                                  width: 1,
+                                  height: 18,
+                                  margin: const EdgeInsets.symmetric(
+                                      vertical: 9, horizontal: 6),
+                                  color: AppColors.dividerStrong,
+                                ),
+                                _paddedChip(_filterChip(
+                                  label: '장소 전체',
+                                  color: AppColors.accentLime,
+                                  selected: homeState.placeTypeFilter == null,
+                                  onTap: () => ref
+                                      .read(homeProvider.notifier)
+                                      .setPlaceTypeFilter(null),
+                                )),
+                                ...AppConstants.placeTypes.entries.map(
+                                  (e) => _paddedChip(_filterChip(
+                                    label: e.value,
+                                    color: AppColors.accentFor(e.key),
+                                    selected:
+                                        homeState.placeTypeFilter == e.key,
+                                    onTap: () => ref
+                                        .read(homeProvider.notifier)
+                                        .setPlaceTypeFilter(e.key),
+                                  )),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      )
+                    : const SizedBox.shrink(),
+              ),
+              const SizedBox(height: 8),
 
               Expanded(child: _buildRoomList(homeState)),
             ],
@@ -292,121 +325,92 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Future<void> _showChildSelectorSheet(
-      List<Child> children, Child? selected) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.divider,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
+  Widget _paddedChip(Widget chip) =>
+      Padding(padding: const EdgeInsets.only(right: 8), child: chip);
+
+  // 인라인 검색바 — 방 제목/태그 기준 거름.
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+      child: Container(
+        height: 44,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.8),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.primary200, width: 0.8),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.search_rounded,
+                size: 18, color: AppColors.primary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                key: const Key('field-home-search'),
+                controller: _searchController,
+                autofocus: true,
+                style: AppTextStyles.body2,
+                decoration: const InputDecoration(
+                  isDense: true,
+                  border: InputBorder.none,
+                  hintText: '방 제목 · 태그 검색',
                 ),
-                const SizedBox(height: 12),
-                Text('아이 선택', style: AppTextStyles.body1Bold),
-                const SizedBox(height: 12),
-                ...children.map((child) {
-                  final isSelected = selected?.id == child.id;
-                  final ageMonths = AppDateUtils.calculateAgeMonths(
-                      child.birthYear, child.birthMonth);
-                  return InkWell(
-                    borderRadius: BorderRadius.circular(14),
-                    onTap: () {
-                      ref
-                          .read(selectedChildProvider.notifier)
-                          .select(child);
-                      Navigator.of(sheetContext).pop();
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 4, vertical: 10),
-                      child: Row(
-                        children: [
-                          BabyAvatar(
-                            size: 44,
-                            tone: child.gender == 'MALE'
-                                ? BabyAvatarTone.blue
-                                : BabyAvatarTone.primary,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(child.nickname,
-                                    style: AppTextStyles.body1Bold),
-                                const SizedBox(height: 2),
-                                Text(
-                                  AppDateUtils.formatAgeMonths(ageMonths),
-                                  style: AppTextStyles.caption,
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (isSelected)
-                            const Icon(Icons.check_circle_rounded,
-                                color: AppColors.primary),
-                        ],
-                      ),
-                    ),
-                  );
-                }),
-                const Divider(height: 24, color: AppColors.divider),
-                InkWell(
-                  borderRadius: BorderRadius.circular(14),
-                  onTap: () {
-                    Navigator.of(sheetContext).pop();
-                    context.push('/child-add');
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 4, vertical: 10),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          alignment: Alignment.center,
-                          child: const Icon(Icons.add_rounded,
-                              color: AppColors.primary),
-                        ),
-                        const SizedBox(width: 12),
-                        Text('아이 추가', style: AppTextStyles.body1Bold),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+                onChanged: (v) =>
+                    setState(() => _searchQuery = v.trim().toLowerCase()),
+              ),
             ),
-          ),
-        );
-      },
+            if (_searchQuery.isNotEmpty)
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  _searchController.clear();
+                  setState(() => _searchQuery = '');
+                },
+                child: const Icon(Icons.cancel_rounded,
+                    size: 18, color: AppColors.ink500),
+              ),
+          ],
+        ),
+      ),
     );
   }
 
-  Widget _paddedChip(Widget chip) =>
-      Padding(padding: const EdgeInsets.only(right: 8), child: chip);
+  // 색이 칩마다 다른 필터 칩.
+  Widget _filterChip({
+    required String label,
+    required Color color,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        height: 28,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected ? color : color.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected
+                ? Colors.transparent
+                : color.withValues(alpha: 0.4),
+            width: 0.8,
+          ),
+        ),
+        child: Text(
+          label,
+          style: AppTextStyles.chip.copyWith(
+            color: selected ? Colors.white : color,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _childChip(
       String label, String? age, bool selected, VoidCallback onTap) {
@@ -489,7 +493,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       );
     }
 
-    final rooms = homeState.rooms;
+    // 검색어가 있으면 방 제목/태그 기준으로 거른다.
+    final rooms = _searchQuery.isEmpty
+        ? homeState.rooms
+        : homeState.rooms.where((r) {
+            final q = _searchQuery;
+            return r.title.toLowerCase().contains(q) ||
+                r.tags.any((t) => t.toLowerCase().contains(q));
+          }).toList();
+
+    if (rooms.isEmpty) {
+      return const EmptyState(
+        icon: Icons.search_off_rounded,
+        title: '검색 결과가 없어요',
+        subtitle: '다른 키워드로 검색해 보세요',
+      );
+    }
     final adCount = _adCount(rooms.length);
     return RefreshIndicator(
       onRefresh: () async {

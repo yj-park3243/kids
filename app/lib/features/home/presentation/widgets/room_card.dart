@@ -123,17 +123,19 @@ class RoomCard extends ConsumerWidget {
                         AppDateUtils.formatDateTime(room.date, room.startTime),
                         style: AppTextStyles.caption,
                       ),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.location_on_rounded,
-                          size: 12, color: AppColors.ink500),
-                      const SizedBox(width: 3),
-                      Flexible(
-                        child: Text(
-                          room.regionDong,
-                          style: AppTextStyles.caption,
-                          overflow: TextOverflow.ellipsis,
+                      if (room.regionDong.trim().isNotEmpty) ...[
+                        const SizedBox(width: 8),
+                        const Icon(Icons.location_on_rounded,
+                            size: 12, color: AppColors.ink500),
+                        const SizedBox(width: 3),
+                        Flexible(
+                          child: Text(
+                            room.regionDong,
+                            style: AppTextStyles.caption,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ),
+                      ],
                       if (distanceText != null) ...[
                         const SizedBox(width: 4),
                         const Icon(Icons.near_me_rounded,
@@ -156,6 +158,17 @@ class RoomCard extends ConsumerWidget {
                       ),
                     ],
                   ),
+                  if (room.tags.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: room.tags
+                          .take(4)
+                          .map((tag) => _TagChip(label: tag))
+                          .toList(),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -186,6 +199,48 @@ class RoomCard extends ConsumerWidget {
       return DesignChip(label: label, tone: ChipTone.primaryGhost, height: 22);
     }
     return DesignChip(label: label, tone: ChipTone.outline, height: 22);
+  }
+}
+
+/// 태그(#태그) 칩 — 태그별로 색이 다양하게 순환된다.
+class _TagChip extends StatelessWidget {
+  final String label;
+
+  const _TagChip({required this.label});
+
+  // 태그 문자열 → 안정적인 (배경, 글자) 색 쌍.
+  static const List<({Color bg, Color fg})> _palette = [
+    (bg: Color(0xFFFFF1D6), fg: Color(0xFF9A6B12)), // yellow
+    (bg: Color(0xFFDDF0FF), fg: Color(0xFF1F6FB2)), // sky
+    (bg: Color(0xFFEDE3FB), fg: Color(0xFF5A3F99)), // lavender
+    (bg: Color(0xFFFFE3DA), fg: Color(0xFFC0573E)), // coral
+    (bg: Color(0xFFE6F4D4), fg: Color(0xFF55812A)), // lime
+    (bg: Color(0xFFD7F1EA), fg: Color(0xFF1F6B4A)), // mint
+  ];
+
+  ({Color bg, Color fg}) _colorFor(String key) {
+    if (key.isEmpty) return _palette.first;
+    final hash = key.codeUnits.fold<int>(0, (a, b) => (a + b) & 0xffff);
+    return _palette[hash % _palette.length];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = _colorFor(label);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+      decoration: BoxDecoration(
+        color: c.bg,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        '#$label',
+        style: AppTextStyles.chip.copyWith(
+          color: c.fg,
+          fontSize: 11,
+        ),
+      ),
+    );
   }
 }
 
