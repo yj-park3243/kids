@@ -900,6 +900,7 @@ class _MembersSection extends ConsumerWidget {
             final isMe = member.id == myId;
             final isBlocked = blockedIds.contains(member.id);
             return GestureDetector(
+              onTap: isMe ? null : () => context.push('/users/${member.id}'),
               onLongPress: isMe
                   ? null
                   : () => showReportSheet(context, targetUserId: member.id),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../models/follow.dart';
@@ -64,9 +65,7 @@ class FollowingListScreen extends ConsumerWidget {
           return _FollowingTile(
             follow: f,
             onUnfollow: () => _confirmUnfollow(context, ref, f),
-            onTap: () {
-              // TODO: navigate to /users/${f.targetUserId}
-            },
+            onTap: () => context.push('/users/${f.targetUserId}'),
           );
         },
       ),

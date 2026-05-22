@@ -25,14 +25,18 @@ class ErrorReporter {
     _recent[sig] = now;
     if (_recent.length > 200) _recent.clear();
 
-    await _repo.reportError(
-      errorMessage: message,
-      stackTrace: stackTrace,
-      screenName: screenName,
-      deviceInfo: {
-        'platform': Platform.operatingSystem,
-        'platformVersion': Platform.operatingSystemVersion,
-      },
-    );
+    try {
+      await _repo.reportError(
+        errorMessage: message,
+        stackTrace: stackTrace,
+        screenName: screenName,
+        deviceInfo: {
+          'platform': Platform.operatingSystem,
+          'platformVersion': Platform.operatingSystemVersion,
+        },
+      );
+    } catch (_) {
+      // 리포트 전송 실패는 무시 — 앱 흐름에 영향 주지 않는다.
+    }
   }
 }

@@ -16,6 +16,8 @@ class User {
   final String? noShowLevel; // 'NONE' | 'OCCASIONAL' | 'FREQUENT'
   final bool? isFollowing; // 타 유저 프로필 조회 시만
   final bool? isBlocked; // 타 유저 프로필 조회 시만
+  final String? regionSigungu; // 타 유저 프로필 조회 시
+  final int? roomCount; // 타 유저 프로필 조회 시 — 참여한 모임 수
   final String status; // ACTIVE | SUSPENDED | BANNED | WITHDRAWN
 
   User({
@@ -36,6 +38,8 @@ class User {
     this.noShowLevel,
     this.isFollowing,
     this.isBlocked,
+    this.regionSigungu,
+    this.roomCount,
     this.status = 'ACTIVE',
   });
 
@@ -62,6 +66,8 @@ class User {
       noShowLevel: json['noShowLevel'],
       isFollowing: json['isFollowing'],
       isBlocked: json['isBlocked'],
+      regionSigungu: json['regionSigungu'],
+      roomCount: (json['roomCount'] as num?)?.toInt(),
       status: json['status'] ?? 'ACTIVE',
     );
   }
@@ -82,6 +88,8 @@ class User {
         'noShowLevel': noShowLevel,
         'isFollowing': isFollowing,
         'isBlocked': isBlocked,
+        'regionSigungu': regionSigungu,
+        'roomCount': roomCount,
         'status': status,
       };
 
@@ -103,6 +111,8 @@ class User {
     String? noShowLevel,
     bool? isFollowing,
     bool? isBlocked,
+    String? regionSigungu,
+    int? roomCount,
     String? status,
   }) {
     return User(
@@ -123,6 +133,8 @@ class User {
       noShowLevel: noShowLevel ?? this.noShowLevel,
       isFollowing: isFollowing ?? this.isFollowing,
       isBlocked: isBlocked ?? this.isBlocked,
+      regionSigungu: regionSigungu ?? this.regionSigungu,
+      roomCount: roomCount ?? this.roomCount,
       status: status ?? this.status,
     );
   }

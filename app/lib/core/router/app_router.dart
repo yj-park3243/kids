@@ -22,6 +22,7 @@ import '../../features/notice/presentation/notice_detail_screen.dart';
 import '../../features/notice/presentation/notice_list_screen.dart';
 import '../../features/notification/presentation/notification_screen.dart';
 import '../../features/notification/presentation/notification_settings_screen.dart';
+import '../../features/profile/presentation/user_profile_screen.dart';
 import '../../features/review/presentation/review_summary_screen.dart';
 import '../../features/review/presentation/review_write_screen.dart';
 import '../../features/room/presentation/attendance_screen.dart';
@@ -257,6 +258,14 @@ final appRouter = GoRouter(
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) =>
           ReviewSummaryScreen(userId: state.pathParameters['userId']!),
+    ),
+
+    // 상대방 프로필 상세
+    GoRoute(
+      path: '/users/:userId',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) =>
+          UserProfileScreen(userId: state.pathParameters['userId']!),
     ),
 
     // 팔로잉 목록

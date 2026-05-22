@@ -35,6 +35,7 @@ class ApiConstants {
   static const String userProfile = '/users/profile';
   static const String userMe = '/users/me';
   static const String checkNickname = '/users/check-nickname';
+  static String userById(String userId) => '/users/$userId';
 
   // Children
   static const String children = '/children';
