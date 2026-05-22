@@ -182,6 +182,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               final pos =
                   await LocationService.instance.getCurrentPosition();
               if (pos != null && mounted) {
+                // 내 위치 오버레이(파란 점) 표시.
+                final overlay = controller.getLocationOverlay();
+                overlay.setPosition(NLatLng(pos.latitude, pos.longitude));
+                overlay.setIsVisible(true);
                 await controller.updateCamera(
                   NCameraUpdate.withParams(
                     target: NLatLng(pos.latitude, pos.longitude),

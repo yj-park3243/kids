@@ -3,6 +3,12 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 class SecureStorage {
   static const _storage = FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    // iOS: 재부팅 후 첫 잠금해제 이후 항상 접근 가능 — 앱 재시작 시
+    // 토큰을 안정적으로 읽기 위해 명시. (미지정 시 기본값에서
+    // 재시작 후 읽기가 실패하는 사례가 있음)
+    iOptions: IOSOptions(
+      accessibility: KeychainAccessibility.first_unlock,
+    ),
   );
 
   static const _accessTokenKey = 'access_token';
