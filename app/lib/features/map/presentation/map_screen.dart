@@ -280,6 +280,23 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 ),
               ),
             ),
+
+          // 방 만들기 — 우하단 떠 있는 버튼. 핀 카드가 떠 있으면 위로 비켜준다.
+          Positioned(
+            right: 16,
+            bottom: _selectedPin != null ? 140 : 20,
+            child: FloatingActionButton.extended(
+              heroTag: 'map-create-room',
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              onPressed: () => context.push('/rooms/create'),
+              icon: const Icon(Icons.add_rounded),
+              label: Text(
+                '방 만들기',
+                style: AppTextStyles.body2Bold.copyWith(color: Colors.white),
+              ),
+            ),
+          ),
         ],
       ),
     );

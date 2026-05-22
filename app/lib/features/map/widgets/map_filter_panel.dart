@@ -30,6 +30,13 @@ class MapFilterPanel extends StatefulWidget {
 class _MapFilterPanelState extends State<MapFilterPanel> {
   bool _expanded = false;
 
+  // 섹션별 칩 색 — 그룹마다 다른 보조 색으로 단조로움을 덜어준다.
+  static const Color _ageColor = AppColors.primary;
+  static const Color _dateColor = AppColors.accentSky;
+  static const Color _timeColor = AppColors.accentLavender;
+  static const Color _placeColor = AppColors.accentCoral;
+  static const Color _joinColor = AppColors.accentLime;
+
   MapFilter get _f => widget.filter;
   void _emit(MapFilter f) => widget.onChanged(f);
 
@@ -116,44 +123,46 @@ class _MapFilterPanelState extends State<MapFilterPanel> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _section('연령', [
-            _chip('전체', _f.ageMonth == null,
+            _chip('전체', _f.ageMonth == null, _ageColor,
                 () => _emit(_f.copyWith(ageMonth: null))),
             if (childAge != null)
               _chip(
                 '우리 아이 ${AppDateUtils.formatAgeMonths(childAge)}',
                 _f.ageMonth == childAge,
+                _ageColor,
                 () => _emit(_f.copyWith(ageMonth: childAge)),
               ),
           ]),
           _section(
             '날짜',
             MapDateFilter.values
-                .map((d) => _chip(d.label, _f.date == d,
+                .map((d) => _chip(d.label, _f.date == d, _dateColor,
                     () => _emit(_f.copyWith(date: d))))
                 .toList(),
           ),
           _section(
             '시간',
             MapTimeFilter.values
-                .map((t) => _chip(t.label, _f.time == t,
+                .map((t) => _chip(t.label, _f.time == t, _timeColor,
                     () => _emit(_f.copyWith(time: t))))
                 .toList(),
           ),
           _section('장소', [
-            _chip('전체', _f.placeType == null,
+            _chip('전체', _f.placeType == null, _placeColor,
                 () => _emit(_f.copyWith(placeType: null))),
             ...AppConstants.placeTypes.entries.map((e) => _chip(
                   e.value,
                   _f.placeType == e.key,
+                  _placeColor,
                   () => _emit(_f.copyWith(placeType: e.key)),
                 )),
           ]),
           _section('입장 방식', [
-            _chip('전체', _f.joinType == null,
+            _chip('전체', _f.joinType == null, _joinColor,
                 () => _emit(_f.copyWith(joinType: null))),
-            _chip('자유 입장', _f.joinType == 'FREE',
+            _chip('자유 입장', _f.joinType == 'FREE', _joinColor,
                 () => _emit(_f.copyWith(joinType: 'FREE'))),
-            _chip('승인 필요', _f.joinType == 'APPROVAL',
+            _chip('승인 필요', _f.joinType == 'APPROVAL', _joinColor,
                 () => _emit(_f.copyWith(joinType: 'APPROVAL'))),
           ]),
           const SizedBox(height: 12),
@@ -171,19 +180,6 @@ class _MapFilterPanelState extends State<MapFilterPanel> {
                   () => _emit(_f.copyWith(flashOnly: !_f.flashOnly))),
             ],
           ),
-          if (_f.activeCount > 0)
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: () =>
-                    _emit(MapFilter.initial(ageMonth: _f.ageMonth)),
-                child: Text(
-                  '필터 초기화',
-                  style:
-                      AppTextStyles.caption.copyWith(color: AppColors.primary),
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -209,25 +205,26 @@ class _MapFilterPanelState extends State<MapFilterPanel> {
     );
   }
 
-  Widget _chip(String label, bool selected, VoidCallback onTap) {
+  Widget _chip(String label, bool selected, Color color, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
+          // 비선택 시에도 섹션 색을 옅게 깔아 그룹을 구분한다.
           color: selected
-              ? AppColors.primary.withValues(alpha: 0.12)
-              : AppColors.background,
+              ? color.withValues(alpha: 0.16)
+              : color.withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selected ? AppColors.primary : AppColors.divider,
+            color: selected ? color : color.withValues(alpha: 0.3),
             width: selected ? 1.5 : 1,
           ),
         ),
         child: Text(
           label,
           style: AppTextStyles.caption.copyWith(
-            color: selected ? AppColors.primary : AppColors.textSecondary,
+            color: selected ? color : AppColors.textSecondary,
             fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
           ),
         ),
