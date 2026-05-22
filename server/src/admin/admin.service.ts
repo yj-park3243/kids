@@ -282,6 +282,26 @@ export class AdminService {
     return { success: true, status: user.status };
   }
 
+  /** 계정 정지 / 해제 — 아이 사진 검수 결과에 따른 임시 정지. */
+  async suspendUser(userId: string, suspended: boolean, reason?: string) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('사용자를 찾을 수 없습니다.');
+    }
+
+    if (suspended) {
+      user.status = 'SUSPENDED';
+      user.suspendReason = reason ?? (null as unknown as string);
+    } else {
+      user.status = 'ACTIVE';
+      user.suspendReason = null as unknown as string;
+      user.appealPhotoUrl = null as unknown as string; // 해제 시 증거 사진 정리
+    }
+    await this.userRepository.save(user);
+
+    return { success: true, status: user.status };
+  }
+
   async setPhoneVerified(userId: string, isPhoneVerified: boolean) {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {

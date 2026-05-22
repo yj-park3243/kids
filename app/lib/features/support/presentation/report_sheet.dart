@@ -4,6 +4,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../widgets/common_button.dart';
 import '../../../widgets/common_input.dart';
+import '../../mypage/providers/block_provider.dart';
 import '../data/support_repository.dart';
 
 const _reasons = <Map<String, String>>[
@@ -113,6 +114,38 @@ class _ReportSheetState extends ConsumerState<_ReportSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('신고 전송에 실패했습니다. 잠시 후 다시 시도해주세요.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  /// 선택된 대상의 userId — 다중 후보 모드면 선택 항목, 아니면 단일 인자.
+  String? get _selectedUserId {
+    if (widget.targets.isNotEmpty) {
+      return widget.targets[_selectedTargetIdx].userId;
+    }
+    return widget.targetUserId;
+  }
+
+  Future<void> _blockUser() async {
+    final userId = _selectedUserId;
+    if (userId == null) return;
+    setState(() => _submitting = true);
+    try {
+      await ref.read(blockRepositoryProvider).block(userId);
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('해당 사용자를 차단했습니다.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('차단에 실패했습니다. 잠시 후 다시 시도해주세요.'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -265,6 +298,14 @@ class _ReportSheetState extends ConsumerState<_ReportSheet> {
               isLoading: _submitting,
               onPressed: _submit,
             ),
+            if (_selectedUserId != null) ...[
+              const SizedBox(height: 10),
+              SecondaryButton(
+                text: '이 사용자 차단하기',
+                icon: Icons.block_rounded,
+                onPressed: _blockUser,
+              ),
+            ],
           ],
         ),
       ),

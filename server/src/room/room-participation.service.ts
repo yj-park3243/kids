@@ -58,6 +58,20 @@ export class RoomParticipationService {
         throw new NotFoundException('방을 찾을 수 없습니다.');
       }
 
+      const joiningUser = await manager
+        .getRepository(User)
+        .findOne({ where: { id: userId } });
+      if (
+        joiningUser?.status === 'SUSPENDED' ||
+        joiningUser?.status === 'BANNED'
+      ) {
+        throw new ForbiddenException({
+          code: 'USER_SUSPENDED',
+          message:
+            '정지된 계정은 모임에 참여할 수 없습니다. 증거 사진을 제출해 정지 해제를 요청해 주세요.',
+        });
+      }
+
       if (room.status !== 'RECRUITING') {
         throw new ForbiddenException({
           code: 'ROOM_NOT_RECRUITING',

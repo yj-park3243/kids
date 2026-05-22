@@ -39,6 +39,14 @@ class BlockRepository {
         .toList();
   }
 
+  /// POST /blocks — 사용자 차단
+  Future<void> block(String targetUserId) async {
+    await _dio.post(
+      ApiConstants.blocks,
+      data: {'targetUserId': targetUserId},
+    );
+  }
+
   /// DELETE /blocks/:targetUserId — 차단 해제
   Future<void> unblock(String targetUserId) async {
     await _dio.delete(ApiConstants.blockTarget(targetUserId));

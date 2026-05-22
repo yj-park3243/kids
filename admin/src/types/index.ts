@@ -29,7 +29,7 @@ export interface User {
   isProfileComplete: boolean;
   isPhoneVerified: boolean;
   isAdmin: boolean;
-  status: 'ACTIVE' | 'WITHDRAWN' | 'BANNED';
+  status: 'ACTIVE' | 'WITHDRAWN' | 'BANNED' | 'SUSPENDED';
   parentGender?: 'MOM' | 'DAD' | null;
   isSingleParent?: boolean;
   mannerScore?: number;
@@ -45,6 +45,7 @@ export interface Child {
   birthYear: number;
   birthMonth: number;
   gender: 'MALE' | 'FEMALE' | null;
+  photoUrl: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -52,6 +53,8 @@ export interface Child {
 export interface UserDetail extends User {
   children: Child[];
   roomCount: number;
+  appealPhotoUrl: string | null;
+  suspendReason: string | null;
 }
 
 // ============ Room ============

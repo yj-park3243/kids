@@ -285,6 +285,17 @@ export class UserService {
     return { success: true };
   }
 
+  /** 정지(SUSPENDED) 해제 요청용 증거 사진 제출. */
+  async submitAppeal(userId: string, photoUrl: string) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('사용자를 찾을 수 없습니다.');
+    }
+    user.appealPhotoUrl = photoUrl;
+    await this.userRepository.save(user);
+    return { success: true };
+  }
+
   private sanitizeUser(user: User) {
     const { passwordHash, ...result } = user;
     return result;

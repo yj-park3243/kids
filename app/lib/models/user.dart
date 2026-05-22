@@ -16,6 +16,7 @@ class User {
   final String? noShowLevel; // 'NONE' | 'OCCASIONAL' | 'FREQUENT'
   final bool? isFollowing; // 타 유저 프로필 조회 시만
   final bool? isBlocked; // 타 유저 프로필 조회 시만
+  final String status; // ACTIVE | SUSPENDED | BANNED | WITHDRAWN
 
   User({
     required this.id,
@@ -35,6 +36,7 @@ class User {
     this.noShowLevel,
     this.isFollowing,
     this.isBlocked,
+    this.status = 'ACTIVE',
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -60,6 +62,7 @@ class User {
       noShowLevel: json['noShowLevel'],
       isFollowing: json['isFollowing'],
       isBlocked: json['isBlocked'],
+      status: json['status'] ?? 'ACTIVE',
     );
   }
 
@@ -79,6 +82,7 @@ class User {
         'noShowLevel': noShowLevel,
         'isFollowing': isFollowing,
         'isBlocked': isBlocked,
+        'status': status,
       };
 
   User copyWith({
@@ -99,6 +103,7 @@ class User {
     String? noShowLevel,
     bool? isFollowing,
     bool? isBlocked,
+    String? status,
   }) {
     return User(
       id: id ?? this.id,
@@ -118,6 +123,7 @@ class User {
       noShowLevel: noShowLevel ?? this.noShowLevel,
       isFollowing: isFollowing ?? this.isFollowing,
       isBlocked: isBlocked ?? this.isBlocked,
+      status: status ?? this.status,
     );
   }
 }

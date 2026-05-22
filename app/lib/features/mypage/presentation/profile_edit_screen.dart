@@ -153,17 +153,9 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                   maxLines: 3,
                   maxLength: 200,
                 ),
-                const SizedBox(height: 20),
-
-                // 부모 정체성 / 한부모 가정 — 읽기 전용. PATCH 본문에 포함하지 않음.
-                _LockedField(
-                  label: '부모',
-                  value: _parentGenderLabel(user?.parentGender),
-                  onInfoTap: () => _showLockedInfoDialog(context),
-                ),
-                // 한부모 가정 항목 — 한부모 가정 계정에만 노출.
+                // 한부모 가정 — 한부모 가정 계정에만 노출. 읽기 전용.
                 if (user?.isSingleParent ?? false) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 20),
                   _LockedField(
                     label: '한부모 가정',
                     value: '예',
@@ -183,17 +175,6 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
         ),
       ),
     );
-  }
-
-  static String _parentGenderLabel(String? gender) {
-    switch (gender) {
-      case 'MOM':
-        return '👩 엄마';
-      case 'DAD':
-        return '👨 아빠';
-      default:
-        return '-';
-    }
   }
 
   static void _showLockedInfoDialog(BuildContext context) {

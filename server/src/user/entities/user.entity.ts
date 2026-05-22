@@ -103,7 +103,13 @@ export class User {
   lastLoginAt: Date;
 
   @Column({ type: 'varchar', length: 20, default: 'ACTIVE' })
-  status: string; // ACTIVE, WITHDRAWN, BANNED
+  status: string; // ACTIVE, WITHDRAWN, BANNED, SUSPENDED
+
+  @Column({ name: 'appeal_photo_url', type: 'varchar', length: 500, nullable: true })
+  appealPhotoUrl: string; // 정지(SUSPENDED) 해제 요청용 증거 사진
+
+  @Column({ name: 'suspend_reason', type: 'varchar', length: 200, nullable: true })
+  suspendReason: string; // 정지 사유 (어드민 입력)
 
   @Column({ name: 'parent_gender', type: 'varchar', length: 10, nullable: true })
   parentGender: string; // MOM, DAD

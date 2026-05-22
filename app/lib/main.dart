@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:kakao_flutter_sdk_common/kakao_flutter_sdk_common.dart';
@@ -50,6 +51,12 @@ void main() async {
       };
 
       await initializeDateFormatting('ko');
+
+      // Noto Sans KR 폰트 미리 로드 — 첫 화면 레이아웃이 폰트
+      // 로딩으로 흔들리는(칩이 늦게 자리 잡는) 것을 방지.
+      try {
+        await GoogleFonts.pendingFonts([GoogleFonts.notoSansKr()]);
+      } catch (_) {}
 
       SystemChrome.setSystemUIOverlayStyle(
         const SystemUiOverlayStyle(

@@ -31,6 +31,9 @@ export class Child {
   @Column({ type: 'varchar', length: 10, nullable: true })
   gender: string; // MALE, FEMALE, null
 
+  @Column({ name: 'photo_url', type: 'varchar', length: 500, nullable: true })
+  photoUrl: string; // 출생증명서 또는 최근 사진 — 어드민 검수용
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

@@ -70,12 +70,14 @@ class AuthRepository {
     required int birthYear,
     required int birthMonth,
     String? gender,
+    String? photoUrl,
   }) async {
     final response = await _dio.post(ApiConstants.children, data: {
       'nickname': nickname,
       'birthYear': birthYear,
       'birthMonth': birthMonth,
       'gender': gender,
+      if (photoUrl != null) 'photoUrl': photoUrl,
     });
     final data = response.data['data'] ?? response.data;
     return Child.fromJson(data);
@@ -125,6 +127,14 @@ class AuthRepository {
     );
     final data = response.data['data'] ?? response.data;
     return data['url'];
+  }
+
+  /// 정지(SUSPENDED) 해제 요청용 증거 사진 제출.
+  Future<void> submitAppeal(String photoUrl) async {
+    await _dio.post(
+      '${ApiConstants.userMe}/appeal',
+      data: {'photoUrl': photoUrl},
+    );
   }
 
   // Helper

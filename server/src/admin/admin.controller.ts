@@ -20,6 +20,7 @@ import {
   AdminReportQueryDto,
   AdminInquiryQueryDto,
   BanUserDto,
+  SuspendUserDto,
   VerifyUserDto,
   CorrectIdentityDto,
   ResolveReportDto,
@@ -72,6 +73,17 @@ export class AdminController {
   @ApiOperation({ summary: '유저 정지/해제' })
   async banUser(@Param('id') userId: string, @Body() dto: BanUserDto) {
     return this.adminService.banUser(userId, dto.banned);
+  }
+
+  @Patch('users/:id/suspend')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '계정 정지 / 정지 해제 (아이 사진 검수)' })
+  async suspendUser(
+    @Param('id') userId: string,
+    @Body() dto: SuspendUserDto,
+  ) {
+    return this.adminService.suspendUser(userId, dto.suspended, dto.reason);
   }
 
   @Patch('users/:id/verify')

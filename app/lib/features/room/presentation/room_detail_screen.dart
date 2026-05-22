@@ -18,6 +18,7 @@ import '../../../widgets/design/accent_blobs.dart';
 import '../../../widgets/empty_state.dart';
 import '../../../widgets/loading.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../mypage/providers/block_provider.dart';
 import '../../review/presentation/review_write_screen.dart' show ReviewMember;
 import '../providers/room_detail_provider.dart';
 import 'widgets/category_badge.dart';
@@ -109,12 +110,6 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                   onTap: () =>
                       context.push('/rooms/${widget.roomId}/requests'),
                 ),
-              if (isHost)
-                PullDownMenuItem(
-                  title: '출석 체크',
-                  icon: Icons.how_to_reg_rounded,
-                  onTap: () => _openAttendance(room),
-                ),
               if (isHost && room.status != 'COMPLETED')
                 PullDownMenuItem(
                   title: '모임 종료',
@@ -128,28 +123,29 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                   isDestructive: true,
                   onTap: () => _cancelRoom(room),
                 ),
-              if (!isHost)
-                PullDownMenuItem(
-                  title: '신고하기',
-                  icon: Icons.flag_outlined,
-                  isDestructive: true,
-                  onTap: () {
-                    // 방 자체 + 방 멤버들을 신고 후보로 제공.
-                    final targets = <ReportTarget>[
-                      ReportTarget(label: '방 자체', roomId: widget.roomId),
-                      ...?room.members?.map((m) => ReportTarget(
-                            label: m.nickname,
-                            userId: m.id,
-                            isHost: m.isHost,
-                          )),
-                    ];
-                    showReportSheet(
-                      context,
-                      targetRoomId: widget.roomId,
-                      targets: targets,
-                    );
-                  },
-                ),
+              // 방장·참여자 모두 — 방 안의 특정 유저를 골라 신고/차단.
+              PullDownMenuItem(
+                title: '신고 / 차단',
+                icon: Icons.flag_outlined,
+                isDestructive: true,
+                onTap: () {
+                  final targets = <ReportTarget>[
+                    ReportTarget(label: '방 자체', roomId: widget.roomId),
+                    ...?room.members
+                        ?.where((m) => m.id != currentUserId)
+                        .map((m) => ReportTarget(
+                              label: m.nickname,
+                              userId: m.id,
+                              isHost: m.isHost,
+                            )),
+                  ];
+                  showReportSheet(
+                    context,
+                    targetRoomId: widget.roomId,
+                    targets: targets,
+                  );
+                },
+              ),
             ],
             buttonBuilder: (context, showMenu) => IconButton(
               onPressed: showMenu,
@@ -385,37 +381,6 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
-  }
-
-  /// 출석 체크 진입. 방장 + 모임 종료 후 24h 이내만 허용.
-  void _openAttendance(Room room) {
-    final completedAt = room.completedAt;
-    if (completedAt == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('모임 종료 후 출석 체크가 가능해요'),
-          backgroundColor: AppColors.warning,
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
-      return;
-    }
-    final hoursPassed = DateTime.now().difference(completedAt).inHours;
-    if (hoursPassed > 24) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('출석 체크 가능 시간(24시간)이 지났어요'),
-          backgroundColor: AppColors.warning,
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
-      return;
-    }
-    context.push('/rooms/${widget.roomId}/attendance');
   }
 
   Future<void> _cancelRoom(Room room) async {
@@ -914,6 +879,12 @@ class _MembersSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final members = room.members ?? [];
     final myId = ref.watch(authProvider).user?.id;
+    final blockedIds = ref
+            .watch(blockedUsersProvider)
+            .valueOrNull
+            ?.map((b) => b.targetUserId)
+            .toSet() ??
+        <String>{};
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -927,6 +898,7 @@ class _MembersSection extends ConsumerWidget {
           const SizedBox(height: 12),
           ...members.map((member) {
             final isMe = member.id == myId;
+            final isBlocked = blockedIds.contains(member.id);
             return GestureDetector(
               onLongPress: isMe
                   ? null
@@ -961,6 +933,26 @@ class _MembersSection extends ConsumerWidget {
                             children: [
                               Text(member.nickname,
                                   style: AppTextStyles.body2Bold),
+                              if (isBlocked) ...[
+                                const SizedBox(width: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 5, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.error
+                                        .withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(3),
+                                  ),
+                                  child: Text(
+                                    '차단함',
+                                    style: AppTextStyles.caption.copyWith(
+                                      fontSize: 9,
+                                      color: AppColors.error,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ],
                               if (member.isHost) ...[
                                 const SizedBox(width: 4),
                                 Container(

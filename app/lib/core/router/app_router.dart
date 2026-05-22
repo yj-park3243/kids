@@ -13,6 +13,7 @@ import '../../features/growth_guide/presentation/growth_guide_detail_screen.dart
 import '../../features/growth_guide/presentation/growth_guide_list_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/map/presentation/map_screen.dart';
+import '../../features/mypage/presentation/appeal_screen.dart';
 import '../../features/mypage/presentation/blocked_users_screen.dart';
 import '../../features/mypage/presentation/my_rooms_screen.dart';
 import '../../features/mypage/presentation/mypage_screen.dart';
@@ -217,6 +218,13 @@ final appRouter = GoRouter(
       path: '/blocked-users',
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) => const BlockedUsersScreen(),
+    ),
+
+    // 계정 정지 안내 + 증거 재제출
+    GoRoute(
+      path: '/appeal',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const AppealScreen(),
     ),
 
     // 출석 체크 (방 호스트 전용)

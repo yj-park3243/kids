@@ -33,6 +33,42 @@ class MyPageScreen extends ConsumerWidget {
                 Text('마이페이지', style: AppTextStyles.screenTitle),
                 const SizedBox(height: 20),
 
+                // 계정 정지 배너 — SUSPENDED 계정만 노출.
+                if (user?.status == 'SUSPENDED') ...[
+                  GestureDetector(
+                    onTap: () => context.push('/appeal'),
+                    child: Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                            color: AppColors.error.withValues(alpha: 0.4)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.gpp_bad_rounded,
+                              color: AppColors.error, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              '계정이 정지되었습니다. 탭하여 정지 해제를 요청하세요.',
+                              style: AppTextStyles.body2.copyWith(
+                                color: AppColors.error,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          const Icon(Icons.chevron_right_rounded,
+                              color: AppColors.error),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+
                 // Profile glass card
                 GlassCard(
                   tone: GlassTone.white,

@@ -20,6 +20,16 @@ export const usersApi = {
     return client.patch(`/admin/users/${id}/ban`, { banned }).then((res) => res.data);
   },
 
+  suspendUser(
+    id: string,
+    suspended: boolean,
+    reason?: string,
+  ): Promise<{ success: boolean; status: string }> {
+    return client
+      .patch(`/admin/users/${id}/suspend`, { suspended, reason })
+      .then((res) => res.data);
+  },
+
   setPhoneVerified(id: string, isPhoneVerified: boolean): Promise<{ success: boolean; isPhoneVerified: boolean }> {
     return client.patch(`/admin/users/${id}/verify`, { isPhoneVerified }).then((res) => res.data);
   },

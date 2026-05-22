@@ -172,12 +172,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required int birthYear,
     required int birthMonth,
     String? gender,
+    String? photoUrl,
   }) async {
     final child = await _repository.addChild(
       nickname: nickname,
       birthYear: birthYear,
       birthMonth: birthMonth,
       gender: gender,
+      photoUrl: photoUrl,
     );
     final user = state.user;
     if (user != null) {

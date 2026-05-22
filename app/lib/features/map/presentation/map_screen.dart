@@ -87,13 +87,20 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           size: const Size(96, 74),
           context: context,
         );
+        final clusterPos = NLatLng(c.latitude, c.longitude);
         final marker = NMarker(
           id: 'cluster-${c.regionDong}',
-          position: NLatLng(c.latitude, c.longitude),
+          position: clusterPos,
           icon: icon,
           size: const Size(96, 74),
           anchor: const NPoint(0.5, 0.5),
         );
+        // 클러스터 탭 → 줌인해서 개별 핀이 보이도록.
+        marker.setOnTapListener((NMarker overlay) {
+          controller.updateCamera(
+            NCameraUpdate.withParams(target: clusterPos, zoom: 15),
+          );
+        });
         await controller.addOverlay(marker);
       }
     } else {
@@ -153,13 +160,20 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       body: Stack(
         children: [
           NaverMap(
-            options: const NaverMapViewOptions(
-              initialCameraPosition: NCameraPosition(
+            options: NaverMapViewOptions(
+              initialCameraPosition: const NCameraPosition(
                 target: _seoulCity,
                 zoom: 12,
               ),
               mapType: NMapType.basic,
               locationButtonEnable: true,
+              // 회전 금지 + 줌아웃·이동을 한국 범위로 제한.
+              rotationGesturesEnable: false,
+              minZoom: 6,
+              extent: NLatLngBounds(
+                southWest: const NLatLng(33.0, 124.5),
+                northEast: const NLatLng(39.5, 132.0),
+              ),
             ),
             onMapReady: (controller) async {
               _controller = controller;

@@ -68,6 +68,18 @@ export class BanUserDto {
   banned: boolean;
 }
 
+export class SuspendUserDto {
+  @ApiProperty({ example: true, description: 'true: 정지, false: 정지 해제' })
+  @IsBoolean()
+  suspended: boolean;
+
+  @ApiProperty({ required: false, description: '정지 사유' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  reason?: string;
+}
+
 export class VerifyUserDto {
   @ApiProperty({ example: true })
   @IsBoolean()

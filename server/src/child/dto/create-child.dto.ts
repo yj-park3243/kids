@@ -22,4 +22,9 @@ export class CreateChildDto {
   @IsString()
   @IsOptional()
   gender?: string;
+
+  @ApiProperty({ required: false, description: '출생증명서 또는 최근 아이 사진 URL' })
+  @IsString()
+  @IsOptional()
+  photoUrl?: string;
 }

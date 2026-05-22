@@ -15,6 +15,7 @@ import {
   Modal,
   Select,
   Switch,
+  Image,
   message,
 } from 'antd';
 import {
@@ -32,7 +33,8 @@ const { Title } = Typography;
 
 const STATUS_MAP: Record<string, { color: string; label: string }> = {
   ACTIVE: { color: 'green', label: '활성' },
-  BANNED: { color: 'red', label: '정지' },
+  SUSPENDED: { color: 'orange', label: '정지(검수)' },
+  BANNED: { color: 'red', label: '영구정지' },
   WITHDRAWN: { color: 'default', label: '탈퇴' },
 };
 
@@ -84,6 +86,25 @@ export default function UserDetailPage() {
       } else {
         await usersApi.banUser(id, true);
         message.success('유저가 정지되었습니다.');
+      }
+      fetchUser(id);
+    } catch {
+      message.error('처리 중 오류가 발생했습니다.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleSuspend = async () => {
+    if (!id || !user) return;
+    try {
+      setActionLoading(true);
+      if (user.status === 'SUSPENDED') {
+        await usersApi.suspendUser(id, false);
+        message.success('정지가 해제되었습니다.');
+      } else {
+        await usersApi.suspendUser(id, true);
+        message.success('계정을 정지했습니다.');
       }
       fetchUser(id);
     } catch {
@@ -147,6 +168,22 @@ export default function UserDetailPage() {
       key: 'gender',
       render: (gender: string | null) => (gender ? GENDER_MAP[gender] || gender : '-'),
     },
+    {
+      title: '아이 사진 (검수)',
+      dataIndex: 'photoUrl',
+      key: 'photoUrl',
+      render: (url: string | null) =>
+        url ? (
+          <Image
+            src={url}
+            width={56}
+            height={56}
+            style={{ objectFit: 'cover', borderRadius: 6 }}
+          />
+        ) : (
+          <Tag color="default">미등록</Tag>
+        ),
+    },
   ];
 
   if (loading) {
@@ -190,21 +227,51 @@ export default function UserDetailPage() {
           </div>
           <div>
             {user.status !== 'WITHDRAWN' && (
-              <Popconfirm
-                title={user.status === 'BANNED' ? '정지를 해제하시겠습니까?' : '유저를 정지하시겠습니까?'}
-                onConfirm={handleBan}
-                okText="확인"
-                cancelText="취소"
-              >
-                <Button
-                  danger={user.status !== 'BANNED'}
-                  type={user.status === 'BANNED' ? 'primary' : 'default'}
-                  icon={user.status === 'BANNED' ? <CheckCircleOutlined /> : <StopOutlined />}
-                  loading={actionLoading}
+              <Space>
+                <Popconfirm
+                  title={
+                    user.status === 'SUSPENDED'
+                      ? '정지를 해제하시겠습니까?'
+                      : '아이 사진 검수 결과 계정을 정지하시겠습니까?'
+                  }
+                  onConfirm={handleSuspend}
+                  okText="확인"
+                  cancelText="취소"
                 >
-                  {user.status === 'BANNED' ? '정지 해제' : '정지'}
-                </Button>
-              </Popconfirm>
+                  <Button
+                    danger={user.status !== 'SUSPENDED'}
+                    type={user.status === 'SUSPENDED' ? 'primary' : 'default'}
+                    loading={actionLoading}
+                  >
+                    {user.status === 'SUSPENDED' ? '정지 해제' : '활동 정지'}
+                  </Button>
+                </Popconfirm>
+                <Popconfirm
+                  title={
+                    user.status === 'BANNED'
+                      ? '영구정지를 해제하시겠습니까?'
+                      : '영구 정지하시겠습니까?'
+                  }
+                  onConfirm={handleBan}
+                  okText="확인"
+                  cancelText="취소"
+                >
+                  <Button
+                    danger={user.status !== 'BANNED'}
+                    type={user.status === 'BANNED' ? 'primary' : 'default'}
+                    icon={
+                      user.status === 'BANNED' ? (
+                        <CheckCircleOutlined />
+                      ) : (
+                        <StopOutlined />
+                      )
+                    }
+                    loading={actionLoading}
+                  >
+                    {user.status === 'BANNED' ? '영구정지 해제' : '영구정지'}
+                  </Button>
+                </Popconfirm>
+              </Space>
             )}
           </div>
         </div>
@@ -323,6 +390,16 @@ export default function UserDetailPage() {
       </Modal>
 
       {/* Children */}
+      {user.appealPhotoUrl && (
+        <Card title="정지 해제 요청 — 제출된 증거 사진" style={{ marginBottom: 24 }}>
+          <Image
+            src={user.appealPhotoUrl}
+            width={200}
+            style={{ objectFit: 'cover', borderRadius: 8 }}
+          />
+        </Card>
+      )}
+
       <Card title="아이 정보">
         <Table<Child>
           dataSource={user.children || []}

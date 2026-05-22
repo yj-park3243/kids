@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/date_utils.dart';
@@ -67,17 +70,32 @@ class _ChildSetupScreenState extends ConsumerState<ChildSetupScreen> {
         );
         return;
       }
+      if (_children[i].photoPath == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${i + 1}번째 아이의 사진을 등록해 주세요'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+        return;
+      }
     }
 
     setState(() => _isLoading = true);
 
     try {
       for (final child in _children) {
+        final photoUrl = await ref
+            .read(authRepositoryProvider)
+            .uploadImage(child.photoPath!);
         await ref.read(authProvider.notifier).addChild(
               nickname: child.nicknameController.text.trim(),
               birthYear: child.birthYear!,
               birthMonth: child.birthMonth!,
               gender: child.gender,
+              photoUrl: photoUrl,
             );
       }
       if (widget.popOnDone) {
@@ -212,6 +230,7 @@ class _ChildData {
   int? birthYear;
   int? birthMonth;
   String? gender;
+  String? photoPath; // 출생증명서/최근 사진 — 로컬 경로
 }
 
 class _ChildCard extends StatelessWidget {
@@ -228,6 +247,18 @@ class _ChildCard extends StatelessWidget {
     required this.onRemove,
     required this.onChanged,
   });
+
+  Future<void> _pickPhoto() async {
+    final img = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1280,
+      imageQuality: 85,
+    );
+    if (img != null) {
+      data.photoPath = img.path;
+      onChanged();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -294,6 +325,48 @@ class _ChildCard extends StatelessWidget {
                   onPressed: onRemove,
                 ),
             ],
+          ),
+          const SizedBox(height: 16),
+
+          // 아이 사진 (출생증명서 / 최근 사진) — 어드민 검수용
+          Text('아이 사진', style: AppTextStyles.body2Bold),
+          const SizedBox(height: 6),
+          Text(
+            '출생증명서 또는 최근에 찍은 아이 사진을 올려주세요.\n'
+            '허위 사진을 올리면 계정 이용이 정지될 수 있습니다.',
+            style: AppTextStyles.caption.copyWith(color: AppColors.textHint),
+          ),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: _pickPhoto,
+            child: Container(
+              height: 130,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: AppColors.surfaceVariant,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.divider),
+                image: data.photoPath != null
+                    ? DecorationImage(
+                        image: FileImage(File(data.photoPath!)),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
+              ),
+              child: data.photoPath != null
+                  ? null
+                  : Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.add_a_photo_rounded,
+                            color: AppColors.textHint, size: 28),
+                        const SizedBox(height: 6),
+                        Text('사진 등록',
+                            style: AppTextStyles.caption
+                                .copyWith(color: AppColors.textHint)),
+                      ],
+                    ),
+            ),
           ),
           const SizedBox(height: 16),
 
@@ -389,15 +462,6 @@ class _ChildCard extends StatelessWidget {
                 isSelected: data.gender == 'FEMALE',
                 onTap: () {
                   data.gender = data.gender == 'FEMALE' ? null : 'FEMALE';
-                  onChanged();
-                },
-              ),
-              const SizedBox(width: 8),
-              _GenderChip(
-                label: '비공개',
-                isSelected: data.gender == null,
-                onTap: () {
-                  data.gender = null;
                   onChanged();
                 },
               ),

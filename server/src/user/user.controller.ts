@@ -14,6 +14,7 @@ import { UserService } from './user.service';
 import { CreateProfileDto } from './dto/create-profile.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { DeleteUserDto } from './dto/delete-user.dto';
+import { SubmitAppealDto } from './dto/submit-appeal.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
@@ -46,6 +47,15 @@ export class UserController {
     @Body() dto: UpdateProfileDto,
   ) {
     return this.userService.updateMe(userId, dto);
+  }
+
+  @Post('me/appeal')
+  @ApiOperation({ summary: '정지 해제 증거 사진 제출' })
+  async submitAppeal(
+    @CurrentUser('id') userId: string,
+    @Body() dto: SubmitAppealDto,
+  ) {
+    return this.userService.submitAppeal(userId, dto.photoUrl);
   }
 
   @Get('check-nickname')

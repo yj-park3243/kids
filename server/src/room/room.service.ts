@@ -54,6 +54,14 @@ export class RoomService {
     const host = await this.userRepository.findOne({ where: { id: userId } });
     if (!host) throw new NotFoundException('사용자를 찾을 수 없습니다.');
 
+    if (host.status === 'SUSPENDED' || host.status === 'BANNED') {
+      throw new ForbiddenException({
+        code: 'USER_SUSPENDED',
+        message:
+          '정지된 계정은 모임을 만들 수 없습니다. 증거 사진을 제출해 정지 해제를 요청해 주세요.',
+      });
+    }
+
     // 번개 모임 검증: 오늘 + 현재 +1h 이후
     if (dto.isFlashMeeting === true) {
       const today = new Date().toISOString().slice(0, 10);
@@ -359,6 +367,7 @@ export class RoomService {
       isSingleParent: m.user?.isSingleParent,
       mannerScore: m.user?.mannerScore != null ? Number(m.user.mannerScore) : undefined,
       children: m.user?.children?.map((c) => ({
+        id: c.id,
         nickname: c.nickname,
         ageMonths: (now.getFullYear() - c.birthYear) * 12 + (now.getMonth() + 1 - c.birthMonth),
         gender: c.gender,
