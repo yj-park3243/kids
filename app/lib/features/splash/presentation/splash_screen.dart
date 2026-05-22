@@ -1,11 +1,8 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
-import '../../../core/error/error_reporter.dart';
 import '../../../core/storage/secure_storage.dart';
 import '../../../widgets/design/accent_blobs.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -45,22 +42,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     if (!mounted) return;
 
     final onboardingComplete = await SecureStorage.isOnboardingComplete();
-    final token = await SecureStorage.getAccessToken();
-    final refresh = await SecureStorage.getRefreshToken();
-
-    // 진단 — 자동 로그인 실패 추적용. 서버 app_error_log 에 기록된다.
-    unawaited(ErrorReporter.instance.report(
-      '[splash-diag] onboarding=$onboardingComplete '
-      'access=${token == null ? "NULL" : "len${token.length}"} '
-      'refresh=${refresh == null ? "NULL" : "len${refresh.length}"}',
-      screenName: 'splash-diag',
-    ));
-
     if (!onboardingComplete) {
       if (mounted) context.go('/onboarding');
       return;
     }
 
+    final token = await SecureStorage.getAccessToken();
     if (token == null) {
       if (mounted) context.go('/login');
       return;
@@ -69,11 +56,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     // Try to get user profile
     try {
       await ref.read(authProvider.notifier).checkAuth();
-    } catch (e) {
-      unawaited(ErrorReporter.instance.report(
-        '[splash-diag] checkAuth threw: $e',
-        screenName: 'splash-diag',
-      ));
+    } catch (_) {
       if (mounted) context.go('/login');
     }
   }

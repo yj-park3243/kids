@@ -1,7 +1,4 @@
-import 'dart:async';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/error/error_reporter.dart';
 import '../../../models/user.dart';
 import '../data/auth_repository.dart';
 
@@ -64,10 +61,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
         state = state.copyWith(status: AuthStatus.authenticated, user: user);
       }
     } catch (e) {
-      unawaited(ErrorReporter.instance.report(
-        '[checkAuth-diag] getMyProfile failed: $e',
-        screenName: 'checkAuth-diag',
-      ));
       state = state.copyWith(status: AuthStatus.unauthenticated);
     }
   }
