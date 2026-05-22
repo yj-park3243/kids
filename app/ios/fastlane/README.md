@@ -55,6 +55,14 @@ Sign In with Apple capability 활성화 + 프로파일 재발급
 
 TestFlight 배포
 
+### ios upload
+
+```sh
+[bundle exec] fastlane ios upload
+```
+
+이미 빌드된 IPA 를 TestFlight 에 업로드 (flutter build 없이)
+
 ### ios submit
 
 ```sh

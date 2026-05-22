@@ -145,13 +145,36 @@ platform :ios do
     )
 
     # Flutter 빌드
-    sh("zsh", "-lc", "cd '#{APP_DIR}' && flutter build ipa --release --no-tree-shake-icons --dart-define=ENVIRONMENT=production")
+    # /usr/local/bin/pod 가 시스템 Ruby 잔재로 깨져 있어, 정상 동작하는
+    # rbenv 의 CocoaPods(rbenv shims)를 PATH 앞에 두고 빌드한다.
+    sh("zsh", "-lc", "export PATH=\"$HOME/.rbenv/shims:$PATH\" && cd '#{APP_DIR}' && flutter build ipa --release --no-tree-shake-icons --dart-define=ENVIRONMENT=production")
 
     # IPA 파일 찾기
     ipa_path = Dir[File.join(APP_DIR, "build/ios/ipa/*.ipa")].first
     UI.user_error!("IPA 파일을 찾을 수 없습니다") unless ipa_path
 
     # TestFlight 업로드
+    upload_to_testflight(
+      api_key: api_key,
+      ipa: ipa_path,
+      skip_waiting_for_build_processing: true,
+      uses_non_exempt_encryption: false,
+    )
+
+    UI.success("TestFlight 업로드 완료!")
+  end
+
+  desc "이미 빌드된 IPA 를 TestFlight 에 업로드 (flutter build 없이)"
+  lane :upload do
+    api_key = app_store_connect_api_key(
+      key_id: ENV["ASC_KEY_ID"],
+      issuer_id: ENV["ASC_ISSUER_ID"],
+      key_filepath: ENV["ASC_KEY_PATH"],
+    )
+
+    ipa_path = Dir[File.join(APP_DIR, "build/ios/ipa/*.ipa")].first
+    UI.user_error!("IPA 파일을 찾을 수 없습니다") unless ipa_path
+
     upload_to_testflight(
       api_key: api_key,
       ipa: ipa_path,
