@@ -14,6 +14,7 @@ import 'core/constants/app_colors.dart';
 import 'core/constants/app_constants.dart';
 import 'core/constants/app_text_styles.dart';
 import 'core/error/error_reporter.dart';
+import 'core/push/push_token_service.dart';
 import 'core/router/app_router.dart';
 import 'core/scroll/app_scroll_behavior.dart';
 import 'core/version/version_check_service.dart';
@@ -244,7 +245,9 @@ class _AppBootstrapState extends State<_AppBootstrap> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      // 앱 부트스트랩 — 버전 체크(+위치/플랫폼 전송)와 FCM 토큰 등록.
       VersionCheckService.check(context);
+      unawaited(PushTokenService.instance.init());
     });
   }
 

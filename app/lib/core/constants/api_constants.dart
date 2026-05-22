@@ -51,6 +51,9 @@ class ApiConstants {
   static const String deviceToken = '/notifications/device-token';
   static const String unreadCount = '/notifications/unread-count';
 
+  // App bootstrap / version
+  static const String appVersion = '/app-version';
+
   // Upload
   static const String uploadImage = '/upload/image';
 

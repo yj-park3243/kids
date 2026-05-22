@@ -2,17 +2,24 @@ import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../constants/api_constants.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_text_styles.dart';
+import '../location/location_service.dart';
 import '../network/api_client.dart';
 
 class VersionCheckService {
   VersionCheckService._();
 
   static bool _shown = false;
+
+  /// 서버 부트스트랩 응답 — 가입 시 KCP 본인인증 우회 여부(앱 심사 모드).
+  /// 서버 응답 전/실패 시엔 false (안전하게 인증 진행).
+  static bool bypassPhoneVerification = false;
 
   /// 첫 프레임 이후 호출. 강제/선택 업데이트가 필요하면 다이얼로그/오버레이를 띄움.
   static Future<void> check(BuildContext context) async {
@@ -23,9 +30,17 @@ class VersionCheckService {
       final current = info.version.isEmpty ? '0.0.0' : info.version;
       final platform = Platform.isIOS ? 'IOS' : 'ANDROID';
 
+      // 위치 권한이 이미 허용된 경우에만 좌표를 실어 보낸다 (시작 시 권한 팝업 X).
+      final coords = await _resolveCoords();
+
       final response = await ApiClient.instance.get(
-        '/app-version',
-        queryParameters: {'platform': platform, 'appVersion': current},
+        ApiConstants.appVersion,
+        queryParameters: {
+          'platform': platform,
+          'appVersion': current,
+          if (coords != null) 'lat': coords.$1.toString(),
+          if (coords != null) 'lng': coords.$2.toString(),
+        },
       );
       final data = (response.data is Map && response.data['data'] != null)
           ? response.data['data'] as Map
@@ -36,6 +51,9 @@ class VersionCheckService {
       final forceUpdate = (data['forceUpdate'] as bool?) ?? false;
       final updateMessage = data['updateMessage'] as String?;
       final storeUrl = data['storeUrl'] as String?;
+      // 서버에 필드가 없으면(옛 서버) 안전하게 false — 인증 진행.
+      bypassPhoneVerification =
+          (data['bypassPhoneVerification'] as bool?) ?? false;
 
       if (!context.mounted) return;
 
@@ -53,6 +71,23 @@ class VersionCheckService {
       }
     } catch (_) {
       // 버전 체크 실패 시 앱 동작을 막지 않음
+    }
+  }
+
+  /// 위치 권한이 이미 허용돼 있으면 (위도, 경도) 반환, 아니면 null.
+  /// 시작 시 권한 팝업을 띄우지 않기 위해 권한 요청은 하지 않는다.
+  static Future<(double, double)?> _resolveCoords() async {
+    try {
+      final perm = await Geolocator.checkPermission();
+      if (perm != LocationPermission.always &&
+          perm != LocationPermission.whileInUse) {
+        return null;
+      }
+      final pos = await LocationService.instance.getCurrentPosition();
+      if (pos == null) return null;
+      return (pos.latitude, pos.longitude);
+    } catch (_) {
+      return null;
     }
   }
 

@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AppVersion } from './entities/app-version.entity';
+import { AppVersionCheckLog } from './entities/app-version-check-log.entity';
 
 export interface VersionInfo {
   minVersion: string;
@@ -13,11 +14,24 @@ export interface VersionInfo {
   bypassPhoneVerification: boolean;
 }
 
+export interface VersionCheckLogInput {
+  userId: string | null;
+  platform: string;
+  appVersion: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  ipAddress: string | null;
+}
+
 @Injectable()
 export class VersionService {
+  private readonly logger = new Logger(VersionService.name);
+
   constructor(
     @InjectRepository(AppVersion)
     private readonly appVersionRepository: Repository<AppVersion>,
+    @InjectRepository(AppVersionCheckLog)
+    private readonly versionCheckLogRepository: Repository<AppVersionCheckLog>,
   ) {}
 
   async getVersionInfo(platform: string): Promise<VersionInfo> {
@@ -59,5 +73,26 @@ export class VersionService {
       where: { bypassPhoneVerification: true },
     });
     return count > 0;
+  }
+
+  /**
+   * 앱 부트스트랩(/app-version) 호출 로그 저장. 통계/추적용이라
+   * 실패해도 응답엔 영향 없도록 에러를 삼킨다.
+   */
+  async logVersionCheck(input: VersionCheckLogInput): Promise<void> {
+    try {
+      await this.versionCheckLogRepository.insert({
+        userId: input.userId,
+        platform: input.platform,
+        appVersion: input.appVersion,
+        latitude: input.latitude,
+        longitude: input.longitude,
+        ipAddress: input.ipAddress,
+      });
+    } catch (e) {
+      this.logger.warn(
+        `버전 체크 로그 저장 실패: ${(e as Error).message}`,
+      );
+    }
   }
 }

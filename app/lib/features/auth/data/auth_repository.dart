@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/push/push_token_service.dart';
 import '../../../core/storage/secure_storage.dart';
 import '../../../models/user.dart';
 
@@ -172,6 +175,9 @@ class AuthRepository {
       accessToken: accessToken,
       refreshToken: refreshToken,
     );
+
+    // 로그인 직후 FCM 토큰 등록 — 앱 시작 시점엔 미로그인이라 보류됐을 수 있음.
+    unawaited(PushTokenService.instance.registerCurrentToken());
 
     return AuthResult(
       user: user,
