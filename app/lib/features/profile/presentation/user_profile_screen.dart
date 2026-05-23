@@ -244,7 +244,7 @@ class _Body extends StatelessWidget {
         BabyAvatar(
           size: 42,
           tone: child.gender == 'MALE'
-              ? BabyAvatarTone.blue
+              ? BabyAvatarTone.lilac
               : BabyAvatarTone.primary,
         ),
         const SizedBox(width: 12),

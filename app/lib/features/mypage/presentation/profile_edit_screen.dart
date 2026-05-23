@@ -58,7 +58,19 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // TODO: Call update profile API
+      final repo = ref.read(authRepositoryProvider);
+      // 새로 고른 프로필 사진이 있으면 먼저 업로드 → URL 받아서 PATCH.
+      String? uploadedUrl;
+      if (_profileImagePath != null) {
+        uploadedUrl = await repo.uploadImage(_profileImagePath!);
+      }
+      await repo.updateProfile(
+        nickname: _nicknameController.text.trim(),
+        profileImageUrl: uploadedUrl,
+        introduction: _introController.text.trim(),
+      );
+      // 갱신된 프로필을 로컬 상태에 반영.
+      await ref.read(authProvider.notifier).checkAuth();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -83,7 +95,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
       }
     }
 
-    setState(() => _isLoading = false);
+    if (mounted) setState(() => _isLoading = false);
   }
 
   @override

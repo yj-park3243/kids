@@ -266,7 +266,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 )),
                                 _paddedChip(_filterChip(
                                   label: '내일',
-                                  color: AppColors.accentSky,
+                                  color: AppColors.primary,
                                   selected: homeState.dateFilter ==
                                       DateFilter.tomorrow,
                                   onTap: () => ref
@@ -291,7 +291,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 ),
                                 _paddedChip(_filterChip(
                                   label: '장소 전체',
-                                  color: AppColors.accentLime,
+                                  color: AppColors.placeAll,
                                   selected: homeState.placeTypeFilter == null,
                                   onTap: () => ref
                                       .read(homeProvider.notifier)
@@ -300,7 +300,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 ...AppConstants.placeTypes.entries.map(
                                   (e) => _paddedChip(_filterChip(
                                     label: e.value,
-                                    color: AppColors.accentFor(e.key),
+                                    color: AppColors.placeColorFor(e.key),
                                     selected:
                                         homeState.placeTypeFilter == e.key,
                                     onTap: () => ref
@@ -517,7 +517,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       color: AppColors.primary,
       child: ListView.builder(
         controller: _scrollController,
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 110),
+        padding: const EdgeInsets.fromLTRB(10, 4, 10, 110),
         itemCount: rooms.length + adCount + (homeState.isLoadingMore ? 1 : 0),
         itemBuilder: (context, index) {
           // 더보기 로딩 인디케이터 (맨 끝)

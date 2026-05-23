@@ -32,10 +32,10 @@ class _MapFilterPanelState extends State<MapFilterPanel> {
 
   // 섹션별 칩 색 — 그룹마다 다른 보조 색으로 단조로움을 덜어준다.
   static const Color _ageColor = AppColors.primary;
-  static const Color _dateColor = AppColors.accentSky;
+  static const Color _dateColor = AppColors.accentCoral;
   static const Color _timeColor = AppColors.accentLavender;
-  static const Color _placeColor = AppColors.accentCoral;
-  static const Color _joinColor = AppColors.accentLime;
+  static const Color _placeColor = AppColors.primaryDark;
+  static const Color _joinColor = AppColors.secondaryDark;
 
   MapFilter get _f => widget.filter;
   void _emit(MapFilter f) => widget.onChanged(f);

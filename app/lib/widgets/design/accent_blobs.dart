@@ -2,7 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 
-/// 흰 베이스 + 민트/옐로/스카이/라벤더/코랄 블러 블롭.
+/// 흰 베이스 + 분홍/코랄/라벤더 블러 블롭.
 class AccentBlobsBackground extends StatelessWidget {
   final Widget child;
   final bool strong;
@@ -28,7 +28,7 @@ class AccentBlobsBackground extends StatelessWidget {
         Positioned(
           top: -100,
           right: -120,
-          child: _blob(380, AppColors.accentYellow.withValues(alpha: base + 0.04)),
+          child: _blob(380, AppColors.accentCoral.withValues(alpha: base + 0.04)),
         ),
         Positioned(
           bottom: -180,
@@ -38,7 +38,7 @@ class AccentBlobsBackground extends StatelessWidget {
         Positioned(
           bottom: -120,
           right: -60,
-          child: _blob(320, AppColors.accentSky.withValues(alpha: base - 0.04)),
+          child: _blob(320, AppColors.primaryDark.withValues(alpha: base - 0.04)),
         ),
         child,
       ],

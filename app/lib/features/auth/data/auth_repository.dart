@@ -123,6 +123,21 @@ class AuthRepository {
     return User.fromJson(data);
   }
 
+  /// 내 프로필 수정 — 닉네임/프로필 사진/자기소개.
+  Future<User> updateProfile({
+    String? nickname,
+    String? profileImageUrl,
+    String? introduction,
+  }) async {
+    final response = await _dio.patch(ApiConstants.userMe, data: {
+      if (nickname != null) 'nickname': nickname,
+      if (profileImageUrl != null) 'profileImageUrl': profileImageUrl,
+      if (introduction != null) 'introduction': introduction,
+    });
+    final data = response.data['data'] ?? response.data;
+    return User.fromJson(data);
+  }
+
   // Logout
   Future<void> logout() async {
     try {

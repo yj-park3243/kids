@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-enum BabyAvatarTone { primary, coral, lilac, mint, cream, blue }
+enum BabyAvatarTone { primary, coral, lilac }
 
 /// 아기 얼굴 placeholder: radial gradient + 눈 2개 + 볼터치 + 미소.
 class BabyAvatar extends StatelessWidget {
@@ -18,17 +18,11 @@ class BabyAvatar extends StatelessWidget {
   List<Color> get _bgGradient {
     switch (tone) {
       case BabyAvatarTone.primary:
-        return const [Color(0xFFCDF1ED), Color(0xFF9DD9D0)];
+        return const [Color(0xFFFCDDE5), Color(0xFFF9A8BF)];
       case BabyAvatarTone.coral:
         return const [Color(0xFFFFE0D2), Color(0xFFFFC0AC)];
       case BabyAvatarTone.lilac:
         return const [Color(0xFFEEE5FA), Color(0xFFD5C7F2)];
-      case BabyAvatarTone.mint:
-        return const [Color(0xFFE0F5EB), Color(0xFFB9EAD2)];
-      case BabyAvatarTone.cream:
-        return const [Color(0xFFFFF3D6), Color(0xFFFFEBA8)];
-      case BabyAvatarTone.blue:
-        return const [Color(0xFFD9EAFF), Color(0xFFB1D5FF)];
     }
   }
 

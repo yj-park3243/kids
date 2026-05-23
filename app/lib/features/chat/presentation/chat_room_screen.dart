@@ -474,7 +474,7 @@ class _ChatBubble extends StatelessWidget {
   }
 }
 
-/// 카카오톡 식: 안 읽은 사람 수(노란색)는 위, 전송 시각은 아래.
+/// 카카오톡 식: 안 읽은 사람 수는 위, 전송 시각은 아래.
 class _BubbleMeta extends StatelessWidget {
   final int unreadCount;
   final String? timeLabel;
@@ -493,7 +493,7 @@ class _BubbleMeta extends StatelessWidget {
         Text(
           '$unreadCount',
           style: const TextStyle(
-            color: Color(0xFFFFCC00),
+            color: AppColors.primary,
             fontSize: 11,
             fontWeight: FontWeight.w700,
             height: 1.0,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/constants/app_colors.dart';
 import '../../providers/notice_provider.dart';
 
 /// 홈 화면 앱바 아래에 노출되는 고정 공지 배너.
@@ -23,14 +24,14 @@ class PinnedNoticeBanner extends ConsumerWidget {
             margin: const EdgeInsets.fromLTRB(20, 0, 20, 10),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
             decoration: BoxDecoration(
-              color: const Color(0xFFFFFBEB),
+              color: AppColors.primary50,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFFCD34D)),
+              border: Border.all(color: AppColors.primary300),
             ),
             child: Row(
               children: [
                 const Icon(Icons.campaign_rounded,
-                    size: 20, color: Color(0xFFD97706)),
+                    size: 20, color: AppColors.primary700),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -38,14 +39,14 @@ class PinnedNoticeBanner extends ConsumerWidget {
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF92400E),
+                      color: AppColors.primary700,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 const SizedBox(width: 6),
                 const Icon(Icons.arrow_forward_ios_rounded,
-                    size: 12, color: Color(0xFFD97706)),
+                    size: 12, color: AppColors.primary700),
               ],
             ),
           ),

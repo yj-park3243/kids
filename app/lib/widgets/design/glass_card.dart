@@ -17,6 +17,7 @@ class GlassCard extends StatelessWidget {
   final double? height;
   final Color? accentColor;
   final double accentWidth;
+  final double borderWidth;
 
   const GlassCard({
     super.key,
@@ -30,6 +31,7 @@ class GlassCard extends StatelessWidget {
     this.height,
     this.accentColor,
     this.accentWidth = 3,
+    this.borderWidth = 1,
   });
 
   @override
@@ -39,7 +41,7 @@ class GlassCard extends StatelessWidget {
     final decoration = BoxDecoration(
       borderRadius: borderRadius,
       color: AppColors.surface,
-      border: Border.all(color: AppColors.divider, width: 1),
+      border: Border.all(color: AppColors.divider, width: borderWidth),
       boxShadow: AppShadows.glass,
     );
 

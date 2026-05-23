@@ -37,16 +37,16 @@ class NoticeDetailScreen extends ConsumerWidget {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFFBEB),
+                    color: AppColors.primary50,
                     borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: const Color(0xFFFCD34D)),
+                    border: Border.all(color: AppColors.primary300),
                   ),
                   child: const Text(
                     '중요 공지',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF92400E),
+                      color: AppColors.primary700,
                     ),
                   ),
                 ),

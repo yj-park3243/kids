@@ -68,17 +68,6 @@ class LoginScreen extends ConsumerWidget {
                 ),
                 const Spacer(flex: 3),
                 SocialLoginButton(
-                  text: '카카오로 시작하기',
-                  backgroundColor: AppColors.kakao,
-                  textColor: AppColors.kakaoText,
-                  iconWidget: const Text(
-                    'K',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-                  ),
-                  onPressed: () => _showComingSoon(context, '카카오 로그인'),
-                ),
-                const SizedBox(height: 10),
-                SocialLoginButton(
                   text: 'Apple로 시작하기',
                   backgroundColor: AppColors.apple,
                   textColor: Colors.white,
@@ -135,17 +124,6 @@ class LoginScreen extends ConsumerWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  void _showComingSoon(BuildContext context, String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$feature 기능은 준비 중입니다'),
-        backgroundColor: AppColors.primary700,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
   }

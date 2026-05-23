@@ -43,10 +43,11 @@ class RoomCard extends ConsumerWidget {
       ));
     }
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 3),
       child: GlassCard(
         onTap: onTap,
         radius: 22,
+        borderWidth: 2,
         padding: const EdgeInsets.all(14),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -99,7 +100,7 @@ class RoomCard extends ConsumerWidget {
                       const SizedBox(width: 6),
                       DesignChip(
                         label: AppConstants.placeTypes[room.placeType] ?? '기타',
-                        tone: ChipTone.mint,
+                        tone: ChipTone.lilac,
                         height: 22,
                       ),
                       const Spacer(),
@@ -186,10 +187,10 @@ class RoomCard extends ConsumerWidget {
   }
 
   List<Color> _ageColors(int age) {
-    if (age < 6) return const [Color(0xFFFFE2A6), AppColors.accentYellow];
-    if (age < 12) return const [Color(0xFF9DD9D0), AppColors.primary];
+    if (age < 6) return const [Color(0xFFFAD2DD), AppColors.primary];
+    if (age < 12) return const [Color(0xFFF7A8BF), AppColors.primaryDark];
     if (age < 24) return const [Color(0xFFD5C7F2), AppColors.accentLavender];
-    if (age < 36) return const [Color(0xFFD8EFB8), AppColors.accentLime];
+    if (age < 36) return const [Color(0xFFC9B2EC), AppColors.secondaryDark];
     return const [Color(0xFFFFC0AC), AppColors.accentCoral];
   }
 
@@ -210,12 +211,12 @@ class _TagChip extends StatelessWidget {
 
   // 태그 문자열 → 안정적인 (배경, 글자) 색 쌍.
   static const List<({Color bg, Color fg})> _palette = [
-    (bg: Color(0xFFFFF1D6), fg: Color(0xFF9A6B12)), // yellow
-    (bg: Color(0xFFDDF0FF), fg: Color(0xFF1F6FB2)), // sky
+    (bg: Color(0xFFFCE0E8), fg: Color(0xFFB23A60)), // pink
     (bg: Color(0xFFEDE3FB), fg: Color(0xFF5A3F99)), // lavender
     (bg: Color(0xFFFFE3DA), fg: Color(0xFFC0573E)), // coral
-    (bg: Color(0xFFE6F4D4), fg: Color(0xFF55812A)), // lime
-    (bg: Color(0xFFD7F1EA), fg: Color(0xFF1F6B4A)), // mint
+    (bg: Color(0xFFF8D2DD), fg: Color(0xFF9A2F52)), // deep pink
+    (bg: Color(0xFFE6DAF9), fg: Color(0xFF6B3FA0)), // purple
+    (bg: Color(0xFFFFD9CC), fg: Color(0xFFB5462E)), // deep coral
   ];
 
   ({Color bg, Color fg}) _colorFor(String key) {
@@ -268,7 +269,7 @@ class _CardActions extends StatelessWidget {
           _ActionIcon(
             icon: Icons.chat_bubble_rounded,
             tooltip: '채팅',
-            color: AppColors.accentSky,
+            color: AppColors.secondary,
             onTap: onOpenChat!,
           ),
       ],

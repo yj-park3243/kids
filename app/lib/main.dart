@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui';
+import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -75,6 +77,18 @@ void main() async {
         clientId: AppConstants.naverMapClientId,
         onAuthFailed: (ex) => debugPrint('NaverMap auth failed: $ex'),
       );
+
+      // iOS App Tracking Transparency — IDFA 사용 광고 SDK 정책상
+      // notDetermined 상태일 때 권한을 요청한다. 응답 무관하게 진행.
+      if (Platform.isIOS) {
+        try {
+          final status =
+              await AppTrackingTransparency.trackingAuthorizationStatus;
+          if (status == TrackingStatus.notDetermined) {
+            await AppTrackingTransparency.requestTrackingAuthorization();
+          }
+        } catch (_) {}
+      }
 
       // AdMob — 광고 SDK는 백그라운드로 초기화 (UI 부트를 막지 않도록).
       unawaited(MobileAds.instance.initialize());

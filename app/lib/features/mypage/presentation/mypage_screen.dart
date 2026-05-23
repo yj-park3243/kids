@@ -179,7 +179,7 @@ class MyPageScreen extends ConsumerWidget {
                                       BabyAvatar(
                                         size: 40,
                                         tone: child.gender == 'MALE'
-                                            ? BabyAvatarTone.blue
+                                            ? BabyAvatarTone.lilac
                                             : BabyAvatarTone.primary,
                                         imageUrl: child.photoUrl,
                                       ),

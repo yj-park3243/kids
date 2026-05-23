@@ -36,23 +36,23 @@ class GrowthGradeInfo {
   static GrowthGradeInfo fromScore(double score) {
     final s = score < 0 ? 0.0 : score;
     if (s < 10) {
-      // 강등 단계 — 시들한 회갈색 톤으로 경고 의미 표시.
+      // 강등 단계 — 흐린 회분홍 톤으로 경고 의미 표시.
       return GrowthGradeInfo(
         stage: GrowthStage.seedling,
         label: '새싹',
         emoji: '🌱',
-        color: const Color(0xFFB89B85),
+        color: const Color(0xFFC9A9B0),
         progressToNext: s / 10,
         nextThreshold: 10,
       );
     }
     if (s < 30) {
-      // 시작 단계 — 가장 밝은 연두로 "막 자라기 시작" 느낌.
+      // 시작 단계 — 가장 밝은 분홍으로 "막 자라기 시작" 느낌.
       return GrowthGradeInfo(
         stage: GrowthStage.sprout,
         label: '떡잎',
         emoji: '🪴',
-        color: AppColors.accentLime,
+        color: AppColors.primary200,
         progressToNext: (s - 10) / 20,
         nextThreshold: 30,
       );
@@ -62,7 +62,7 @@ class GrowthGradeInfo {
         stage: GrowthStage.sapling,
         label: '어린나무',
         emoji: '🌿',
-        color: const Color(0xFF7BC47F),
+        color: AppColors.primary,
         progressToNext: (s - 30) / 30,
         nextThreshold: 60,
       );
@@ -72,7 +72,7 @@ class GrowthGradeInfo {
         stage: GrowthStage.tree,
         label: '큰나무',
         emoji: '🌳',
-        color: const Color(0xFF2E7D5C),
+        color: AppColors.primaryDark,
         progressToNext: (s - 60) / 40,
         nextThreshold: 100,
       );
@@ -81,7 +81,7 @@ class GrowthGradeInfo {
       stage: GrowthStage.forest,
       label: '숲',
       emoji: '🌲',
-      color: const Color(0xFF1F5C46),
+      color: AppColors.primary700,
       progressToNext: 1.0,
       nextThreshold: 100,
     );

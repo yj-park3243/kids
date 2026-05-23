@@ -170,7 +170,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFFFFD66B), Color(0xFFFFAD3F)],
+                    colors: [Color(0xFFFFC0AC), AppColors.accentCoral],
                   ),
                   borderRadius: BorderRadius.circular(12),
                 ),

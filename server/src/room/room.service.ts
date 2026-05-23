@@ -541,6 +541,8 @@ export class RoomService {
 
     if (query.type === 'HOSTING') {
       qb.andWhere('room.hostId = :userId', { userId });
+    } else if (query.type === 'JOINED') {
+      qb.andWhere('room.hostId != :userId', { userId });
     }
 
     if (query.status === 'UPCOMING') {

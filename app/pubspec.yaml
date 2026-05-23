@@ -1,7 +1,7 @@
 name: app
 description: "같이크자 - 우리 아이 또래 친구를 동네에서 쉽게 만나는 육아 모임 플랫폼"
 publish_to: 'none'
-version: 1.0.0+38
+version: 1.0.0+39
 
 environment:
   sdk: ^3.9.2
@@ -72,6 +72,9 @@ dependencies:
   socket_io_client: ^3.1.4
   google_mobile_ads: ^7.0.0
 
+  # iOS App Tracking Transparency — IDFA 사용 광고 SDK 정책 준수.
+  app_tracking_transparency: ^2.0.6+1
+
   # 모임 상세 우상단 메뉴 (iOS 스타일 풀다운)
   pull_down_button: ^0.10.2
 
@@ -89,6 +92,7 @@ dev_dependencies:
   custom_lint:
   riverpod_lint:
   flutter_launcher_icons: ^0.14.1
+  flutter_native_splash: ^2.4.0
 
 flutter:
   uses-material-design: true
@@ -111,3 +115,13 @@ flutter_launcher_icons:
     generate: false
   macos:
     generate: false
+
+flutter_native_splash:
+  color: "#FEF9F2"
+  image: "assets/icon/icon_foreground.png"
+  color_dark: "#FEF9F2"
+  android: true
+  ios: true
+  android_12:
+    color: "#FEF9F2"
+    image: "assets/icon/icon_foreground.png"

@@ -402,7 +402,7 @@ class _ClusterMarker extends StatelessWidget {
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Color(0xFF7FDDD0), AppColors.primary],
+              colors: [Color(0xFFF9A8BF), AppColors.primary],
             ),
             border: Border.all(color: Colors.white, width: 2.5),
             boxShadow: [

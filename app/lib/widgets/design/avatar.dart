@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 
-enum AvatarTone { primary, coral, lilac, mint, cream }
+enum AvatarTone { primary, coral, lilac }
 
 /// 이니셜/이모지 아바타. 그라디언트 원 + 선택적 primary ring.
 class InitialAvatar extends StatelessWidget {
@@ -24,15 +24,11 @@ class InitialAvatar extends StatelessWidget {
   List<Color> get _gradient {
     switch (tone) {
       case AvatarTone.primary:
-        return const [Color(0xFF9DD9D0), AppColors.primary];
+        return const [Color(0xFFF9A8BF), AppColors.primary];
       case AvatarTone.coral:
         return const [Color(0xFFFFC0AC), AppColors.accentCoral];
       case AvatarTone.lilac:
         return const [Color(0xFFD5C7F2), AppColors.accentLavender];
-      case AvatarTone.mint:
-        return const [Color(0xFFB9EAD2), Color(0xFF7DCFA4)];
-      case AvatarTone.cream:
-        return const [Color(0xFFFFEBC2), AppColors.accentYellow];
     }
   }
 

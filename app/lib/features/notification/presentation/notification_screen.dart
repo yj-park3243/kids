@@ -87,12 +87,12 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
   Color _getNotificationIconColor(String type) {
     switch (type) {
       case 'JOIN_ACCEPTED':
-        return AppColors.success;
+        return AppColors.primary;
       case 'JOIN_REJECTED':
       case 'ROOM_CANCELLED':
         return AppColors.error;
       case 'ROOM_REMINDER':
-        return AppColors.warning;
+        return AppColors.accentCoral;
       case 'NEW_CHAT':
         return AppColors.secondary;
       default:

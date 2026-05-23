@@ -4,18 +4,18 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  // ===== Primary (민트) =====
-  static const Color primary = Color(0xFF4FD1C5);
-  static const Color primaryLight = Color(0xFF99E7E0);
-  static const Color primaryDark = Color(0xFF2BB3A6);
+  // ===== Primary (핑크) =====
+  static const Color primary = Color(0xFFF26E96);
+  static const Color primaryLight = Color(0xFFF9A8BF);
+  static const Color primaryDark = Color(0xFFD14B73);
 
   // Primary tonal scale (light → deep)
-  static const Color primary50 = Color(0xFFE6FAF8);
-  static const Color primary100 = Color(0xFFB9F0E9);
-  static const Color primary200 = Color(0xFF8FE5DA);
-  static const Color primary300 = Color(0xFF6BDACB);
-  static const Color primary400 = Color(0xFF55CDC0);
-  static const Color primary700 = Color(0xFF1F8A7E);
+  static const Color primary50 = Color(0xFFFDEDF1);
+  static const Color primary100 = Color(0xFFFAD2DD);
+  static const Color primary200 = Color(0xFFF5AFC2);
+  static const Color primary300 = Color(0xFFF08FA8);
+  static const Color primary400 = Color(0xFFEE7B98);
+  static const Color primary700 = Color(0xFFA63A5C);
 
   // ===== Accent palette (알록달록 보조) =====
   static const Color accentYellow = Color(0xFFFFD96B);
@@ -81,14 +81,13 @@ class AppColors {
   static const Color coral = accentCoral;
   static const Color cream = backgroundSoft;
   static const Color lilac = Color(0xFFE6DAF9);
-  static const Color mint = primaryLight;
   static const Color accentLight = accentLightAlias;
 
   // ===== Gradients =====
   static const LinearGradient primaryGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [Color(0xFF6BDACB), primary],
+    colors: [Color(0xFFF08FA8), primary],
   );
   static const LinearGradient primaryTextGradient = LinearGradient(
     colors: [primary, primary400],
@@ -102,11 +101,8 @@ class AppColors {
   // ===== Accent helpers (카테고리/카드별 좌측 보더용 순환) =====
   static const List<Color> accentRotation = [
     primary,
-    accentYellow,
-    accentSky,
     accentLavender,
     accentCoral,
-    accentLime,
   ];
 
   /// 문자열 키 → 액센트 색 (안정적 매핑)
@@ -115,4 +111,18 @@ class AppColors {
     final hash = key.codeUnits.fold<int>(0, (a, b) => (a + b) & 0xffff);
     return accentRotation[hash % accentRotation.length];
   }
+
+  // ===== 장소 타입별 고정 색 (필터 칩 등 — 서로 뚜렷이 구분) =====
+  static const Color placeAll = Color(0xFF455A64); // 장소 전체 - 청회색
+  static const Map<String, Color> placeTypeColor = {
+    'PLAYGROUND': Color(0xFFE0654A), // 놀이터 - 코랄
+    'KIDS_CAFE': Color(0xFFD81B60), // 키즈카페 - 핑크
+    'PARTY_ROOM': Color(0xFF8E24AA), // 파티룸 - 보라
+    'PARK': Color(0xFFAD3A6E), // 공원 - 플럼
+    'OTHER': Color(0xFF6D4C41), // 기타 - 갈색
+  };
+
+  /// 장소 타입 키 → 색 (미정의 키는 primary 폴백)
+  static Color placeColorFor(String key) =>
+      placeTypeColor[key] ?? primary;
 }

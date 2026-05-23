@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 
-enum ChipTone { primarySolid, primaryGhost, mint, lilac, cream, ink, outline }
+enum ChipTone { primarySolid, primaryGhost, lilac, cream, ink, outline }
 
 class DesignChip extends StatelessWidget {
   final String label;
@@ -32,8 +32,6 @@ class DesignChip extends StatelessWidget {
           fg: AppColors.primary700,
           border: AppColors.primary.withValues(alpha: 0.35),
         );
-      case ChipTone.mint:
-        return (bg: AppColors.mint.withValues(alpha: 0.7), fg: const Color(0xFF1F6B4A), border: null);
       case ChipTone.lilac:
         return (bg: AppColors.lilac.withValues(alpha: 0.7), fg: const Color(0xFF5A3F99), border: null);
       case ChipTone.cream:

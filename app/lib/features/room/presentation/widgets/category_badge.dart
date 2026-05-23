@@ -32,7 +32,7 @@ class CategoryBadge extends StatelessWidget {
       return AppColors.primary100;
     }
     if (genderFilter == 'DAD_ONLY') {
-      return AppColors.mint.withValues(alpha: 0.6);
+      return AppColors.accentCoral.withValues(alpha: 0.18);
     }
     return AppColors.surfaceVariant;
   }
@@ -40,7 +40,7 @@ class CategoryBadge extends StatelessWidget {
   Color get _fgColor {
     if (singleParentOnly) return AppColors.secondaryDark;
     if (genderFilter == 'MOM_ONLY') return AppColors.primary700;
-    if (genderFilter == 'DAD_ONLY') return AppColors.success;
+    if (genderFilter == 'DAD_ONLY') return AppColors.accentDark;
     return AppColors.textSecondary;
   }
 
