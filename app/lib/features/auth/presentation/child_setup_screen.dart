@@ -10,6 +10,7 @@ import '../../../core/utils/date_utils.dart';
 import '../../../widgets/app_bar.dart';
 import '../../../widgets/common_button.dart';
 import '../../../widgets/common_input.dart';
+import '../../../widgets/design/avatar.dart';
 import '../providers/auth_provider.dart';
 
 class ChildSetupScreen extends ConsumerStatefulWidget {
@@ -152,23 +153,49 @@ class _ChildSetupScreenState extends ConsumerState<ChildSetupScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('아이 정보를 알려주세요', style: AppTextStyles.heading2),
-                    const SizedBox(height: 8),
-                    Text(
-                      '또래 친구를 찾기 위해 필요해요',
-                      style: AppTextStyles.body2.copyWith(color: AppColors.textSecondary),
-                    ),
-                    const SizedBox(height: 24),
+                    if (widget.popOnDone) ...[
+                      // 이미 등록된 아이들 — 컨텍스트로만 표시 (read-only).
+                      Builder(builder: (_) {
+                        final existing =
+                            ref.watch(authProvider).user?.children ?? [];
+                        if (existing.isEmpty) return const SizedBox.shrink();
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('이미 등록된 아이', style: AppTextStyles.heading2),
+                            const SizedBox(height: 8),
+                            Text(
+                              '아래에 추가할 아이 정보를 입력해 주세요',
+                              style: AppTextStyles.body2.copyWith(
+                                  color: AppColors.textSecondary),
+                            ),
+                            const SizedBox(height: 16),
+                            ...existing.map((c) => _ExistingChildTile(child: c)),
+                            const SizedBox(height: 24),
+                            Text('추가할 아이', style: AppTextStyles.heading2),
+                            const SizedBox(height: 16),
+                          ],
+                        );
+                      }),
+                    ] else ...[
+                      Text('아이 정보를 알려주세요', style: AppTextStyles.heading2),
+                      const SizedBox(height: 8),
+                      Text(
+                        '또래 친구를 찾기 위해 필요해요',
+                        style: AppTextStyles.body2.copyWith(color: AppColors.textSecondary),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
 
                     ..._children.asMap().entries.map((entry) {
                       final index = entry.key;
                       final child = entry.value;
                       return _ChildCard(
+                        key: ValueKey(child),
                         index: index,
                         data: child,
                         canRemove: _children.length > 1,
                         onRemove: () => _removeChild(index),
-                        onChanged: () => setState(() {}),
                       );
                     }),
 
@@ -233,21 +260,25 @@ class _ChildData {
   String? photoPath; // 출생증명서/최근 사진 — 로컬 경로
 }
 
-class _ChildCard extends StatelessWidget {
+class _ChildCard extends StatefulWidget {
   final int index;
   final _ChildData data;
   final bool canRemove;
   final VoidCallback onRemove;
-  final VoidCallback onChanged;
 
   const _ChildCard({
+    super.key,
     required this.index,
     required this.data,
     required this.canRemove,
     required this.onRemove,
-    required this.onChanged,
   });
 
+  @override
+  State<_ChildCard> createState() => _ChildCardState();
+}
+
+class _ChildCardState extends State<_ChildCard> {
   Future<void> _pickPhoto() async {
     final img = await ImagePicker().pickImage(
       source: ImageSource.gallery,
@@ -255,13 +286,19 @@ class _ChildCard extends StatelessWidget {
       imageQuality: 85,
     );
     if (img != null) {
-      data.photoPath = img.path;
-      onChanged();
+      // 사진만 카드 내부 setState — TextField 포커스 유지.
+      setState(() => widget.data.photoPath = img.path);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final data = widget.data;
+    final index = widget.index;
+    final canRemove = widget.canRemove;
+    final onRemove = widget.onRemove;
+    void onChanged() => setState(() {});
+
     final currentYear = DateTime.now().year;
     final ageMonths = data.birthYear != null && data.birthMonth != null
         ? AppDateUtils.calculateAgeMonths(data.birthYear!, data.birthMonth!)
@@ -466,6 +503,46 @@ class _ChildCard extends StatelessWidget {
                 },
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 이미 등록된 아이를 read-only로 보여주는 작은 타일 — popOnDone 모드 컨텍스트용.
+class _ExistingChildTile extends StatelessWidget {
+  final dynamic child; // models/user.dart의 Child — import 순환 피하려 동적 처리.
+  const _ExistingChildTile({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final age = (child.ageMonths as int?) ??
+        AppDateUtils.calculateAgeMonths(
+            child.birthYear as int, child.birthMonth as int);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          InitialAvatar(
+            label: (child.nickname as String).isNotEmpty
+                ? (child.nickname as String).substring(0, 1)
+                : '아',
+            size: 36,
+            tone: child.gender == 'MALE' ? AvatarTone.lilac : AvatarTone.primary,
+            imageUrl: child.photoUrl as String?,
+          ),
+          const SizedBox(width: 12),
+          Text(child.nickname as String, style: AppTextStyles.body1Bold),
+          const SizedBox(width: 8),
+          Text(
+            AppDateUtils.formatAgeMonths(age),
+            style: AppTextStyles.caption.copyWith(color: AppColors.primary700),
           ),
         ],
       ),

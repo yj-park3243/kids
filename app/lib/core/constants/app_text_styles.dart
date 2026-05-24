@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
-/// Pretendard 계열 한글 타이포. Pretendard 폰트 미등록 환경이라
-/// google_fonts의 Noto Sans KR로 대체 렌더링하되, 자간/두께는 Pretendard 스펙을 따른다.
+/// 같이크자 한글 타이포 — Gowun Dodum (고운돋움): 둥글둥글 친근한 산세리프.
+/// 단일 weight(400) 폰트이므로 fontWeight 값은 의미 위계 표시용 (실제 렌더링은 동일).
 class AppTextStyles {
   AppTextStyles._();
 
@@ -14,7 +14,7 @@ class AppTextStyles {
     double? height,
     double letterSpacing = -0.3,
   }) {
-    return GoogleFonts.notoSansKr(
+    return GoogleFonts.gowunDodum(
       fontSize: fontSize,
       fontWeight: fontWeight,
       color: color,
