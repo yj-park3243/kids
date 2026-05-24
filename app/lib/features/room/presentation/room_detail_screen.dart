@@ -84,10 +84,10 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
     final isParticipant = isHost || isAccepted;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
       appBar: CustomAppBar(
         title: room.title,
-        backgroundColor: AppColors.background,
         actions: [
           IconButton(
             icon:

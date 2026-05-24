@@ -1,3 +1,7 @@
+import 'dart:convert' show jsonDecode;
+
+dynamic _jsonDecode(String s) => jsonDecode(s);
+
 class ChatRoom {
   final String id;
   final String roomId;
@@ -34,7 +38,7 @@ class ChatMessage {
   final String senderId;
   final String senderNickname;
   final String content;
-  final String type; // TEXT, SYSTEM, IMAGE
+  final String type; // TEXT, SYSTEM, IMAGE, LOCATION
   final DateTime createdAt;
   final int unreadCount;
 
@@ -50,6 +54,30 @@ class ChatMessage {
 
   bool get isSystem => type == 'SYSTEM';
   bool get isImage => type == 'IMAGE';
+  bool get isLocation => type == 'LOCATION';
+
+  /// LOCATION 메시지의 좌표/라벨 파싱. content 는 `{"lat":..,"lng":..,"label":""}`.
+  ({double lat, double lng, String label})? get location {
+    if (!isLocation) return null;
+    try {
+      final m = _tryParseJson(content);
+      if (m == null) return null;
+      final lat = (m['lat'] as num?)?.toDouble();
+      final lng = (m['lng'] as num?)?.toDouble();
+      if (lat == null || lng == null) return null;
+      return (lat: lat, lng: lng, label: (m['label'] as String?) ?? '');
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Map<String, dynamic>? _tryParseJson(String s) {
+    try {
+      return _jsonDecode(s) as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
+  }
 
   ChatMessage copyWith({int? unreadCount}) {
     return ChatMessage(

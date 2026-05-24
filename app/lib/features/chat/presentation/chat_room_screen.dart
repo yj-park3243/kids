@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
@@ -9,6 +12,7 @@ import '../../../models/chat_message.dart';
 import '../../../widgets/app_bar.dart';
 import '../../../widgets/design/avatar.dart';
 import '../../../widgets/design/accent_blobs.dart';
+import '../../../widgets/location_picker_sheet.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../data/chat_repository.dart';
 import '../providers/chat_provider.dart';
@@ -93,6 +97,124 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen>
     }
   }
 
+  Future<void> _sendLocation(
+      {required double lat, required double lng, String label = ''}) async {
+    try {
+      await ref.read(chatRepositoryProvider).sendMessage(
+            widget.chatRoomId,
+            content: jsonEncode({'lat': lat, 'lng': lng, 'label': label}),
+            type: 'LOCATION',
+          );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('위치 전송 실패: $e')),
+      );
+    }
+  }
+
+  /// 입력바 + 버튼 → 위치 시트. 내 현재 위치 / 지도에서 선택.
+  Future<void> _showLocationSheet() async {
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.my_location_rounded,
+                  color: AppColors.primary),
+              title: Text('내 위치 전송', style: AppTextStyles.body1Bold),
+              subtitle: Text('현재 있는 곳을 즉시 공유',
+                  style: AppTextStyles.caption
+                      .copyWith(color: AppColors.ink500)),
+              onTap: () => Navigator.pop(context, 'CURRENT'),
+            ),
+            const Divider(height: 1, color: AppColors.divider),
+            ListTile(
+              leading:
+                  const Icon(Icons.map_rounded, color: AppColors.primary),
+              title: Text('지도에서 선택', style: AppTextStyles.body1Bold),
+              subtitle: Text('원하는 위치를 핀으로 정확히 지정',
+                  style: AppTextStyles.caption
+                      .copyWith(color: AppColors.ink500)),
+              onTap: () => Navigator.pop(context, 'MAP'),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || choice == null) return;
+
+    if (choice == 'CURRENT') {
+      await _sendCurrentLocation();
+    } else if (choice == 'MAP') {
+      // 지도 시작 좌표 — 현재 위치(가능하면) → 서울시청 폴백.
+      double initLat = 37.5665;
+      double initLng = 126.978;
+      try {
+        final perm = await Geolocator.checkPermission();
+        if (perm == LocationPermission.always ||
+            perm == LocationPermission.whileInUse) {
+          final pos = await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.medium,
+              timeLimit: Duration(seconds: 3),
+            ),
+          );
+          initLat = pos.latitude;
+          initLng = pos.longitude;
+        }
+      } catch (_) {/* 권한 거부 또는 타임아웃 — 폴백 좌표 사용 */}
+      if (!mounted) return;
+      final picked = await showLocationPickerSheet(
+        context,
+        initialLat: initLat,
+        initialLng: initLng,
+        title: '위치 선택',
+      );
+      if (picked != null) {
+        await _sendLocation(
+            lat: picked.lat, lng: picked.lng, label: picked.label);
+      }
+    }
+  }
+
+  Future<void> _sendCurrentLocation() async {
+    try {
+      var perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('위치 권한이 필요합니다.')),
+        );
+        return;
+      }
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 5),
+        ),
+      );
+      await _sendLocation(
+          lat: pos.latitude, lng: pos.longitude, label: '내 위치');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('현재 위치를 가져올 수 없어요: $e')),
+      );
+    }
+  }
+
   /// 가장 최근 메시지 시점까지 읽음 처리. 화면을 보고 있는 동안 새 메시지가
   /// 들어오면 즉시 카운트가 -1 되도록.
   void _markReadIfAny() {
@@ -173,6 +295,7 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen>
               _InputBar(
                 controller: _messageController,
                 onSend: _sendMessage,
+                onAddLocation: _showLocationSheet,
               ),
             ],
           ),
@@ -270,8 +393,13 @@ class _DateHeader extends StatelessWidget {
 class _InputBar extends StatelessWidget {
   final TextEditingController controller;
   final VoidCallback onSend;
+  final VoidCallback onAddLocation;
 
-  const _InputBar({required this.controller, required this.onSend});
+  const _InputBar({
+    required this.controller,
+    required this.onSend,
+    required this.onAddLocation,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -298,6 +426,21 @@ class _InputBar extends StatelessWidget {
             ),
             child: Row(
               children: [
+                GestureDetector(
+                  key: const Key('btn-chat-add-location'),
+                  onTap: onAddLocation,
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    margin: const EdgeInsets.only(right: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.add_location_alt_outlined,
+                        color: AppColors.primary700, size: 20),
+                  ),
+                ),
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -420,47 +563,54 @@ class _ChatBubble extends StatelessWidget {
                   children: [
                     if (isMine) ...[meta, const SizedBox(width: 6)],
                     Flexible(
-                      child: Container(
-                        constraints: BoxConstraints(
-                          maxWidth:
-                              MediaQuery.of(context).size.width * 0.65,
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 10),
-                        decoration: BoxDecoration(
-                          gradient: isMine ? AppColors.primaryGradient : null,
-                          color: isMine
-                              ? null
-                              : Colors.white.withValues(alpha: 0.85),
-                          borderRadius: BorderRadius.only(
-                            topLeft: const Radius.circular(20),
-                            topRight: const Radius.circular(20),
-                            bottomLeft: Radius.circular(isMine ? 20 : 6),
-                            bottomRight: Radius.circular(isMine ? 6 : 20),
-                          ),
-                          border: isMine
-                              ? null
-                              : Border.all(
-                                  color: AppColors.primary100
-                                      .withValues(alpha: 0.8),
-                                  width: 0.5,
+                      child: message.isLocation
+                          ? _LocationBubble(
+                              message: message,
+                              isMine: isMine,
+                            )
+                          : Container(
+                              constraints: BoxConstraints(
+                                maxWidth:
+                                    MediaQuery.of(context).size.width * 0.65,
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 10),
+                              decoration: BoxDecoration(
+                                gradient:
+                                    isMine ? AppColors.primaryGradient : null,
+                                color: isMine
+                                    ? null
+                                    : Colors.white.withValues(alpha: 0.85),
+                                borderRadius: BorderRadius.only(
+                                  topLeft: const Radius.circular(20),
+                                  topRight: const Radius.circular(20),
+                                  bottomLeft: Radius.circular(isMine ? 20 : 6),
+                                  bottomRight: Radius.circular(isMine ? 6 : 20),
                                 ),
-                          boxShadow: [
-                            BoxShadow(
-                              color:
-                                  AppColors.primary.withValues(alpha: 0.08),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
+                                border: isMine
+                                    ? null
+                                    : Border.all(
+                                        color: AppColors.primary100
+                                            .withValues(alpha: 0.8),
+                                        width: 0.5,
+                                      ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.primary
+                                        .withValues(alpha: 0.08),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Text(
+                                message.content,
+                                style: AppTextStyles.body1.copyWith(
+                                  color:
+                                      isMine ? Colors.white : AppColors.ink900,
+                                ),
+                              ),
                             ),
-                          ],
-                        ),
-                        child: Text(
-                          message.content,
-                          style: AppTextStyles.body1.copyWith(
-                            color: isMine ? Colors.white : AppColors.ink900,
-                          ),
-                        ),
-                      ),
                     ),
                     if (!isMine) ...[const SizedBox(width: 6), meta],
                   ],
@@ -522,6 +672,150 @@ class _BubbleMeta extends StatelessWidget {
             alignRight ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: children,
+      ),
+    );
+  }
+}
+
+/// LOCATION 메시지 — 미니 지도 카드. 탭하면 풀스크린 지도.
+class _LocationBubble extends StatelessWidget {
+  final ChatMessage message;
+  final bool isMine;
+  const _LocationBubble({required this.message, required this.isMine});
+
+  @override
+  Widget build(BuildContext context) {
+    final loc = message.location;
+    if (loc == null) {
+      // 잘못된 payload — 텍스트로 fallback.
+      return Text('[위치]',
+          style: AppTextStyles.body2
+              .copyWith(color: isMine ? Colors.white : AppColors.ink700));
+    }
+    return GestureDetector(
+      onTap: () => Navigator.of(context, rootNavigator: true).push(
+        MaterialPageRoute(
+          builder: (_) => _LocationFullscreen(
+            lat: loc.lat,
+            lng: loc.lng,
+            label: loc.label,
+          ),
+        ),
+      ),
+      child: Container(
+        width: MediaQuery.of(context).size.width * 0.6,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(20),
+            topRight: const Radius.circular(20),
+            bottomLeft: Radius.circular(isMine ? 20 : 6),
+            bottomRight: Radius.circular(isMine ? 6 : 20),
+          ),
+          border: Border.all(
+              color: AppColors.primary100.withValues(alpha: 0.8), width: 0.5),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.08),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(20),
+            topRight: const Radius.circular(20),
+            bottomLeft: Radius.circular(isMine ? 20 : 6),
+            bottomRight: Radius.circular(isMine ? 6 : 20),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                height: 140,
+                child: AbsorbPointer(
+                  child: NaverMap(
+                    options: NaverMapViewOptions(
+                      initialCameraPosition: NCameraPosition(
+                        target: NLatLng(loc.lat, loc.lng),
+                        zoom: 15,
+                      ),
+                      scrollGesturesEnable: false,
+                      zoomGesturesEnable: false,
+                      tiltGesturesEnable: false,
+                      rotationGesturesEnable: false,
+                      logoClickEnable: false,
+                    ),
+                    onMapReady: (controller) {
+                      controller.addOverlay(
+                        NMarker(
+                            id: 'msg_${message.id}',
+                            position: NLatLng(loc.lat, loc.lng)),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                child: Row(
+                  children: [
+                    const Icon(Icons.place_rounded,
+                        size: 16, color: AppColors.primary),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        loc.label.isNotEmpty
+                            ? loc.label
+                            : '${loc.lat.toStringAsFixed(5)}, ${loc.lng.toStringAsFixed(5)}',
+                        style: AppTextStyles.body2Bold,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LocationFullscreen extends StatelessWidget {
+  const _LocationFullscreen(
+      {required this.lat, required this.lng, required this.label});
+  final double lat;
+  final double lng;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: Text(label.isNotEmpty ? label : '위치',
+            style: AppTextStyles.sectionHead),
+        leading: IconButton(
+          icon: const Icon(Icons.close_rounded, color: AppColors.ink900),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
+      body: NaverMap(
+        options: NaverMapViewOptions(
+          initialCameraPosition:
+              NCameraPosition(target: NLatLng(lat, lng), zoom: 16),
+        ),
+        onMapReady: (controller) {
+          controller.addOverlay(
+            NMarker(id: 'fs', position: NLatLng(lat, lng)),
+          );
+        },
       ),
     );
   }

@@ -10,7 +10,7 @@ import {
 import { Room } from '../../room/entities/room.entity';
 import { User } from '../../user/entities/user.entity';
 
-export type ChatMessageType = 'TEXT' | 'SYSTEM' | 'IMAGE';
+export type ChatMessageType = 'TEXT' | 'SYSTEM' | 'IMAGE' | 'LOCATION';
 
 @Entity('chat_message')
 @Index(['roomId', 'createdAt'])

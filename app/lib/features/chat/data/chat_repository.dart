@@ -68,10 +68,14 @@ class ChatRepository {
   Future<ChatMessage> sendMessage(
     String roomId, {
     required String content,
+    String? type, // 'TEXT' (default) | 'LOCATION'
   }) async {
     final res = await _dio.post(
       ApiConstants.chatMessages(roomId),
-      data: {'content': content},
+      data: {
+        'content': content,
+        if (type != null) 'type': type,
+      },
     );
     return ChatMessage.fromJson(_unwrap(res.data) as Map<String, dynamic>);
   }

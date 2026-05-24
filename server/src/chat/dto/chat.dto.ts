@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsInt, Min, Max, MaxLength } from 'class-validator';
+import { IsOptional, IsString, IsInt, Min, Max, MaxLength, IsIn } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -22,6 +22,16 @@ export class SendMessageDto {
   @IsString()
   @MaxLength(1000)
   content: string;
+
+  /// LOCATION 일 때 content 는 JSON 문자열 `{"lat":..,"lng":..,"label":"..."}`.
+  @ApiProperty({
+    required: false,
+    enum: ['TEXT', 'LOCATION'],
+    description: '메시지 타입. 기본 TEXT.',
+  })
+  @IsOptional()
+  @IsIn(['TEXT', 'LOCATION'])
+  type?: 'TEXT' | 'LOCATION';
 }
 
 export class MarkReadDto {

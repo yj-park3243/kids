@@ -49,7 +49,12 @@ export class ChatController {
     @CurrentUser('id') userId: string,
     @Body() dto: SendMessageDto,
   ) {
-    return this.chatService.sendUserMessage(roomId, userId, dto.content);
+    return this.chatService.sendUserMessage(
+      roomId,
+      userId,
+      dto.content,
+      dto.type ?? 'TEXT',
+    );
   }
 
   @Post('rooms/:roomId/read')

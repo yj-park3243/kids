@@ -15,6 +15,7 @@ import '../../../widgets/common_button.dart';
 import '../../../widgets/common_input.dart';
 import '../../../widgets/address_search_sheet.dart';
 import '../../../widgets/cupertino_picker_sheet.dart';
+import '../../../widgets/location_picker_sheet.dart';
 import '../../../widgets/design/accent_blobs.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/room_detail_provider.dart';
@@ -213,18 +214,40 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
     final query = result.roadAddress.isNotEmpty
         ? result.roadAddress
         : result.jibunAddress;
-    if (query.isEmpty) return;
-    try {
-      final geo = await ref.read(roomRepositoryProvider).geocode(query);
-      if (mounted && geo.lat != null && geo.lng != null) {
-        setState(() {
-          _latitude = geo.lat;
-          _longitude = geo.lng;
-        });
+    double? lat;
+    double? lng;
+    if (query.isNotEmpty) {
+      try {
+        final geo = await ref.read(roomRepositoryProvider).geocode(query);
+        lat = geo.lat;
+        lng = geo.lng;
+      } catch (_) {
+        // 지오코딩 실패해도 방 생성은 진행 — 서버가 placeAddress 로 재시도.
       }
-    } catch (_) {
-      // 지오코딩 실패해도 방 생성은 진행 — 서버가 placeAddress 로 재시도.
     }
+    if (!mounted) return;
+    // 지도에서 정확한 위치로 핀 보정 — 좌표가 없으면 서울시청을 기본 중심.
+    final picked = await showLocationPickerSheet(
+      context,
+      initialLat: lat ?? 37.5665,
+      initialLng: lng ?? 126.978,
+      title: '정확한 위치 지정',
+      label: result.fullAddress,
+    );
+    if (!mounted) return;
+    setState(() {
+      if (picked != null) {
+        _latitude = picked.lat;
+        _longitude = picked.lng;
+        if (picked.label.isNotEmpty && picked.label != result.fullAddress) {
+          _fullAddress = picked.label;
+        }
+      } else if (lat != null && lng != null) {
+        // 사용자가 보정 취소 — 지오코딩 좌표라도 살림.
+        _latitude = lat;
+        _longitude = lng;
+      }
+    });
   }
 
   void _addTag() {
