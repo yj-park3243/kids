@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
-/// 같이크자 한글 타이포 — Gowun Dodum (고운돋움): 둥글둥글 친근한 산세리프.
-/// 단일 weight(400) 폰트이므로 fontWeight 값은 의미 위계 표시용 (실제 렌더링은 동일).
+/// 같이크자 한글 타이포 조합:
+/// - 본문/캡션/버튼 → Gowun Dodum (고운돋움): 둥글둥글 친근한 산세리프.
+/// - 화면 제목/섹션 헤더 → Do Hyeon (도현체): 굵고 또렷, 헤딩 위계를 살림.
+/// 두 폰트 모두 단일 weight 폰트이므로 fontWeight 값은 의미 위계 표시용.
 class AppTextStyles {
   AppTextStyles._();
 
@@ -23,22 +25,38 @@ class AppTextStyles {
     );
   }
 
-  // ===== Display / Screen title =====
-  static TextStyle get display => _base(
+  static TextStyle _heading({
+    double fontSize = 22,
+    FontWeight fontWeight = FontWeight.w800,
+    Color color = AppColors.ink900,
+    double? height,
+    double letterSpacing = -0.5,
+  }) {
+    return GoogleFonts.doHyeon(
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      color: color,
+      height: height,
+      letterSpacing: letterSpacing,
+    );
+  }
+
+  // ===== Display / Screen title (Do Hyeon) =====
+  static TextStyle get display => _heading(
         fontSize: 32,
         fontWeight: FontWeight.w800,
         height: 1.2,
         letterSpacing: -1.2,
       );
 
-  static TextStyle get screenTitle => _base(
+  static TextStyle get screenTitle => _heading(
         fontSize: 26,
         fontWeight: FontWeight.w800,
         height: 1.25,
         letterSpacing: -0.8,
       );
 
-  static TextStyle get sectionHead => _base(
+  static TextStyle get sectionHead => _heading(
         fontSize: 18,
         fontWeight: FontWeight.w800,
         height: 1.3,
@@ -47,7 +65,7 @@ class AppTextStyles {
 
   // Legacy aliases (kept for existing screens)
   static TextStyle get heading1 => screenTitle;
-  static TextStyle get heading2 => _base(
+  static TextStyle get heading2 => _heading(
         fontSize: 22,
         fontWeight: FontWeight.w800,
         height: 1.3,
@@ -139,7 +157,7 @@ class AppTextStyles {
       );
 
   // ===== Special =====
-  static TextStyle get onboarding => _base(
+  static TextStyle get onboarding => _heading(
         fontSize: 22,
         fontWeight: FontWeight.w800,
         height: 1.3,
