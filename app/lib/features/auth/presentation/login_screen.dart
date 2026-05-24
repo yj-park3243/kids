@@ -1,13 +1,18 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../widgets/common_button.dart';
 import '../../../widgets/design/accent_blobs.dart';
 import '../providers/auth_provider.dart';
+
+const _termsUrl = 'https://growtogether.kr/terms';
+const _privacyUrl = 'https://growtogether.kr/privacy';
 
 class LoginScreen extends ConsumerWidget {
   const LoginScreen({super.key});
@@ -119,7 +124,49 @@ class LoginScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 16),
+                // Apple Guideline 1.2: 소셜 로그인 사용자에게도 EULA + 무관용 정책 안내.
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: RichText(
+                    textAlign: TextAlign.center,
+                    text: TextSpan(
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.ink500,
+                        height: 1.4,
+                      ),
+                      children: [
+                        const TextSpan(text: '회원가입/로그인 시 '),
+                        TextSpan(
+                          text: '이용약관',
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                            decoration: TextDecoration.underline,
+                          ),
+                          recognizer: TapGestureRecognizer()
+                            ..onTap = () => _openUrl(_termsUrl),
+                        ),
+                        const TextSpan(text: '과 '),
+                        TextSpan(
+                          text: '개인정보 처리방침',
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                            decoration: TextDecoration.underline,
+                          ),
+                          recognizer: TapGestureRecognizer()
+                            ..onTap = () => _openUrl(_privacyUrl),
+                        ),
+                        const TextSpan(
+                          text:
+                              '에 동의하며, 부적절한 콘텐츠·사용자에 대한 무관용 정책에 동의하는 것으로 간주됩니다.',
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
               ],
             ),
           ),
@@ -187,5 +234,10 @@ class LoginScreen extends ConsumerWidget {
         behavior: SnackBarBehavior.floating,
       ),
     );
+  }
+
+  Future<void> _openUrl(String url) async {
+    final uri = Uri.parse(url);
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 }

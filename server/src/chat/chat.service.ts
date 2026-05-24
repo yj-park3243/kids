@@ -12,6 +12,7 @@ import { Room } from '../room/entities/room.entity';
 import { RoomMember } from '../room/entities/room-member.entity';
 import { User } from '../user/entities/user.entity';
 import { ChatGateway } from './chat.gateway';
+import { ProfanityFilterService } from '../common/services/profanity-filter.service';
 
 export interface ChatMessageView {
   id: string;
@@ -37,6 +38,7 @@ export class ChatService {
     private userRepository: Repository<User>,
     @Inject(forwardRef(() => ChatGateway))
     private chatGateway: ChatGateway,
+    private profanityFilter: ProfanityFilterService,
   ) {}
 
   /**
@@ -197,6 +199,9 @@ export class ChatService {
     if (!trimmed) {
       throw new ForbiddenException('빈 메시지는 보낼 수 없습니다.');
     }
+
+    // Apple Guideline 1.2: UGC 자동 필터.
+    this.profanityFilter.assertClean(trimmed, '메시지');
 
     const sender = await this.userRepository.findOne({ where: { id: userId } });
     const nickname = sender?.nickname ?? '익명';

@@ -26,6 +26,7 @@ import {
   escapeHtml,
 } from '../common/services/telegram.service';
 import { GeocodingService } from '../common/services/geocoding.service';
+import { ProfanityFilterService } from '../common/services/profanity-filter.service';
 import { fallbackCoord } from '../common/services/region-coords';
 
 @Injectable()
@@ -46,6 +47,7 @@ export class RoomService {
     private telegramService: TelegramService,
     private roomVisibility: RoomVisibilityService,
     private geocodingService: GeocodingService,
+    private profanityFilter: ProfanityFilterService,
     @Inject(forwardRef(() => FollowService))
     private followService: FollowService,
   ) {}
@@ -95,6 +97,15 @@ export class RoomService {
     }
     if (dto.requiredItems?.some((it) => (it ?? '').length > 20)) {
       throw new BadRequestException('준비물 각 항목은 20자 이내여야 합니다.');
+    }
+
+    // Apple Guideline 1.2: UGC 자동 필터 (제목/설명/준비물).
+    this.profanityFilter.assertClean(dto.title, '제목');
+    this.profanityFilter.assertClean(dto.description, '설명');
+    if (dto.requiredItems) {
+      for (const item of dto.requiredItems) {
+        this.profanityFilter.assertClean(item, '준비물');
+      }
     }
 
     // 주소 → 좌표 변환 (클라이언트가 좌표를 직접 보낸 경우 우선 사용)
@@ -187,6 +198,16 @@ export class RoomService {
       .andWhere('room.status IN (:...statuses)', {
         statuses: ['RECRUITING', 'CLOSED'],
       });
+
+    // Apple Guideline 1.2: 차단(양방향)한 유저가 호스트인 방은 피드에서 즉시 제외.
+    qb.andWhere(
+      `NOT EXISTS (
+        SELECT 1 FROM "block" b
+        WHERE (b.blocker_id = :viewerId AND b.target_user_id = room.host_id)
+           OR (b.blocker_id = room.host_id AND b.target_user_id = :viewerId)
+      )`,
+      { viewerId: userId },
+    );
 
     // Filters
     if (query.regionDong) {
@@ -451,6 +472,14 @@ export class RoomService {
       );
     }
 
+    // Apple Guideline 1.2: UGC 자동 필터.
+    if (dto.title !== undefined) {
+      this.profanityFilter.assertClean(dto.title, '제목');
+    }
+    if (dto.description !== undefined) {
+      this.profanityFilter.assertClean(dto.description, '설명');
+    }
+
     Object.assign(room, dto);
     await this.roomRepository.save(room);
 
@@ -599,6 +628,18 @@ export class RoomService {
       }
     };
 
+    // Apple Guideline 1.2: 양방향 차단 호스트의 방은 지도에서도 제외.
+    const applyBlockFilter = (qb: SelectQueryBuilder<Room>) => {
+      qb.andWhere(
+        `NOT EXISTS (
+          SELECT 1 FROM "block" b
+          WHERE (b.blocker_id = :blockViewerId AND b.target_user_id = room.host_id)
+             OR (b.blocker_id = room.host_id AND b.target_user_id = :blockViewerId)
+        )`,
+        { blockViewerId: userId },
+      );
+    };
+
     // 사용자가 지정한 필터 — 클러스터/핀 모드 공통 적용.
     const applyFilters = (qb: SelectQueryBuilder<Room>) => {
       if (query.dateFrom) {
@@ -668,6 +709,7 @@ export class RoomService {
           statuses: ['RECRUITING', 'CLOSED'],
         });
       applyEligibility(clusterQb);
+      applyBlockFilter(clusterQb);
       applyFilters(clusterQb);
       const clusters = await clusterQb.groupBy('room.regionDong').getRawMany();
 
@@ -698,6 +740,7 @@ export class RoomService {
         });
 
       applyEligibility(qb);
+      applyBlockFilter(qb);
       applyFilters(qb);
 
       const rooms = await qb.getMany();

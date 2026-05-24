@@ -1,6 +1,8 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/validators.dart';
@@ -8,6 +10,9 @@ import '../../../widgets/app_bar.dart';
 import '../../../widgets/common_button.dart';
 import '../../../widgets/common_input.dart';
 import '../providers/auth_provider.dart';
+
+const _termsUrl = 'https://growtogether.kr/terms';
+const _privacyUrl = 'https://growtogether.kr/privacy';
 
 class EmailRegisterScreen extends ConsumerStatefulWidget {
   const EmailRegisterScreen({super.key});
@@ -23,6 +28,7 @@ class _EmailRegisterScreenState extends ConsumerState<EmailRegisterScreen> {
   final _confirmPasswordController = TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
+  bool _agreedToTerms = false;
 
   @override
   void dispose() {
@@ -34,10 +40,16 @@ class _EmailRegisterScreenState extends ConsumerState<EmailRegisterScreen> {
 
   void _register() {
     if (!_formKey.currentState!.validate()) return;
+    if (!_agreedToTerms) return;
     ref.read(authProvider.notifier).emailRegister(
           _emailController.text.trim(),
           _passwordController.text,
         );
+  }
+
+  Future<void> _openUrl(String url) async {
+    final uri = Uri.parse(url);
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   @override
@@ -133,12 +145,70 @@ class _EmailRegisterScreenState extends ConsumerState<EmailRegisterScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 40),
+                const SizedBox(height: 24),
+
+                // Apple Guideline 1.2: EULA + 무관용 정책 동의.
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Checkbox(
+                      key: const Key('checkbox-register-terms'),
+                      value: _agreedToTerms,
+                      onChanged: (v) =>
+                          setState(() => _agreedToTerms = v ?? false),
+                      activeColor: AppColors.primary,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: RichText(
+                          text: TextSpan(
+                            style: AppTextStyles.body2.copyWith(
+                              color: AppColors.textSecondary,
+                              height: 1.4,
+                            ),
+                            children: [
+                              TextSpan(
+                                text: '이용약관',
+                                style: AppTextStyles.body2Bold.copyWith(
+                                  color: AppColors.primary,
+                                  decoration: TextDecoration.underline,
+                                ),
+                                recognizer: TapGestureRecognizer()
+                                  ..onTap = () => _openUrl(_termsUrl),
+                              ),
+                              const TextSpan(text: ' 및 '),
+                              TextSpan(
+                                text: '개인정보 처리방침',
+                                style: AppTextStyles.body2Bold.copyWith(
+                                  color: AppColors.primary,
+                                  decoration: TextDecoration.underline,
+                                ),
+                                recognizer: TapGestureRecognizer()
+                                  ..onTap = () => _openUrl(_privacyUrl),
+                              ),
+                              const TextSpan(
+                                text:
+                                    '에 동의합니다. 같이크자는 부적절한 콘텐츠와 사용자에 대해 무관용 정책을 적용합니다.',
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 24),
 
                 PrimaryButton(
                   key: const Key('btn-register-submit'),
                   text: '회원가입',
                   isLoading: authState.status == AuthStatus.loading,
+                  isEnabled: _agreedToTerms,
                   onPressed: _register,
                 ),
 

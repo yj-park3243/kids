@@ -14,6 +14,7 @@ import { RoomMember } from '../room/entities/room-member.entity';
 import { AppleService } from '../auth/social/apple.service';
 import { CreateProfileDto } from './dto/create-profile.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ProfanityFilterService } from '../common/services/profanity-filter.service';
 
 @Injectable()
 export class UserService {
@@ -27,6 +28,7 @@ export class UserService {
     @InjectRepository(RoomMember)
     private roomMemberRepository: Repository<RoomMember>,
     private appleService: AppleService,
+    private profanityFilter: ProfanityFilterService,
   ) {}
 
   async createProfile(userId: string, dto: CreateProfileDto) {
@@ -48,6 +50,10 @@ export class UserService {
         message: '부모 성별(MOM/DAD)을 선택해야 합니다.',
       });
     }
+
+    // Apple Guideline 1.2: UGC 자동 필터 (닉네임/소개).
+    this.profanityFilter.assertClean(dto.nickname, '닉네임');
+    this.profanityFilter.assertClean(dto.introduction, '소개');
 
     // Check nickname uniqueness
     const existingNickname = await this.userRepository.findOne({
@@ -117,6 +123,14 @@ export class UserService {
           message: '이미 사용 중인 닉네임입니다.',
         });
       }
+    }
+
+    // Apple Guideline 1.2: UGC 자동 필터 (닉네임/소개).
+    if (dto.nickname !== undefined) {
+      this.profanityFilter.assertClean(dto.nickname, '닉네임');
+    }
+    if (dto.introduction !== undefined) {
+      this.profanityFilter.assertClean(dto.introduction, '소개');
     }
 
     // parentGender / isSingleParent 는 가입 후 수정 불가 — 요청에 섞여 들어와도 무시.
