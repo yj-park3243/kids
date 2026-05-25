@@ -25,4 +25,22 @@ platform :android do
     )
     UI.success("Play Internal 업로드 완료!")
   end
+
+  desc "내부 테스트에 올라간 빌드를 비공개 테스트(Closed)로 승격 — 재빌드/재업로드 없음"
+  lane :promote_to_closed do
+    upload_to_play_store(
+      track: 'internal',
+      track_promote_to: 'alpha',
+      json_key: JSON_KEY,
+      package_name: 'kr.kids.app',
+      release_status: 'completed',
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true,
+      skip_upload_changelogs: true,
+      skip_upload_apk: true,
+      skip_upload_aab: true,
+    )
+    UI.success("내부 → 비공개 테스트 승격 완료!")
+  end
 end

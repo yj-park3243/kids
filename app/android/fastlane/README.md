@@ -31,6 +31,14 @@ Flutter AAB 빌드
 
 Google Play Internal Testing 배포
 
+### android promote_to_closed
+
+```sh
+[bundle exec] fastlane android promote_to_closed
+```
+
+내부 테스트에 올라간 빌드를 비공개 테스트(Closed)로 승격 — 재빌드/재업로드 없음
+
 ----
 
 This README.md is auto-generated and will be re-generated every time [_fastlane_](https://fastlane.tools) is run.

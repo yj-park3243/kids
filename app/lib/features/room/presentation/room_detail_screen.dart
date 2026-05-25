@@ -157,7 +157,12 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
       ),
       body: AccentBlobsBackground(
         child: SingleChildScrollView(
-        padding: const EdgeInsets.only(top: 12, bottom: 120),
+        // extendBodyBehindAppBar 일 때 컨텐츠가 AppBar 뒤로 깔려 흰색 카드가
+        // AppBar 영역까지 보이는 문제를 막기 위해 status bar + AppBar 높이만큼 띄움.
+        padding: EdgeInsets.only(
+          top: MediaQuery.of(context).padding.top + kToolbarHeight + 8,
+          bottom: 120,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
