@@ -149,6 +149,7 @@ class Child {
   final int? ageMonths;
   final String? gender;
   final String? photoUrl;
+  final String? verificationPhotoUrl;
   final String? createdAt;
 
   Child({
@@ -159,6 +160,7 @@ class Child {
     this.ageMonths,
     this.gender,
     this.photoUrl,
+    this.verificationPhotoUrl,
     this.createdAt,
   });
 
@@ -171,6 +173,7 @@ class Child {
       ageMonths: json['ageMonths'],
       gender: json['gender'],
       photoUrl: json['photoUrl'],
+      verificationPhotoUrl: json['verificationPhotoUrl'],
       createdAt: json['createdAt'],
     );
   }
@@ -181,5 +184,6 @@ class Child {
         'birthMonth': birthMonth,
         'gender': gender,
         'photoUrl': photoUrl,
+        'verificationPhotoUrl': verificationPhotoUrl,
       };
 }

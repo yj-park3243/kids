@@ -688,7 +688,10 @@ export class RoomService {
       }
     };
 
-    if (query.zoomLevel !== undefined && query.zoomLevel <= 13) {
+    // 클러스터 → 핀 전환 임계값. 11 이하(시·자치구 전체)에서만 동 단위 클러스터로 묶고,
+    // 12 부터(주변 동네 보임)는 바로 개별 핀을 그린다. 핀이 같은 좌표에 몰릴 때는
+    // 클라이언트가 ~20m 격자로 묶어 "+N" 스택 마커로 표시한다.
+    if (query.zoomLevel !== undefined && query.zoomLevel <= 11) {
       // Cluster mode
       const clusterQb = this.roomRepository
         .createQueryBuilder('room')

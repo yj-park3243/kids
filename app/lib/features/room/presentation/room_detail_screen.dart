@@ -251,23 +251,32 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
 
-            // Info section
-            _InfoSection(room: room, isParticipant: isParticipant),
+            // 1) 일시 — Hero 카드. 가장 큰 텍스트로 먼저 눈에 들어오게.
+            _HeroDateTimeCard(room: room),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
-            // Map preview — 참여자에게만 노출.
-            if (isParticipant && room.latitude != null && room.longitude != null)
-              _MapSection(room: room),
-
-            // 비참여자 안내 박스
-            if (!isParticipant)
+            // 2) 장소 — 참여자에겐 정확한 주소, 비참여자에겐 잠금 안내.
+            if (isParticipant)
+              _LocationCard(room: room)
+            else
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 20),
                 child: _LocationLockedBox(),
               ),
+
+            const SizedBox(height: 12),
+
+            // 3) 메타 칩들 — 연령/인원/비용/입장/거리. 텍스트 줄 8개 → 칩 5개.
+            _MetaChipsRow(room: room, isParticipant: isParticipant),
+
+            const SizedBox(height: 16),
+
+            // 4) 지도 미리보기 — 참여자에게만.
+            if (isParticipant && room.latitude != null && room.longitude != null)
+              _MapSection(room: room),
 
             const SizedBox(height: 16),
 
@@ -482,23 +491,151 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
   }
 }
 
-class _InfoSection extends ConsumerWidget {
+/// 1) 일시 Hero 카드 — 가장 중요한 정보를 가장 큰 텍스트로.
+class _HeroDateTimeCard extends StatelessWidget {
+  final Room room;
+  const _HeroDateTimeCard({required this.room});
+
+  @override
+  Widget build(BuildContext context) {
+    final timeText =
+        '${AppDateUtils.formatTime(room.startTime)}${room.endTime != null ? ' ~ ${AppDateUtils.formatTime(room.endTime!)}' : ''}';
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.primary.withValues(alpha: 0.10),
+            AppColors.secondary.withValues(alpha: 0.10),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.event_rounded,
+                color: Colors.white, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  AppDateUtils.formatDate(room.date),
+                  style: AppTextStyles.heading2.copyWith(height: 1.2),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(Icons.access_time_rounded,
+                        size: 14, color: AppColors.textSecondary),
+                    const SizedBox(width: 4),
+                    Text(
+                      timeText,
+                      style: AppTextStyles.body2Bold
+                          .copyWith(color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 2) 장소 카드 — 참여자 전용. 이름/주소 강조 + 길찾기 버튼.
+class _LocationCard extends StatelessWidget {
+  final Room room;
+  const _LocationCard({required this.room});
+
+  @override
+  Widget build(BuildContext context) {
+    final placeName =
+        room.placeName ?? room.placeAddress ?? room.regionDong;
+    final hasAddress = room.placeAddress != null &&
+        room.placeName != null &&
+        room.placeAddress != room.placeName;
+    final canNavigate = room.latitude != null && room.longitude != null;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: AppColors.secondary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.place_rounded,
+                color: AppColors.secondary, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(placeName, style: AppTextStyles.body1Bold),
+                if (hasAddress) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    room.placeAddress!,
+                    style: AppTextStyles.caption
+                        .copyWith(color: AppColors.textSecondary),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (canNavigate) ...[
+            const SizedBox(width: 8),
+            _NavigateButton(room: room),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// 3) 메타 칩 — 연령/인원/비용/입장/거리. Wrap 으로 자연스럽게 흐름.
+class _MetaChipsRow extends ConsumerWidget {
   final Room room;
   final bool isParticipant;
-
-  const _InfoSection({required this.room, required this.isParticipant});
-
-  /// 비참여자: 동 단위까지만. 참여자: placeName/address 우선.
-  String get _locationValue {
-    if (isParticipant) {
-      return room.placeName ?? room.placeAddress ?? room.regionDong;
-    }
-    return room.regionDong;
-  }
+  const _MetaChipsRow({required this.room, required this.isParticipant});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 거리 — 참여 중이 아닌 방만, 내 위치가 있을 때.
+    // 거리 — 비참여자, 좌표 있고 내 위치 있을 때만.
     String? distanceText;
     if (!isParticipant &&
         room.latitude != null &&
@@ -513,114 +650,107 @@ class _InfoSection extends ConsumerWidget {
         ));
       }
     }
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
+
+    // 인원 상태색 — 마감 회색, 임박(80%↑) 코랄, 아니면 primary.
+    final ratio = room.maxMembers == 0
+        ? 0.0
+        : room.currentMembers / room.maxMembers;
+    final memberColor = room.isFull
+        ? const Color(0xFF9AA0A6)
+        : (ratio >= 0.8 ? AppColors.accentCoral : AppColors.primary);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
         children: [
-          _InfoRow(
-            icon: Icons.calendar_today_rounded,
-            label: '날짜',
-            value: AppDateUtils.formatDate(room.date),
-          ),
-          const Divider(height: 20, color: AppColors.divider),
-          _InfoRow(
-            icon: Icons.access_time_rounded,
-            label: '시간',
-            value:
-                '${AppDateUtils.formatTime(room.startTime)}${room.endTime != null ? ' ~ ${AppDateUtils.formatTime(room.endTime!)}' : ''}',
-          ),
-          const Divider(height: 20, color: AppColors.divider),
-          _InfoRow(
-            icon: Icons.location_on_rounded,
-            label: '장소',
-            value: _locationValue,
-            trailing: isParticipant &&
-                    room.latitude != null &&
-                    room.longitude != null
-                ? _NavigateButton(room: room)
-                : null,
-          ),
-          const Divider(height: 20, color: AppColors.divider),
-          if (distanceText != null) ...[
-            _InfoRow(
-              icon: Icons.near_me_rounded,
-              label: '거리',
-              value: '내 위치에서 약 $distanceText',
-            ),
-            const Divider(height: 20, color: AppColors.divider),
-          ],
-          _InfoRow(
+          _MetaChip(
             icon: Icons.child_care_rounded,
-            label: '대상',
-            value: '${room.ageMonthMin}~${room.ageMonthMax}개월',
+            label: '${room.ageMonthMin}~${room.ageMonthMax}개월',
+            color: AppColors.secondary,
           ),
-          const Divider(height: 20, color: AppColors.divider),
-          _InfoRow(
+          _MetaChip(
             icon: Icons.people_rounded,
-            label: '인원',
-            value: '${room.currentMembers}/${room.maxMembers}명',
+            label: '${room.currentMembers}/${room.maxMembers}명',
+            color: memberColor,
+            filled: true,
           ),
-          const Divider(height: 20, color: AppColors.divider),
-          _InfoRow(
-            icon: Icons.payment_rounded,
-            label: '비용',
-            value: room.isFree
+          _MetaChip(
+            icon: room.isFree
+                ? Icons.volunteer_activism_rounded
+                : Icons.payments_rounded,
+            label: room.isFree
                 ? '무료'
-                : '${AppDateUtils.formatCostDisplay(room.cost)}${room.costDescription != null ? ' (${room.costDescription})' : ''}',
+                : (room.costDescription != null &&
+                        room.costDescription!.isNotEmpty
+                    ? '${AppDateUtils.formatCostDisplay(room.cost)} · ${room.costDescription}'
+                    : AppDateUtils.formatCostDisplay(room.cost)),
+            color: room.isFree
+                ? AppColors.success
+                : AppColors.textPrimary,
           ),
-          const Divider(height: 20, color: AppColors.divider),
-          _InfoRow(
-            icon: Icons.how_to_reg_rounded,
-            label: '입장',
-            value: room.isApprovalRequired ? '승인 필요' : '자유 입장',
+          _MetaChip(
+            icon: room.isApprovalRequired
+                ? Icons.lock_rounded
+                : Icons.lock_open_rounded,
+            label: room.isApprovalRequired ? '승인 필요' : '자유 입장',
+            color: AppColors.textSecondary,
           ),
+          if (distanceText != null)
+            _MetaChip(
+              icon: Icons.near_me_rounded,
+              label: distanceText,
+              color: AppColors.primary,
+            ),
         ],
       ),
     );
   }
 }
 
-class _InfoRow extends StatelessWidget {
+/// 메타 칩 — 아이콘 + 라벨. filled=true 면 색 배경 강조.
+class _MetaChip extends StatelessWidget {
   final IconData icon;
   final String label;
-  final String value;
-  final Widget? trailing;
+  final Color color;
+  final bool filled;
 
-  const _InfoRow({
+  const _MetaChip({
     required this.icon,
     required this.label,
-    required this.value,
-    this.trailing,
+    required this.color,
+    this.filled = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: AppColors.primary),
-        const SizedBox(width: 8),
-        SizedBox(
-          width: 50,
-          child: Text(label, style: AppTextStyles.caption),
+    final bg = filled ? color.withValues(alpha: 0.12) : AppColors.surface;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: filled
+              ? color.withValues(alpha: 0.25)
+              : AppColors.divider,
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(value, style: AppTextStyles.body2Bold),
-        ),
-        if (trailing != null) trailing!,
-      ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: AppTextStyles.caption.copyWith(
+              color: color,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

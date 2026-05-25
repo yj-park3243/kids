@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../models/user.dart';
@@ -300,6 +302,8 @@ class MyPageScreen extends ConsumerWidget {
                     onTap: () => _deleteAccount(context, ref),
                   ),
                 ]),
+                const SizedBox(height: 18),
+                const _VersionFooter(),
               ],
             ),
           ),
@@ -499,6 +503,74 @@ class _MenuItem {
     this.color,
     required this.onTap,
   });
+}
+
+/// 마이페이지 하단 버전/빌드 번호 표시.
+/// 20회 탭하면 디버그 데이터 뷰어로 진입한다.
+class _VersionFooter extends StatefulWidget {
+  const _VersionFooter();
+
+  @override
+  State<_VersionFooter> createState() => _VersionFooterState();
+}
+
+class _VersionFooterState extends State<_VersionFooter> {
+  static const int _unlockTapCount = 20;
+  PackageInfo? _info;
+  int _tapCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    PackageInfo.fromPlatform().then((v) {
+      if (!mounted) return;
+      setState(() => _info = v);
+    });
+  }
+
+  void _onTap() {
+    _tapCount += 1;
+    if (_tapCount >= _unlockTapCount) {
+      _tapCount = 0;
+      context.push('/debug-data');
+      return;
+    }
+    final remain = _unlockTapCount - _tapCount;
+    // 후반부에만 카운트다운을 노출 — 호기심을 자극하되 평소엔 조용히.
+    if (remain <= 5) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text('$remain번 더'),
+            duration: const Duration(milliseconds: 600),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final info = _info;
+    final label = info == null
+        ? '버전 정보 로딩 중...'
+        : '${AppConstants.appName}  v${info.version} (build ${info.buildNumber})';
+    return Center(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Text(
+            label,
+            style: AppTextStyles.caption.copyWith(color: AppColors.ink500),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 Future<void> _openExternalUrl(String url) async {

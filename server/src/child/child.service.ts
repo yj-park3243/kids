@@ -97,6 +97,7 @@ export class ChildService {
       ageMonths,
       gender: child.gender,
       photoUrl: child.photoUrl,
+      verificationPhotoUrl: child.verificationPhotoUrl,
       createdAt: child.createdAt,
     };
   }

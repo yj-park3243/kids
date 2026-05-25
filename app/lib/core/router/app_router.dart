@@ -13,6 +13,7 @@ import '../../features/home/presentation/home_screen.dart';
 import '../../features/map/presentation/map_screen.dart';
 import '../../features/mypage/presentation/appeal_screen.dart';
 import '../../features/mypage/presentation/blocked_users_screen.dart';
+import '../../features/mypage/presentation/debug_data_screen.dart';
 import '../../features/mypage/presentation/my_rooms_screen.dart';
 import '../../features/mypage/presentation/mypage_screen.dart';
 import '../../features/mypage/presentation/profile_edit_screen.dart';
@@ -224,6 +225,13 @@ final appRouter = GoRouter(
       path: '/appeal',
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) => const AppealScreen(),
+    ),
+
+    // 디버그 데이터 뷰어 — 마이페이지 버전 20회 탭 이스터에그.
+    GoRoute(
+      path: '/debug-data',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const DebugDataScreen(),
     ),
 
     // 출석 체크 (방 호스트 전용)

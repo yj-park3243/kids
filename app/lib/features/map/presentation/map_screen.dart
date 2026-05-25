@@ -105,27 +105,141 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         await controller.addOverlay(marker);
       }
     } else {
-      for (final p in _pins) {
+      // 같은 지점(~20m)에 여러 모임이 있으면 핀이 겹쳐 안 보이는 문제를 막기 위해
+      // 좌표 격자로 그룹화 — 그룹 size>1 이면 스택 마커로 표시하고,
+      // 탭하면 바텀시트로 그룹 안 모임을 골라볼 수 있게 한다.
+      final groups = _groupNearbyPins(_pins);
+      for (var gi = 0; gi < groups.length; gi++) {
         if (!mounted) return;
-        // 커스텀 핀 — 개월수 + 모집 인원이 한눈에 보이게 위젯을 이미지로.
+        final group = groups[gi];
+        final head = group.first;
+        final isStack = group.length > 1;
+        final markerSize = isStack ? const Size(108, 78) : const Size(96, 66);
         final icon = await NOverlayImage.fromWidget(
-          widget: _PinMarker(pin: p),
-          size: const Size(96, 66),
+          widget: isStack
+              ? _StackedPinMarker(head: head, count: group.length)
+              : _PinMarker(pin: head),
+          size: markerSize,
           context: context,
         );
         final marker = NMarker(
-          id: 'pin-${p.id}',
-          position: NLatLng(p.latitude, p.longitude),
+          id: 'pin-group-$gi',
+          position: NLatLng(head.latitude, head.longitude),
           icon: icon,
-          size: const Size(96, 66),
+          size: markerSize,
           anchor: const NPoint(0.5, 1.0),
         );
         marker.setOnTapListener((NMarker overlay) {
-          setState(() => _selectedPin = p);
+          if (isStack) {
+            _showStackedPinSheet(group);
+          } else {
+            setState(() => _selectedPin = head);
+          }
         });
         await controller.addOverlay(marker);
       }
     }
+  }
+
+  /// 좌표가 거의 같은 핀들을 묶는다 — ~20m(0.00018도) 격자로 양자화.
+  List<List<MapPin>> _groupNearbyPins(List<MapPin> pins) {
+    const gridDeg = 0.00018; // ≈ 위도 20m, 서울 위도에서 경도 ~16m
+    final byKey = <String, List<MapPin>>{};
+    for (final p in pins) {
+      final key =
+          '${(p.latitude / gridDeg).floor()}_${(p.longitude / gridDeg).floor()}';
+      byKey.putIfAbsent(key, () => []).add(p);
+    }
+    return byKey.values.toList();
+  }
+
+  /// 한 지점에 모인 핀들을 펼쳐 보여주는 모달 시트.
+  /// 탭한 항목은 상세 카드(_PinBottomSheet)가 뜨도록 _selectedPin 으로 넘긴다.
+  void _showStackedPinSheet(List<MapPin> pins) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      isScrollControlled: true,
+      builder: (ctx) {
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.dividerStrong,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '이 위치에 모임 ${pins.length}개',
+                  style: AppTextStyles.body1Bold,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '보고 싶은 모임을 골라주세요.',
+                  style: AppTextStyles.caption
+                      .copyWith(color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 8),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: pins.length,
+                    separatorBuilder: (_, __) =>
+                        const Divider(height: 1, color: AppColors.divider),
+                    itemBuilder: (_, i) {
+                      final p = pins[i];
+                      final accent = _pinAccent(p);
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          p.title,
+                          style: AppTextStyles.body2Bold,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Text(
+                          '${p.ageMonthMin}~${p.ageMonthMax}개월 · ${p.currentMembers}/${p.maxMembers}명',
+                          style: AppTextStyles.caption
+                              .copyWith(color: AppColors.textSecondary),
+                        ),
+                        leading: Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: accent,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        trailing: const Icon(Icons.chevron_right_rounded,
+                            color: AppColors.ink500),
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          setState(() => _selectedPin = p);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   void _onFilterChanged(MapFilter next) {
@@ -196,9 +310,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               }
               await _loadMapDataForCurrentRegion();
             },
-            onCameraIdle: () {
-              _loadMapDataForCurrentRegion();
-            },
+            // 카메라 이동/줌마다 API 호출하지 않는다 — 첫 진입, 필터 변경,
+            // 우상단 새로고침 버튼 탭 시에만 재조회한다.
             onMapTapped: (_, __) {
               if (_selectedPin != null) {
                 setState(() => _selectedPin = null);
@@ -220,51 +333,79 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             ),
           ),
 
-          // 결과 개수 / 로딩
+          // 결과 개수 / 로딩 + 새로고침 버튼.
           Positioned(
             top: MediaQuery.of(context).padding.top + 64,
             right: 16,
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(10),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 6,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 6,
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (_isLoading)
-                    const SizedBox(
-                      width: 12,
-                      height: 12,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: AppColors.primary),
-                    )
-                  else
-                    Icon(
-                      _mode == 'CLUSTER'
-                          ? Icons.location_city_rounded
-                          : Icons.place_rounded,
-                      size: 14,
-                      color: AppColors.primary,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_isLoading)
+                        const SizedBox(
+                          width: 12,
+                          height: 12,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: AppColors.primary),
+                        )
+                      else
+                        Icon(
+                          _mode == 'CLUSTER'
+                              ? Icons.location_city_rounded
+                              : Icons.place_rounded,
+                          size: 14,
+                          color: AppColors.primary,
+                        ),
+                      const SizedBox(width: 5),
+                      Text(
+                        _mode == 'CLUSTER'
+                            ? '동 ${_clusters.length}곳'
+                            : '모임 ${_pins.length}개',
+                        style: AppTextStyles.caption
+                            .copyWith(color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // 새로고침 — 카메라 이동 후 현재 영역으로 다시 조회.
+                Material(
+                  color: AppColors.surface,
+                  shape: const CircleBorder(),
+                  elevation: 1.5,
+                  shadowColor: Colors.black.withValues(alpha: 0.2),
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: _isLoading ? null : _loadMapDataForCurrentRegion,
+                    child: SizedBox(
+                      width: 32,
+                      height: 32,
+                      child: Icon(
+                        Icons.refresh_rounded,
+                        size: 18,
+                        color: _isLoading
+                            ? AppColors.textSecondary
+                            : AppColors.primary,
+                      ),
                     ),
-                  const SizedBox(width: 5),
-                  Text(
-                    _mode == 'CLUSTER'
-                        ? '동 ${_clusters.length}곳'
-                        : '모임 ${_pins.length}개',
-                    style: AppTextStyles.caption
-                        .copyWith(color: AppColors.textSecondary),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
 
@@ -380,6 +521,104 @@ class _PinMarker extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// 같은 지점에 핀이 여러 개 있을 때 — 본 _PinMarker 뒤에 카드 2장이 살짝 비껴 보이고
+/// 우상단에 "+N" 카운트 배지가 붙는다. 탭하면 _showStackedPinSheet 로 핀 선택.
+class _StackedPinMarker extends StatelessWidget {
+  final MapPin head;
+  final int count;
+
+  const _StackedPinMarker({required this.head, required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 108,
+      height: 78,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          // 뒤 카드 — 본 카드와 살짝 비껴 배치해 "여러 장 쌓인" 느낌.
+          Positioned(
+            top: 4,
+            left: 12,
+            child: Transform.rotate(
+              angle: 0.06,
+              child: const _StackShadowCard(),
+            ),
+          ),
+          Positioned(
+            top: 2,
+            right: 12,
+            child: Transform.rotate(
+              angle: -0.06,
+              child: const _StackShadowCard(),
+            ),
+          ),
+          // 맨 위 — 실제 첫 핀.
+          Align(
+            alignment: Alignment.center,
+            child: _PinMarker(pin: head),
+          ),
+          // 카운트 배지 — 나머지 핀이 몇 개 더 있는지.
+          Positioned(
+            top: -2,
+            right: 0,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: Colors.white, width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.18),
+                    blurRadius: 4,
+                  ),
+                ],
+              ),
+              child: Text(
+                '+${count - 1}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  height: 1.0,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// _StackedPinMarker 뒤에 살짝 비껴 깔리는 빈 카드 — 본 카드와 같은 모양/그림자.
+class _StackShadowCard extends StatelessWidget {
+  const _StackShadowCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 70,
+      height: 44,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.dividerStrong, width: 1.4),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 5,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -500,7 +739,15 @@ class _PinBottomSheet extends StatelessWidget {
 
     return Material(
       color: Colors.transparent,
-      child: Container(
+      child: GestureDetector(
+        // 아래로 스와이프하면 닫는다 — X 버튼 외에도 자연스러운 dismiss.
+        // 자식의 onTap(ElevatedButton 등)은 그대로 동작한다.
+        behavior: HitTestBehavior.translucent,
+        onVerticalDragEnd: (details) {
+          final v = details.primaryVelocity ?? 0;
+          if (v > 250) onClose();
+        },
+        child: Container(
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius:
@@ -697,6 +944,7 @@ class _PinBottomSheet extends StatelessWidget {
             ),
           ),
         ),
+      ),
       ),
     );
   }

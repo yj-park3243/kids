@@ -5,7 +5,6 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../models/room.dart';
-import '../../../widgets/app_bar.dart';
 import '../../../widgets/design/accent_blobs.dart';
 import '../../../widgets/empty_state.dart';
 import '../../../widgets/loading.dart';
@@ -106,51 +105,57 @@ class _MyRoomsScreenState extends ConsumerState<MyRoomsScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: CustomAppBar(
-        showBack: false,
-        actions: [
-          IconButton(
-            icon: Icon(
-              _searchExpanded ? Icons.close_rounded : Icons.search_rounded,
-              color: AppColors.ink900,
-            ),
-            onPressed: _toggleSearch,
-          ),
-        ],
-      ),
-      extendBodyBehindAppBar: true,
       body: AccentBlobsBackground(
         child: SafeArea(
           child: Column(
             children: [
-              if (_searchExpanded) _buildSearchPanel(),
-              Container(
-                margin:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.7),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: AppColors.primary200, width: 0.8),
-                ),
-                child: TabBar(
-                  controller: _tabController,
-                  indicator: BoxDecoration(
-                    gradient: AppColors.primaryGradient,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  labelColor: Colors.white,
-                  unselectedLabelColor: AppColors.ink500,
-                  labelStyle: AppTextStyles.body2Bold,
-                  unselectedLabelStyle: AppTextStyles.body2,
-                  indicatorSize: TabBarIndicatorSize.tab,
-                  dividerColor: Colors.transparent,
-                  tabs: const [
-                    Tab(text: '예정된 모임'),
-                    Tab(text: '지난 모임'),
+              // 탭 2개 + 돋보기 한 줄에 — pill TabBar 가 Expanded 로 폭을 먹고
+              // 오른쪽에 검색 토글 아이콘이 붙는다.
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 12, 4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.7),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                              color: AppColors.primary200, width: 0.8),
+                        ),
+                        child: TabBar(
+                          controller: _tabController,
+                          indicator: BoxDecoration(
+                            gradient: AppColors.primaryGradient,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          labelColor: Colors.white,
+                          unselectedLabelColor: AppColors.ink500,
+                          labelStyle: AppTextStyles.body2Bold,
+                          unselectedLabelStyle: AppTextStyles.body2,
+                          indicatorSize: TabBarIndicatorSize.tab,
+                          dividerColor: Colors.transparent,
+                          tabs: const [
+                            Tab(text: '예정된 모임'),
+                            Tab(text: '지난 모임'),
+                          ],
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        _searchExpanded
+                            ? Icons.close_rounded
+                            : Icons.search_rounded,
+                        color: AppColors.ink900,
+                      ),
+                      onPressed: _toggleSearch,
+                    ),
                   ],
                 ),
               ),
+              if (_searchExpanded) _buildSearchPanel(),
               const SizedBox(height: 8),
               Expanded(
                 child: TabBarView(
@@ -334,7 +339,8 @@ class _MyRoomsScreenState extends ConsumerState<MyRoomsScreen>
           final room = rooms[index];
           return RoomCard(
             room: room,
-            onOpenDetail: () => context.push('/rooms/${room.id}'),
+            // 카드 어디든 탭하면 방 상세. 채팅은 우측 보조 아이콘으로 유지.
+            onTap: () => context.push('/rooms/${room.id}'),
             onOpenChat: room.chatRoomId != null
                 ? () => context.push('/chat/${room.chatRoomId}')
                 : null,

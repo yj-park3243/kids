@@ -10,58 +10,29 @@ export interface GeocodeResult {
 @Injectable()
 export class GeocodingService {
   private readonly logger = new Logger(GeocodingService.name);
-  private readonly endpoint =
-    'https://maps.apigw.ntruss.com/map-geocode/v2/geocode';
 
   constructor(private readonly configService: ConfigService) {}
 
   /**
-   * 주소 → 좌표. 네이버 NCP 시도 후 실패 시 카카오 로컬 API 로 폴백.
-   * 둘 다 실패하면 null — 호출부에서 시군구 폴백 좌표 적용.
+   * 주소 → 좌표. 카카오 로컬 API 만 사용.
+   * (NCP 네이버 지오코딩은 별도 API Gateway 권한이 필요한데 현재 키는 모바일 SDK 키여서
+   *  401/403 만 떨어져 호출 비용만 든다. 카카오 키가 있으니 그쪽으로 직행한다.)
+   * 실패하면 null — 호출부에서 시군구 폴백 좌표 적용.
    */
   async geocode(address: string): Promise<GeocodeResult | null> {
     const trimmed = (address ?? '').trim();
     if (!trimmed) return null;
-
-    const viaNaver = await this._naverGeocode(trimmed);
-    if (viaNaver) return viaNaver;
     return this._kakaoGeocode(trimmed);
-  }
-
-  private async _naverGeocode(query: string): Promise<GeocodeResult | null> {
-    const clientId = this.configService.get<string>('NAVER_MAP_CLIENT_ID');
-    const clientSecret = this.configService.get<string>(
-      'NAVER_MAP_CLIENT_SECRET',
-    );
-    if (!clientId || !clientSecret) return null;
-
-    try {
-      const response = await axios.get(this.endpoint, {
-        params: { query },
-        headers: {
-          'X-NCP-APIGW-API-KEY-ID': clientId,
-          'X-NCP-APIGW-API-KEY': clientSecret,
-        },
-        timeout: 3000,
-      });
-      const addresses = response.data?.addresses;
-      if (!Array.isArray(addresses) || addresses.length === 0) return null;
-      const first = addresses[0];
-      const lat = parseFloat(first.y);
-      const lng = parseFloat(first.x);
-      if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
-      return { latitude: lat, longitude: lng };
-    } catch (err: any) {
-      this.logger.warn(
-        `Naver geocode 실패 (${query}): ${err?.response?.status ?? err?.message}`,
-      );
-      return null;
-    }
   }
 
   private async _kakaoGeocode(query: string): Promise<GeocodeResult | null> {
     const key = this.configService.get<string>('KAKAO_REST_API_KEY');
-    if (!key) return null;
+    if (!key) {
+      this.logger.error(
+        `KAKAO_REST_API_KEY 가 설정되지 않아 지오코딩 불가 (${query}) — .env 확인 필요`,
+      );
+      return null;
+    }
     try {
       const response = await axios.get(
         'https://dapi.kakao.com/v2/local/search/address.json',
@@ -72,16 +43,26 @@ export class GeocodingService {
         },
       );
       const docs = response.data?.documents;
-      if (!Array.isArray(docs) || docs.length === 0) return null;
+      if (!Array.isArray(docs) || docs.length === 0) {
+        this.logger.warn(`Kakao 지오코딩 결과 없음: "${query}"`);
+        return null;
+      }
       const first = docs[0];
-      // x = longitude, y = latitude (카카오 좌표 규약).
+      // 카카오는 x = longitude, y = latitude.
       const lat = parseFloat(first.y);
       const lng = parseFloat(first.x);
-      if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
+      if (Number.isNaN(lat) || Number.isNaN(lng)) {
+        this.logger.warn(
+          `Kakao 응답에 좌표가 없음: ${JSON.stringify(first).slice(0, 200)}`,
+        );
+        return null;
+      }
       return { latitude: lat, longitude: lng };
     } catch (err: any) {
-      this.logger.warn(
-        `Kakao geocode 실패 (${query}): ${err?.response?.status ?? err?.message}`,
+      const status = err?.response?.status;
+      const body = err?.response?.data;
+      this.logger.error(
+        `Kakao 지오코딩 실패 "${query}" — status=${status} body=${JSON.stringify(body)?.slice(0, 200) ?? err?.message}`,
       );
       return null;
     }

@@ -26,8 +26,16 @@ export class UpdateChildDto {
   @IsOptional()
   gender?: string;
 
-  @ApiProperty({ required: false, description: '출생증명서 또는 최근 아이 사진 URL' })
+  @ApiProperty({ required: false, description: '프로필 사진 URL (공개)' })
   @IsString()
   @IsOptional()
   photoUrl?: string;
+
+  @ApiProperty({
+    required: false,
+    description: '인증 사진 URL — 출생증명서/키즈노트 캡쳐 등 어드민 검수용',
+  })
+  @IsString()
+  @IsOptional()
+  verificationPhotoUrl?: string;
 }

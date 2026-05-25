@@ -104,9 +104,14 @@ class _PhotoUploadScreenState extends ConsumerState<PhotoUploadScreen> {
     var ok = 0;
     for (final a in _selected) {
       try {
-        final file = await a.file;
-        if (file != null) {
-          await repo.upload(widget.roomId, file.path);
+        // 긴 변 2048px / JPEG 85 — 원본 5~10MB 사진을 ~1MB로 압축해 업로드.
+        // 서버 한도(20MB)에 절대 안 걸리고, 업로드 시간도 크게 단축된다.
+        final bytes = await a.thumbnailDataWithSize(
+          const ThumbnailSize(2048, 2048),
+          quality: 85,
+        );
+        if (bytes != null) {
+          await repo.upload(widget.roomId, bytes);
           ok++;
         }
       } catch (_) {
@@ -148,7 +153,13 @@ class _PhotoUploadScreenState extends ConsumerState<PhotoUploadScreen> {
         ],
       ),
       body: SafeArea(
-        child: _buildBody(),
+        child: Stack(
+          children: [
+            _buildBody(),
+            if (_uploading)
+              _UploadProgressOverlay(done: _uploadDone, total: _uploadTotal),
+          ],
+        ),
       ),
     );
   }
@@ -267,6 +278,50 @@ class _AssetThumbState extends State<_AssetThumb> {
       return Container(color: AppColors.surfaceVariant);
     }
     return Image.memory(_bytes!, fit: BoxFit.cover);
+  }
+}
+
+/// 업로드 중 풀스크린 반투명 오버레이 — 스피너 + "n / total" 카운터.
+class _UploadProgressOverlay extends StatelessWidget {
+  const _UploadProgressOverlay({required this.done, required this.total});
+
+  final int done;
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: ColoredBox(
+        color: Colors.black54,
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: CircularProgressIndicator(
+                    color: AppColors.primary,
+                    strokeWidth: 3,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  '업로드 중  $done / $total',
+                  style: AppTextStyles.body2Bold,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

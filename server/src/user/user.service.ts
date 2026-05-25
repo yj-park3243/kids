@@ -100,6 +100,7 @@ export class UserService {
         ageMonths: this.calculateAgeMonths(child.birthYear, child.birthMonth),
         gender: child.gender,
         photoUrl: child.photoUrl,
+        verificationPhotoUrl: child.verificationPhotoUrl,
         createdAt: child.createdAt,
       }));
     }

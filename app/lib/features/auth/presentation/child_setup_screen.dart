@@ -71,10 +71,21 @@ class _ChildSetupScreenState extends ConsumerState<ChildSetupScreen> {
         );
         return;
       }
-      if (_children[i].photoPath == null) {
+      if (_children[i].profilePhotoPath == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${i + 1}번째 아이의 사진을 등록해 주세요'),
+            content: Text('${i + 1}번째 아이의 프로필 사진을 등록해 주세요'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+        return;
+      }
+      if (_children[i].verificationPhotoPath == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${i + 1}번째 아이의 인증 사진을 등록해 주세요'),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -88,15 +99,17 @@ class _ChildSetupScreenState extends ConsumerState<ChildSetupScreen> {
 
     try {
       for (final child in _children) {
-        final photoUrl = await ref
-            .read(authRepositoryProvider)
-            .uploadImage(child.photoPath!);
+        final repo = ref.read(authRepositoryProvider);
+        final profileUrl = await repo.uploadImage(child.profilePhotoPath!);
+        final verificationUrl =
+            await repo.uploadImage(child.verificationPhotoPath!);
         await ref.read(authProvider.notifier).addChild(
               nickname: child.nicknameController.text.trim(),
               birthYear: child.birthYear!,
               birthMonth: child.birthMonth!,
               gender: child.gender,
-              photoUrl: photoUrl,
+              photoUrl: profileUrl,
+              verificationPhotoUrl: verificationUrl,
             );
       }
       if (widget.popOnDone) {
@@ -257,7 +270,8 @@ class _ChildData {
   int? birthYear;
   int? birthMonth;
   String? gender;
-  String? photoPath; // 출생증명서/최근 사진 — 로컬 경로
+  String? profilePhotoPath; // 프로필 사진 — 공개 노출용 로컬 경로
+  String? verificationPhotoPath; // 인증 사진 — 출생증명서/키즈노트 캡쳐 등, 어드민 검수용
 }
 
 class _ChildCard extends StatefulWidget {
@@ -279,15 +293,26 @@ class _ChildCard extends StatefulWidget {
 }
 
 class _ChildCardState extends State<_ChildCard> {
-  Future<void> _pickPhoto() async {
+  Future<String?> _pickImage() async {
     final img = await ImagePicker().pickImage(
       source: ImageSource.gallery,
       maxWidth: 1280,
       imageQuality: 85,
     );
-    if (img != null) {
-      // 사진만 카드 내부 setState — TextField 포커스 유지.
-      setState(() => widget.data.photoPath = img.path);
+    return img?.path;
+  }
+
+  Future<void> _pickProfilePhoto() async {
+    final path = await _pickImage();
+    if (path != null) {
+      setState(() => widget.data.profilePhotoPath = path);
+    }
+  }
+
+  Future<void> _pickVerificationPhoto() async {
+    final path = await _pickImage();
+    if (path != null) {
+      setState(() => widget.data.verificationPhotoPath = path);
     }
   }
 
@@ -365,45 +390,38 @@ class _ChildCardState extends State<_ChildCard> {
           ),
           const SizedBox(height: 16),
 
-          // 아이 사진 (출생증명서 / 최근 사진) — 어드민 검수용
-          Text('아이 사진', style: AppTextStyles.body2Bold),
+          // 프로필 사진 — 공개 노출 (마이페이지/방 등).
+          Text('프로필 사진', style: AppTextStyles.body2Bold),
           const SizedBox(height: 6),
           Text(
-            '출생증명서 또는 최근에 찍은 아이 사진을 올려주세요.\n'
-            '허위 사진을 올리면 계정 이용이 정지될 수 있습니다.',
+            '마이페이지·방에서 다른 부모에게 보이는 사진이에요.',
             style: AppTextStyles.caption.copyWith(color: AppColors.textHint),
           ),
           const SizedBox(height: 8),
-          GestureDetector(
-            onTap: _pickPhoto,
-            child: Container(
-              height: 130,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceVariant,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.divider),
-                image: data.photoPath != null
-                    ? DecorationImage(
-                        image: FileImage(File(data.photoPath!)),
-                        fit: BoxFit.cover,
-                      )
-                    : null,
-              ),
-              child: data.photoPath != null
-                  ? null
-                  : Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.add_a_photo_rounded,
-                            color: AppColors.textHint, size: 28),
-                        const SizedBox(height: 6),
-                        Text('사진 등록',
-                            style: AppTextStyles.caption
-                                .copyWith(color: AppColors.textHint)),
-                      ],
-                    ),
-            ),
+          _PhotoSlot(
+            path: data.profilePhotoPath,
+            onTap: _pickProfilePhoto,
+            placeholderIcon: Icons.add_a_photo_rounded,
+            placeholderLabel: '프로필 사진 등록',
+          ),
+          const SizedBox(height: 16),
+
+          // 인증 사진 — 어드민 검수용, 비공개.
+          Text('인증 사진', style: AppTextStyles.body2Bold),
+          const SizedBox(height: 6),
+          Text(
+            '운영자만 확인합니다. 아래 중 하나를 올려주세요.\n'
+            '• 출생증명서\n'
+            '• 키즈노트 아이 정보 화면 캡쳐 (아이 이름·생년월 + 사진)\n'
+            '• 기타 자녀임을 확인할 수 있는 공식 서류',
+            style: AppTextStyles.caption.copyWith(color: AppColors.textHint),
+          ),
+          const SizedBox(height: 8),
+          _PhotoSlot(
+            path: data.verificationPhotoPath,
+            onTap: _pickVerificationPhoto,
+            placeholderIcon: Icons.verified_user_outlined,
+            placeholderLabel: '인증 사진 등록',
           ),
           const SizedBox(height: 16),
 
@@ -505,6 +523,55 @@ class _ChildCardState extends State<_ChildCard> {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _PhotoSlot extends StatelessWidget {
+  final String? path;
+  final VoidCallback onTap;
+  final IconData placeholderIcon;
+  final String placeholderLabel;
+
+  const _PhotoSlot({
+    required this.path,
+    required this.onTap,
+    required this.placeholderIcon,
+    required this.placeholderLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 130,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: AppColors.surfaceVariant,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.divider),
+          image: path != null
+              ? DecorationImage(
+                  image: FileImage(File(path!)),
+                  fit: BoxFit.cover,
+                )
+              : null,
+        ),
+        child: path != null
+            ? null
+            : Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(placeholderIcon,
+                      color: AppColors.textHint, size: 28),
+                  const SizedBox(height: 6),
+                  Text(placeholderLabel,
+                      style: AppTextStyles.caption
+                          .copyWith(color: AppColors.textHint)),
+                ],
+              ),
       ),
     );
   }

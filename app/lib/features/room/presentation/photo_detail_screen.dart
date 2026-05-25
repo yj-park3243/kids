@@ -163,11 +163,24 @@ class _PhotoPageState extends ConsumerState<_PhotoPage> {
     final p = _photo!;
     return ListView(
       children: [
-        AspectRatio(
-          aspectRatio: 1,
-          child: Container(
-            color: Colors.black,
-            child: Image.network(p.url, fit: BoxFit.contain),
+        GestureDetector(
+          onTap: () => Navigator.of(context, rootNavigator: true).push(
+            PageRouteBuilder(
+              opaque: false,
+              barrierColor: Colors.black,
+              pageBuilder: (_, __, ___) =>
+                  _PhotoFullscreen(url: p.url, heroTag: 'photo-${p.id}'),
+            ),
+          ),
+          child: AspectRatio(
+            aspectRatio: 1,
+            child: Container(
+              color: Colors.black,
+              child: Hero(
+                tag: 'photo-${p.id}',
+                child: Image.network(p.url, fit: BoxFit.contain),
+              ),
+            ),
           ),
         ),
         Padding(
@@ -389,4 +402,41 @@ class _ChildTagsEditorState extends State<_ChildTagsEditor> {
 
 extension _LetExt<T> on T {
   R let<R>(R Function(T) f) => f(this);
+}
+
+/// 사진 전체화면 — 핀치/더블탭 줌, 어디 탭하든 닫힘.
+class _PhotoFullscreen extends StatelessWidget {
+  const _PhotoFullscreen({required this.url, required this.heroTag});
+  final String url;
+  final String heroTag;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        leading: IconButton(
+          icon: const Icon(Icons.close_rounded),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
+      body: GestureDetector(
+        onTap: () => Navigator.of(context).pop(),
+        child: Center(
+          child: InteractiveViewer(
+            minScale: 1,
+            maxScale: 4,
+            child: Hero(
+              tag: heroTag,
+              child: Image.network(url, fit: BoxFit.contain),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

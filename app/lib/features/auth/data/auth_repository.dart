@@ -74,6 +74,7 @@ class AuthRepository {
     required int birthMonth,
     String? gender,
     String? photoUrl,
+    String? verificationPhotoUrl,
   }) async {
     final response = await _dio.post(ApiConstants.children, data: {
       'nickname': nickname,
@@ -81,6 +82,8 @@ class AuthRepository {
       'birthMonth': birthMonth,
       'gender': gender,
       if (photoUrl != null) 'photoUrl': photoUrl,
+      if (verificationPhotoUrl != null)
+        'verificationPhotoUrl': verificationPhotoUrl,
     });
     final data = response.data['data'] ?? response.data;
     return Child.fromJson(data);
@@ -94,6 +97,7 @@ class AuthRepository {
     int? birthMonth,
     String? gender,
     String? photoUrl,
+    String? verificationPhotoUrl,
   }) async {
     final response = await _dio.patch('${ApiConstants.children}/$childId', data: {
       if (nickname != null) 'nickname': nickname,
@@ -101,6 +105,8 @@ class AuthRepository {
       if (birthMonth != null) 'birthMonth': birthMonth,
       if (gender != null) 'gender': gender,
       if (photoUrl != null) 'photoUrl': photoUrl,
+      if (verificationPhotoUrl != null)
+        'verificationPhotoUrl': verificationPhotoUrl,
     });
     final data = response.data['data'] ?? response.data;
     return Child.fromJson(data);

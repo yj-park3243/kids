@@ -34,7 +34,11 @@ export class RoomPhotoController {
 
   @Post('rooms/:roomId/photos')
   @ApiOperation({ summary: '방 사진 업로드 (multipart, 1장)' })
-  @UseInterceptors(FileInterceptor('image'))
+  @UseInterceptors(
+    FileInterceptor('image', {
+      limits: { fileSize: 20 * 1024 * 1024 }, // 20MB — 클라이언트가 2048px/85q로 압축해 올려도 여유분
+    }),
+  )
   async upload(
     @Param('roomId') roomId: string,
     @CurrentUser('id') userId: string,

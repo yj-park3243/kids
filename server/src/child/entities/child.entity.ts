@@ -32,7 +32,15 @@ export class Child {
   gender: string; // MALE, FEMALE, null
 
   @Column({ name: 'photo_url', type: 'varchar', length: 500, nullable: true })
-  photoUrl: string; // 출생증명서 또는 최근 사진 — 어드민 검수용
+  photoUrl: string; // 프로필 사진 — 공개 노출 (마이페이지/방 등).
+
+  @Column({
+    name: 'verification_photo_url',
+    type: 'varchar',
+    length: 500,
+    nullable: true,
+  })
+  verificationPhotoUrl: string; // 출생증명서/키즈노트 캡쳐 — 어드민 검수 전용, 비공개.
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

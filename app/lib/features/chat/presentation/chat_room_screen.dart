@@ -269,7 +269,7 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen>
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: const CustomAppBar(title: '채팅'),
+      appBar: const CustomAppBar(title: ''),
       extendBodyBehindAppBar: true,
       body: AccentBlobsBackground(
         child: SafeArea(

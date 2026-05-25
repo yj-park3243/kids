@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -28,9 +30,13 @@ class PhotoRepository {
     return items.map(RoomPhoto.fromJson).toList();
   }
 
-  Future<RoomPhoto> upload(String roomId, String filePath) async {
+  Future<RoomPhoto> upload(
+    String roomId,
+    Uint8List bytes, {
+    String filename = 'photo.jpg',
+  }) async {
     final form = FormData.fromMap({
-      'image': await MultipartFile.fromFile(filePath),
+      'image': MultipartFile.fromBytes(bytes, filename: filename),
     });
     final res = await _dio.post('/rooms/$roomId/photos', data: form);
     return RoomPhoto.fromJson(_unwrap(res.data) as Map<String, dynamic>);

@@ -84,7 +84,9 @@ class _PhotoGridScreenState extends ConsumerState<PhotoGridScreen> {
           children: [
             if (uniqueChildren.isNotEmpty)
               SizedBox(
-                height: 52,
+                // body2Bold(13, h=1.5) + chip vertical 10*2 + list vertical 12*2 = 65.
+                // 글자 descender 까지 안전하게 보이도록 72 로 잡는다.
+                height: 72,
                 child: ListView(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(
@@ -220,10 +222,10 @@ class _FilterChip extends StatelessWidget {
         onTap: onTap,
         child: Container(
           alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
             color: selected ? AppColors.primary : AppColors.surface,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(22),
             border: Border.all(
               color: selected ? AppColors.primary : AppColors.divider,
             ),
@@ -232,6 +234,7 @@ class _FilterChip extends StatelessWidget {
             label,
             style: AppTextStyles.body2Bold.copyWith(
               color: selected ? Colors.white : AppColors.textPrimary,
+              height: 1.2,
             ),
           ),
         ),
