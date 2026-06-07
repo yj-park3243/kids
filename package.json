@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "start": "cd app && flutter run -t lib/main.dart -d 'iPhone 17'",
-    "start:app": "cd app && flutter run",
+    "start": "cd app && flutter run -t lib/main.dart -d 'iPhone 17' --dart-define=ENVIRONMENT=production",
+    "start:local": "cd app && flutter run -t lib/main.dart -d 'iPhone 17'",
+    "start:app": "cd app && flutter run --dart-define=ENVIRONMENT=production",
     "start:server": "cd server && npm run start:dev",
     "start:server:pm2": "cd server && pm2 start ecosystem.config.cjs",
     "start:admin": "cd admin && npm run dev",

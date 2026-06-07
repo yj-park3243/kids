@@ -1,3 +1,4 @@
+import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -77,27 +78,19 @@ class FollowingListScreen extends ConsumerWidget {
     WidgetRef ref,
     Follow f,
   ) async {
-    final ok = await showDialog<bool>(
+    var ok = false;
+    await AwesomeDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('언팔로우'),
-        content: Text('${f.nickname} 님을 언팔로우 할까요?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('취소'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('언팔로우',
-                style: TextStyle(color: AppColors.primary)),
-          ),
-        ],
-      ),
-    );
-    if (ok == true) {
+      dialogType: DialogType.warning,
+      animType: AnimType.scale,
+      title: '언팔로우',
+      desc: '${f.nickname} 님을 언팔로우 할까요?',
+      btnCancelText: '취소',
+      btnOkText: '언팔로우',
+      btnCancelOnPress: () {},
+      btnOkOnPress: () => ok = true,
+    ).show();
+    if (ok) {
       await ref.read(followingProvider.notifier).unfollow(f.targetUserId);
     }
   }

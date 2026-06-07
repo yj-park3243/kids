@@ -126,6 +126,37 @@ Future<int?> showCupertinoMonthsSheet(
   );
 }
 
+/// 정수/문자열 등 임의 리스트에서 한 값을 휠로 고르는 시트.
+///
+/// DropdownButton 대체용. `format` 으로 표시 문자열 커스터마이즈.
+/// 예) 연도 선택: `options: [2026, 2025, ...], format: (y) => '$y년'`.
+Future<T?> showWheelSheet<T>(
+  BuildContext context, {
+  required String title,
+  required List<T> options,
+  required T? initial,
+  required String Function(T) format,
+}) {
+  if (options.isEmpty) return Future.value(null);
+  final initialIndex = (initial != null ? options.indexOf(initial) : -1)
+      .clamp(0, options.length - 1);
+  final controller = FixedExtentScrollController(initialItem: initialIndex);
+  return showPickerSheet<T>(
+    context: context,
+    title: title,
+    initial: options[initialIndex],
+    builder: (current, onChanged) => CupertinoPicker(
+      scrollController: controller,
+      itemExtent: 40,
+      onSelectedItemChanged: (i) => onChanged(options[i]),
+      children: [
+        for (final v in options)
+          Center(child: Text(format(v), style: const TextStyle(fontSize: 18))),
+      ],
+    ),
+  );
+}
+
 /// 시간 선택 — CupertinoDatePicker(mode: time, use24h:false).
 /// [minimum] 이 주어지면 그 시각 이전은 선택할 수 없음 (종료시간 가드용).
 Future<TimeOfDay?> showCupertinoTimeSheet(

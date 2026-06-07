@@ -165,19 +165,9 @@ export class RoomService {
         `• 호스트: ${escapeHtml(host?.nickname ?? '-')} (<code>${escapeHtml(userId)}</code>)`,
     );
 
-    // 번개 모임 푸시 (fire-and-forget). 수신 대상 선별은 NotificationService 가 처리하지 않으므로
-    // 일단 모임 생성 사실만 발송한다. 더 정교한 매칭은 후속 작업.
-    if (savedRoom.isFlashMeeting) {
-      void this.notificationService
-        .create({
-          userId, // self 발송 placeholder — 실제 대상 매칭은 별도 워커가 필요. 검토 포인트.
-          type: 'NEW_FLASH',
-          title: '번개 모임 등록',
-          body: `[${savedRoom.title}] 번개 모임이 등록되었어요.`,
-          data: { roomId: savedRoom.id },
-        })
-        .catch(() => undefined);
-    }
+    // NEW_FLASH(주변 사용자에게 번개 모임 전파)는 위치 기반 타겟팅 워커가 필요해 보류.
+    // 그 전까지는 본인에게 self-발송하던 placeholder 가 노이즈만 만들어 제거했다.
+    // 팔로워 대상 알림은 아래 FOLLOW_NEW_ROOM 으로 이미 커버된다.
 
     // 팔로워에게 FOLLOW_NEW_ROOM 푸시 (fire-and-forget)
     void this.followService
@@ -688,6 +678,25 @@ export class RoomService {
       }
     };
 
+    // 뷰포트(sw/ne) 파라미터가 모두 있으면 해당 영역으로 한정하고, 빠지면
+    // "등록된 모든 활성 방"을 그대로 반환한다 — 지도에서 한 번에 전국 핀을
+    // 보여줄 때 클라이언트가 빈 인자로 호출한다.
+    const hasViewport =
+      query.swLat !== undefined &&
+      query.swLng !== undefined &&
+      query.neLat !== undefined &&
+      query.neLng !== undefined;
+    const applyViewport = (qb: SelectQueryBuilder<Room>) => {
+      if (!hasViewport) return;
+      qb.andWhere('room.latitude BETWEEN :swLat AND :neLat', {
+        swLat: query.swLat,
+        neLat: query.neLat,
+      }).andWhere('room.longitude BETWEEN :swLng AND :neLng', {
+        swLng: query.swLng,
+        neLng: query.neLng,
+      });
+    };
+
     // 클러스터 → 핀 전환 임계값. 11 이하(시·자치구 전체)에서만 동 단위 클러스터로 묶고,
     // 12 부터(주변 동네 보임)는 바로 개별 핀을 그린다. 핀이 같은 좌표에 몰릴 때는
     // 클라이언트가 ~20m 격자로 묶어 "+N" 스택 마커로 표시한다.
@@ -699,18 +708,11 @@ export class RoomService {
         .addSelect('COUNT(*)', 'count')
         .addSelect('AVG(room.latitude)', 'latitude')
         .addSelect('AVG(room.longitude)', 'longitude')
-        .where('room.latitude BETWEEN :swLat AND :neLat', {
-          swLat: query.swLat,
-          neLat: query.neLat,
-        })
-        .andWhere('room.longitude BETWEEN :swLng AND :neLng', {
-          swLng: query.swLng,
-          neLng: query.neLng,
-        })
-        .andWhere('room.date >= CURRENT_DATE')
+        .where('room.date >= CURRENT_DATE')
         .andWhere('room.status IN (:...statuses)', {
           statuses: ['RECRUITING', 'CLOSED'],
         });
+      applyViewport(clusterQb);
       applyEligibility(clusterQb);
       applyBlockFilter(clusterQb);
       applyFilters(clusterQb);
@@ -729,19 +731,12 @@ export class RoomService {
       // Pin mode
       const qb = this.roomRepository
         .createQueryBuilder('room')
-        .where('room.latitude BETWEEN :swLat AND :neLat', {
-          swLat: query.swLat,
-          neLat: query.neLat,
-        })
-        .andWhere('room.longitude BETWEEN :swLng AND :neLng', {
-          swLng: query.swLng,
-          neLng: query.neLng,
-        })
-        .andWhere('room.date >= CURRENT_DATE')
+        .where('room.date >= CURRENT_DATE')
         .andWhere('room.status IN (:...statuses)', {
           statuses: ['RECRUITING', 'CLOSED'],
         });
 
+      applyViewport(qb);
       applyEligibility(qb);
       applyBlockFilter(qb);
       applyFilters(qb);

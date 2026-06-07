@@ -72,20 +72,20 @@ class RoomRepository {
         .toList();
   }
 
-  // Map
+  // Map — 뷰포트 인자는 선택. 빠지면 서버가 전국 모든 활성 방을 반환한다.
   Future<Map<String, dynamic>> getMapRooms({
-    required double swLat,
-    required double swLng,
-    required double neLat,
-    required double neLng,
+    double? swLat,
+    double? swLng,
+    double? neLat,
+    double? neLng,
     int? zoomLevel,
     Map<String, dynamic>? filters,
   }) async {
     final response = await _dio.get(ApiConstants.roomsMap, queryParameters: {
-      'swLat': swLat,
-      'swLng': swLng,
-      'neLat': neLat,
-      'neLng': neLng,
+      if (swLat != null) 'swLat': swLat,
+      if (swLng != null) 'swLng': swLng,
+      if (neLat != null) 'neLat': neLat,
+      if (neLng != null) 'neLng': neLng,
       if (zoomLevel != null) 'zoomLevel': zoomLevel,
       ...?filters,
     });

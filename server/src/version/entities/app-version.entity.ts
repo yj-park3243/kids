@@ -40,6 +40,10 @@ export class AppVersion {
   })
   bypassPhoneVerification: boolean;
 
+  // 광고 노출 토글. 기존 동작(항상 노출) 유지를 위해 default true — 운영자가 어드민에서 끌 수 있다.
+  @Column({ name: 'show_ad', type: 'boolean', default: true })
+  showAd: boolean;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

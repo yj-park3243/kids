@@ -101,6 +101,8 @@ export class UserService {
         gender: child.gender,
         photoUrl: child.photoUrl,
         verificationPhotoUrl: child.verificationPhotoUrl,
+        napTime: child.napTime ?? null,
+        temperamentTags: child.temperamentTags ?? [],
         createdAt: child.createdAt,
       }));
     }
@@ -226,6 +228,8 @@ export class UserService {
         nickname: child.nickname,
         ageMonths: this.calculateAgeMonths(child.birthYear, child.birthMonth),
         gender: child.gender,
+        napTime: child.napTime ?? null,
+        temperamentTags: child.temperamentTags ?? [],
       })),
       roomCount,
       mannerScore: Number(user.mannerScore),

@@ -1,5 +1,18 @@
-import { IsString, IsInt, IsOptional, Min, Max, MinLength, MaxLength } from 'class-validator';
+import {
+  IsString,
+  IsInt,
+  IsOptional,
+  IsEnum,
+  IsArray,
+  ArrayMaxSize,
+  Min,
+  Max,
+  MinLength,
+  MaxLength,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+
+const NAP_TIME_VALUES = ['MORNING', 'AFTERNOON', 'LATE_AFTERNOON', 'EVENING', 'NONE'] as const;
 
 export class UpdateChildDto {
   @ApiProperty({ required: false })
@@ -38,4 +51,16 @@ export class UpdateChildDto {
   @IsString()
   @IsOptional()
   verificationPhotoUrl?: string;
+
+  @ApiProperty({ required: false, enum: NAP_TIME_VALUES, nullable: true })
+  @IsOptional()
+  @IsEnum(NAP_TIME_VALUES)
+  napTime?: string;
+
+  @ApiProperty({ required: false, type: [String], description: '기질 태그 (최대 5개)' })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(5)
+  @IsString({ each: true })
+  temperamentTags?: string[];
 }

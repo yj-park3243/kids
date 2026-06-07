@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notification } from './entities/notification.entity';
 import { DeviceToken } from './entities/device-token.entity';
+import { PushLog } from './entities/push-log.entity';
+import { User } from '../user/entities/user.entity';
 import { FirebaseAdminService } from '../firebase/firebase-admin.service';
 
 interface CreateNotificationInput {
@@ -11,7 +13,25 @@ interface CreateNotificationInput {
   title: string;
   body: string;
   data?: any;
+  // false 면 인앱 알림 목록(notification 테이블)에 저장하지 않고 푸시만 보낸다.
+  // 채팅처럼 빈도가 높아 알림함을 더럽히면 안 되는 타입에 사용.
+  persist?: boolean;
 }
+
+// 알림 설정 카테고리 매핑. 여기 없는 type 은 notifyAll 로만 게이팅(시스템 알림).
+const ROOM_TYPES = new Set([
+  'JOIN_REQUEST',
+  'JOIN_ACCEPTED',
+  'JOIN_REJECTED',
+  'ROOM_CANCELLED',
+  'ROOM_COMPLETED',
+  'ROOM_REMINDER',
+  'NEW_ROOM',
+  'NEW_FLASH',
+  'REVIEW_REQUEST',
+  'FOLLOW_NEW_ROOM',
+]);
+const CHAT_TYPES = new Set(['NEW_CHAT']);
 
 // 신규 type 알림용 기본 템플릿 (호출자가 title/body 안 넘기면 fallback).
 export function defaultTemplate(
@@ -27,13 +47,22 @@ export function defaultTemplate(
       return { title: '단골 부모의 새 방', body: '팔로우 중인 부모가 새 방을 만들었어요.' };
     case 'NOSHOW_WARNING':
       return { title: '노쇼 경고', body: '노쇼가 누적되었어요. 3회 도달 시 참여가 제한됩니다.' };
-    case 'GROWTH_UPDATE':
-      return { title: '발달 가이드', body: '아이의 새 월령 가이드가 도착했어요.' };
     case 'REPORT_RESOLVED':
       return { title: '신고 처리 결과', body: '신고하신 건이 처리되었어요.' };
     default:
       return null;
   }
+}
+
+// FCM data 페이로드는 모든 값이 string 이어야 한다. null/undefined 는 제외하고
+// 숫자 등은 문자열로 변환해 평평하게 내려보낸다.
+function stringifyData(obj: Record<string, any>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v === null || v === undefined) continue;
+    out[k] = typeof v === 'string' ? v : String(v);
+  }
+  return out;
 }
 
 @Injectable()
@@ -45,6 +74,10 @@ export class NotificationService {
     private notificationRepository: Repository<Notification>,
     @InjectRepository(DeviceToken)
     private deviceTokenRepository: Repository<DeviceToken>,
+    @InjectRepository(PushLog)
+    private pushLogRepository: Repository<PushLog>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
     private firebaseAdminService: FirebaseAdminService,
   ) {}
 
@@ -60,20 +93,52 @@ export class NotificationService {
       }
     }
 
-    // Save notification to DB
-    const notification = this.notificationRepository.create({
-      userId: input.userId,
-      type: input.type,
-      title,
-      body,
-      data: input.data,
-    });
-    await this.notificationRepository.save(notification);
+    // Save notification to DB (persist:false 면 푸시만)
+    let notification: Notification | null = null;
+    if (input.persist !== false) {
+      notification = this.notificationRepository.create({
+        userId: input.userId,
+        type: input.type,
+        title,
+        body,
+        data: input.data,
+      });
+      await this.notificationRepository.save(notification);
+    }
 
     // Send push notification
-    await this.sendPush(input.userId, title, body, { type: input.type, ...input.data });
+    await this.sendPush(input.userId, input.type, title, body, {
+      type: input.type,
+      ...input.data,
+    });
 
     return notification;
+  }
+
+  async getSettings(userId: string) {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      select: ['id', 'notifyAll', 'notifyRoom', 'notifyChat'],
+    });
+    return {
+      notifyAll: user?.notifyAll ?? true,
+      notifyRoom: user?.notifyRoom ?? true,
+      notifyChat: user?.notifyChat ?? true,
+    };
+  }
+
+  async updateSettings(
+    userId: string,
+    patch: { notifyAll?: boolean; notifyRoom?: boolean; notifyChat?: boolean },
+  ) {
+    const fields: Partial<User> = {};
+    if (patch.notifyAll !== undefined) fields.notifyAll = patch.notifyAll;
+    if (patch.notifyRoom !== undefined) fields.notifyRoom = patch.notifyRoom;
+    if (patch.notifyChat !== undefined) fields.notifyChat = patch.notifyChat;
+    if (Object.keys(fields).length > 0) {
+      await this.userRepository.update({ id: userId }, fields);
+    }
+    return this.getSettings(userId);
   }
 
   async registerDeviceToken(userId: string, token: string, platform: string) {
@@ -156,24 +221,75 @@ export class NotificationService {
     return { count };
   }
 
-  private async sendPush(userId: string, title: string, body: string, data?: any) {
+  private async sendPush(
+    userId: string,
+    type: string,
+    title: string,
+    body: string,
+    data?: any,
+  ) {
+    // 모든 시도/결과를 push_log 에 한 행씩 — 7일 보관 후 자동 삭제.
+    const log = this.pushLogRepository.create({
+      userId,
+      type,
+      title: title.slice(0, 200),
+      body: body.slice(0, 500),
+      tokenCount: 0,
+      successCount: 0,
+      failureCount: 0,
+      skipReason: null,
+      errorMessage: null,
+    });
+
     try {
       const messaging = this.firebaseAdminService.getMessaging();
-      if (!messaging) return;
+      if (!messaging) {
+        log.skipReason = 'messaging_unavailable';
+        await this.pushLogRepository.save(log);
+        return;
+      }
+
+      // 사용자 알림 설정 게이팅 — 인앱 알림 목록(DB)은 이미 저장됐고 푸시만 차단.
+      const settings = await this.userRepository.findOne({
+        where: { id: userId },
+        select: ['id', 'notifyAll', 'notifyRoom', 'notifyChat'],
+      });
+      if (settings) {
+        let skipReason: string | null = null;
+        if (!settings.notifyAll) skipReason = 'user_disabled_all';
+        else if (ROOM_TYPES.has(type) && !settings.notifyRoom)
+          skipReason = 'user_disabled_room';
+        else if (CHAT_TYPES.has(type) && !settings.notifyChat)
+          skipReason = 'user_disabled_chat';
+        if (skipReason) {
+          log.skipReason = skipReason;
+          await this.pushLogRepository.save(log);
+          return;
+        }
+      }
 
       const tokens = await this.deviceTokenRepository.find({
         where: { userId },
       });
+      log.tokenCount = tokens.length;
 
-      if (tokens.length === 0) return;
+      if (tokens.length === 0) {
+        log.skipReason = 'no_device_tokens';
+        await this.pushLogRepository.save(log);
+        return;
+      }
 
       const message = {
         notification: { title, body },
-        data: data ? { payload: JSON.stringify(data) } : undefined,
+        // FCM data 값은 전부 문자열이어야 한다. 앱은 평평한 키(type/roomId/chatRoomId)를
+        // 직접 읽으므로 nesting 없이 펼쳐 보낸다.
+        data: data ? stringifyData(data) : undefined,
         tokens: tokens.map((t) => t.token),
       };
 
       const response = await messaging.sendEachForMulticast(message);
+      log.successCount = response.successCount;
+      log.failureCount = response.failureCount;
 
       // Remove invalid tokens
       if (response.failureCount > 0) {
@@ -191,8 +307,15 @@ export class NotificationService {
             .execute();
         }
       }
+      await this.pushLogRepository.save(log);
     } catch (error) {
       this.logger.error('Failed to send push notification', error);
+      log.errorMessage = String(error?.message ?? error).slice(0, 500);
+      try {
+        await this.pushLogRepository.save(log);
+      } catch {
+        // 로그 저장조차 실패해도 메인 흐름은 건드리지 않는다.
+      }
     }
   }
 }

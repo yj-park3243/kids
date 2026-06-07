@@ -33,14 +33,25 @@ export class VersionController {
     // ─── 부트스트랩 호출 로그 (위치 포함) — 실패해도 응답엔 영향 없음 ──
     const latNum = lat != null ? Number(lat) : NaN;
     const lngNum = lng != null ? Number(lng) : NaN;
+    const userId = this.extractUserId(req);
+    const normalizedPlatform = (platform || '').toUpperCase();
+
     void this.versionService.logVersionCheck({
-      userId: this.extractUserId(req),
-      platform: (platform || '').toUpperCase(),
+      userId,
+      platform: normalizedPlatform,
       appVersion: appVersion ?? null,
       latitude: Number.isFinite(latNum) ? latNum : null,
       longitude: Number.isFinite(lngNum) ? lngNum : null,
       ipAddress: req.ip ?? null,
+      userAgent: req.headers?.['user-agent'] ?? null,
     });
+
+    // 앱 접속 텔레그램 알림 (같은 user/IP 1시간 1회)
+    void this.versionService.notifyAppOpen(
+      userId,
+      normalizedPlatform,
+      req.ip ?? null,
+    );
 
     return info;
   }

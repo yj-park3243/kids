@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../core/constants/app_colors.dart';
 import '../core/constants/app_text_styles.dart';
+import 'cupertino_picker_sheet.dart';
+import 'picker_field.dart';
 
 // Simplified region data for demo - in production, fetch from API
 class RegionData {
@@ -87,84 +88,73 @@ class _RegionPickerState extends State<RegionPicker> {
       children: [
         Text('지역 선택', style: AppTextStyles.body2Bold),
         const SizedBox(height: 8),
-        // Sido
-        _buildDropdown(
-          hint: '시/도 선택',
+        PickerField(
+          label: '시/도',
           value: _selectedSido,
-          items: RegionData.getSidos(),
-          onChanged: (value) {
+          hint: '시/도 선택',
+          onTap: () async {
+            final sidos = RegionData.getSidos();
+            final v = await showWheelSheet<String>(
+              context,
+              title: '시/도 선택',
+              options: sidos,
+              initial: _selectedSido ?? sidos.first,
+              format: (s) => s,
+            );
+            if (v == null) return;
             setState(() {
-              _selectedSido = value;
+              _selectedSido = v;
               _selectedSigungu = null;
               _selectedDong = null;
             });
           },
         ),
         const SizedBox(height: 8),
-        // Sigungu
-        _buildDropdown(
-          hint: '시/군/구 선택',
+        PickerField(
+          label: '시/군/구',
           value: _selectedSigungu,
-          items:
-              _selectedSido != null ? RegionData.getSigungus(_selectedSido!) : [],
-          onChanged: (value) {
+          hint: _selectedSido == null ? '시/도 먼저 선택' : '시/군/구 선택',
+          onTap: () async {
+            if (_selectedSido == null) return;
+            final list = RegionData.getSigungus(_selectedSido!);
+            if (list.isEmpty) return;
+            final v = await showWheelSheet<String>(
+              context,
+              title: '시/군/구 선택',
+              options: list,
+              initial: _selectedSigungu ?? list.first,
+              format: (s) => s,
+            );
+            if (v == null) return;
             setState(() {
-              _selectedSigungu = value;
+              _selectedSigungu = v;
               _selectedDong = null;
             });
           },
         ),
         const SizedBox(height: 8),
-        // Dong
-        _buildDropdown(
-          hint: '읍/면/동 선택',
+        PickerField(
+          label: '읍/면/동',
           value: _selectedDong,
-          items: _selectedSido != null && _selectedSigungu != null
-              ? RegionData.getDongs(_selectedSido!, _selectedSigungu!)
-              : [],
-          onChanged: (value) {
-            setState(() {
-              _selectedDong = value;
-            });
-            if (_selectedSido != null &&
-                _selectedSigungu != null &&
-                value != null) {
-              widget.onSelected(_selectedSido!, _selectedSigungu!, value);
-            }
+          hint: _selectedSigungu == null ? '시/군/구 먼저 선택' : '읍/면/동 선택',
+          onTap: () async {
+            if (_selectedSido == null || _selectedSigungu == null) return;
+            final list =
+                RegionData.getDongs(_selectedSido!, _selectedSigungu!);
+            if (list.isEmpty) return;
+            final v = await showWheelSheet<String>(
+              context,
+              title: '읍/면/동 선택',
+              options: list,
+              initial: _selectedDong ?? list.first,
+              format: (s) => s,
+            );
+            if (v == null) return;
+            setState(() => _selectedDong = v);
+            widget.onSelected(_selectedSido!, _selectedSigungu!, v);
           },
         ),
       ],
-    );
-  }
-
-  Widget _buildDropdown({
-    required String hint,
-    required String? value,
-    required List<String> items,
-    required void Function(String?) onChanged,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.divider),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          isExpanded: true,
-          hint: Text(hint, style: AppTextStyles.body1.copyWith(color: AppColors.textHint)),
-          value: value,
-          items: items
-              .map((item) => DropdownMenuItem(
-                    value: item,
-                    child: Text(item, style: AppTextStyles.body1),
-                  ))
-              .toList(),
-          onChanged: onChanged,
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.textSecondary),
-        ),
-      ),
     );
   }
 }

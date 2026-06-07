@@ -1,3 +1,4 @@
+import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
@@ -68,29 +69,19 @@ class BlockedUsersScreen extends ConsumerWidget {
     WidgetRef ref,
     BlockedUser user,
   ) async {
-    final confirmed = await showDialog<bool>(
+    var confirmed = false;
+    await AwesomeDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('차단 해제'),
-        content: Text('${user.nickname}님의 차단을 해제하시겠어요?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('취소'),
-          ),
-          TextButton(
-            key: const Key('btn-unblock-confirm'),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text(
-              '해제',
-              style: TextStyle(color: AppColors.primary),
-            ),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
+      dialogType: DialogType.question,
+      animType: AnimType.scale,
+      title: '차단 해제',
+      desc: '${user.nickname}님의 차단을 해제하시겠어요?',
+      btnCancelText: '취소',
+      btnOkText: '해제',
+      btnCancelOnPress: () {},
+      btnOkOnPress: () => confirmed = true,
+    ).show();
+    if (!confirmed) return;
 
     try {
       await ref.read(blockRepositoryProvider).unblock(user.targetUserId);

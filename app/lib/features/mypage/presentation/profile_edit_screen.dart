@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -190,20 +191,15 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   }
 
   static void _showLockedInfoDialog(BuildContext context) {
-    showDialog<void>(
+    AwesomeDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('변경 불가 항목'),
-        content: const Text('운영자 문의로만 정정 가능합니다.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('확인'),
-          ),
-        ],
-      ),
-    );
+      dialogType: DialogType.info,
+      animType: AnimType.scale,
+      title: '변경 불가 항목',
+      desc: '운영자 문의로만 정정 가능합니다.',
+      btnOkText: '확인',
+      btnOkOnPress: () {},
+    ).show();
   }
 }
 

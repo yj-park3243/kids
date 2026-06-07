@@ -49,6 +49,8 @@ export class ChatGateway
       }
       const payload = this.jwtService.verify(token);
       client.userId = payload.sub;
+      // fetchSockets() 는 RemoteSocket.data 만 노출하므로 userId 를 data 에도 저장.
+      client.data.userId = payload.sub;
       this.logger.log(`chat connect ${client.id} user=${payload.sub}`);
     } catch (err) {
       this.logger.warn(`chat auth failed: ${err}`);
@@ -113,6 +115,24 @@ export class ChatGateway
       createdAt: message.createdAt.toISOString(),
       unreadCount: message.unreadCount,
     });
+  }
+
+  /**
+   * 현재 해당 채팅방 소켓에 접속해 있는 userId 집합.
+   * 채팅 푸시 발송 시 "지금 방을 보고 있는" 사람을 제외하는 데 쓴다.
+   */
+  async getActiveUserIds(roomId: string): Promise<Set<string>> {
+    const ids = new Set<string>();
+    try {
+      const sockets = await this.server.in(`room:${roomId}`).fetchSockets();
+      for (const s of sockets) {
+        const uid = (s.data as { userId?: string })?.userId;
+        if (uid) ids.add(uid);
+      }
+    } catch (err) {
+      this.logger.warn(`getActiveUserIds failed: ${err}`);
+    }
+    return ids;
   }
 
   /**

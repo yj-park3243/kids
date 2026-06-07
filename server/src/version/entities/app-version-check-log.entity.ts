@@ -17,6 +17,15 @@ export class AppVersionCheckLog {
   @Column({ name: 'user_id', type: 'uuid', nullable: true })
   userId: string | null;
 
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  nickname: string | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  email: string | null;
+
+  @Column({ name: 'phone_number', type: 'varchar', length: 30, nullable: true })
+  phoneNumber: string | null;
+
   @Column({ type: 'varchar', length: 10 })
   platform: string; // IOS, ANDROID
 
@@ -31,6 +40,12 @@ export class AppVersionCheckLog {
 
   @Column({ name: 'ip_address', type: 'varchar', length: 64, nullable: true })
   ipAddress: string | null;
+
+  @Column({ name: 'ip_location', type: 'text', nullable: true })
+  ipLocation: string | null;
+
+  @Column({ name: 'user_agent', type: 'text', nullable: true })
+  userAgent: string | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

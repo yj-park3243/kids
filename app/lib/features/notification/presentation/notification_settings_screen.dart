@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../../../core/constants/api_constants.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/network/api_client.dart';
 import '../../../widgets/app_bar.dart';
 
-/// 푸시 알림 토글 페이지. 로컬 환경설정 저장만 함 — 실제 FCM topic
-/// subscribe/unsubscribe 는 후속 작업.
+/// 푸시 알림 토글 페이지. 서버(GET/PATCH /notifications/settings)에 저장되며,
+/// 서버 sendPush 가 카테고리별로 발송을 게이팅한다.
 class NotificationSettingsScreen extends StatefulWidget {
   const NotificationSettingsScreen({super.key});
 
@@ -16,11 +17,6 @@ class NotificationSettingsScreen extends StatefulWidget {
 }
 
 class _NotificationSettingsScreenState extends State<NotificationSettingsScreen> {
-  static const _storage = FlutterSecureStorage();
-  static const _keyAll = 'noti_all';
-  static const _keyRoom = 'noti_room';
-  static const _keyChat = 'noti_chat';
-
   bool _all = true;
   bool _room = true;
   bool _chat = true;
@@ -33,22 +29,41 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
   }
 
   Future<void> _load() async {
-    final results = await Future.wait([
-      _storage.read(key: _keyAll),
-      _storage.read(key: _keyRoom),
-      _storage.read(key: _keyChat),
-    ]);
-    if (!mounted) return;
-    setState(() {
-      _all = results[0] != 'false';
-      _room = results[1] != 'false';
-      _chat = results[2] != 'false';
-      _loading = false;
-    });
+    try {
+      final res = await ApiClient.instance.get(ApiConstants.notificationSettings);
+      final data = (res.data as Map?) ?? const {};
+      if (!mounted) return;
+      setState(() {
+        _all = data['notifyAll'] != false;
+        _room = data['notifyRoom'] != false;
+        _chat = data['notifyChat'] != false;
+        _loading = false;
+      });
+    } catch (_) {
+      // 조회 실패 — 기본값(전부 ON) 유지.
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
   }
 
-  Future<void> _set(String key, bool v) async {
-    await _storage.write(key: key, value: v ? 'true' : 'false');
+  /// 토글 즉시 반영 + 서버 PATCH. 실패하면 이전 값으로 롤백.
+  Future<void> _patch(
+    String key,
+    bool value,
+    void Function(bool) apply,
+    bool previous,
+  ) async {
+    setState(() => apply(value));
+    try {
+      await ApiClient.instance
+          .patch(ApiConstants.notificationSettings, data: {key: value});
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => apply(previous));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('설정 변경에 실패했어요. 다시 시도해주세요.')),
+      );
+    }
   }
 
   @override
@@ -66,10 +81,8 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                     title: '앱 알림 받기',
                     subtitle: '꺼두면 아래 알림이 모두 비활성화돼요',
                     value: _all,
-                    onChanged: (v) {
-                      setState(() => _all = v);
-                      _set(_keyAll, v);
-                    },
+                    onChanged: (v) =>
+                        _patch('notifyAll', v, (x) => _all = x, _all),
                   ),
                   const Divider(height: 1, color: AppColors.divider),
                   _tile(
@@ -77,20 +90,16 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                     subtitle: '참여 신청, 수락, 일정 변경 등',
                     value: _room,
                     enabled: _all,
-                    onChanged: (v) {
-                      setState(() => _room = v);
-                      _set(_keyRoom, v);
-                    },
+                    onChanged: (v) =>
+                        _patch('notifyRoom', v, (x) => _room = x, _room),
                   ),
                   _tile(
                     title: '채팅 알림',
                     subtitle: '새 메시지 도착 알림',
                     value: _chat,
                     enabled: _all,
-                    onChanged: (v) {
-                      setState(() => _chat = v);
-                      _set(_keyChat, v);
-                    },
+                    onChanged: (v) =>
+                        _patch('notifyChat', v, (x) => _chat = x, _chat),
                   ),
                 ],
               ),

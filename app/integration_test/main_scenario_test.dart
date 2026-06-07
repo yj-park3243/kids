@@ -103,7 +103,7 @@ Future<void> _runUserA(WidgetTester tester, ApiHelper api) async {
 
   // 후기: A → B, A → C (모임 완료 후 가능. orchestrator 가 COMPLETED 처리)
   await tester.pump(const Duration(seconds: 5));
-  await api.createReview(
+  final reviewIdB = await api.createReview(
     roomId: TestConfig.room1Id,
     targetUserId: TestConfig.otherUserId1, // B
     score: 5,
@@ -132,7 +132,7 @@ Future<void> _runUserA(WidgetTester tester, ApiHelper api) async {
       await api.respondJoinRequest(
         roomId: TestConfig.room2Id,
         requestId: reqId,
-        status: 'APPROVED',
+        action: 'ACCEPT',
       );
     }
   }
@@ -153,6 +153,54 @@ Future<void> _runUserA(WidgetTester tester, ApiHelper api) async {
     '한부모 모임! 방장 A 입니다. (${_ts()})',
   );
   await _shot(tester, 'r3_01_chat_sent');
+
+  // ═══ Round 5 — 노쇼 출석 체크 + 후기 수정 (방장) ═════════════════════
+  // room1 은 orchestrator 가 COMPLETED 처리. 방장이 B 를 출석 처리.
+  // (C 는 자기 시나리오에서 A 를 차단하며 room1 멤버십이 제거되므로 대상에서 제외)
+  await tester.pump(const Duration(seconds: 3));
+  final attStatus = await api.submitAttendance(
+    TestConfig.room1Id,
+    [
+      {'userId': TestConfig.otherUserId1, 'attended': true}, // B
+    ],
+  );
+  expect(attStatus, inInclusiveRange(200, 299),
+      reason: '방장 출석 체크는 성공해야 함. status=$attStatus');
+  await _shot(tester, 'r5_01_attendance');
+
+  // 후기 수정 (완료 7일 이내) — Round1 의 A→B 후기.
+  if (reviewIdB.isNotEmpty) {
+    await api.updateReview(
+      reviewIdB,
+      score: 4,
+      comment: 'e2e A→B 후기 수정 (${_ts()})',
+    );
+    await _shot(tester, 'r5_02_review_updated');
+  }
+
+  // 비방장이 출석 체크를 호출하면 거부(403)여야 함은 C 시나리오에서 검증.
+
+  // ═══ Round 6 — 프로필 수정 불가 + 내 모임 + 외부 프로필 ══════════════
+  // 수정 불가 필드: parentGender / isSingleParent 변경 시도 → 2xx 이나 값 불변.
+  final before = await api.getMe();
+  await api.updateMe({'parentGender': 'DAD', 'isSingleParent': false});
+  final after = await api.getMe();
+  expect(after['parentGender'], before['parentGender'],
+      reason: 'parentGender 는 가입 후 수정 불가여야 함');
+  expect(after['isSingleParent'], before['isSingleParent'],
+      reason: 'isSingleParent 는 가입 후 수정 불가여야 함');
+  await _shot(tester, 'r6_01_immutable_fields');
+
+  // 내 모임 목록 — 지난 모임(PAST)에 COMPLETED 된 room1 이 포함.
+  await api.listMyRooms(status: 'UPCOMING');
+  await api.listMyRooms(status: 'PAST');
+  await _shot(tester, 'r6_02_my_rooms');
+
+  // 외부 유저 프로필 — 한부모 여부가 노출되면 안 됨.
+  final bProfile = await api.getUserById(TestConfig.otherUserId1); // B
+  expect(bProfile.containsKey('isSingleParent'), false,
+      reason: '외부 프로필에 한부모 여부가 노출되면 안 됨');
+  await _shot(tester, 'r6_03_user_profile');
 
   await _shot(tester, '99_done');
 }
@@ -213,6 +261,20 @@ Future<void> _runUserB(WidgetTester tester, ApiHelper api) async {
   );
   await _shot(tester, 'r3_02_chat_sent');
 
+  // ═══ Round 4 — 팔로우 (B → A) + 위치 노출(참여 확정자) ═══════════════
+  // B 는 A(otherUserId1)를 단골로 팔로우.
+  await api.followUser(TestConfig.otherUserId1);
+  final following = await api.listFollowing();
+  expect(following.isNotEmpty, true,
+      reason: 'A 팔로우 후 내 팔로잉 목록에 있어야 함');
+  await _shot(tester, 'r4_01_followed');
+
+  // 위치 노출 단계화: B 는 room1 참여 확정자 → placeName/placeAddress 공개.
+  final r1Detail = await api.getRoomDetail(TestConfig.room1Id);
+  expect(r1Detail.containsKey('placeName'), true,
+      reason: '참여 확정자 응답에는 placeName 키가 포함되어야 함');
+  await _shot(tester, 'r4_02_room_detail_member');
+
   await _shot(tester, '99_done');
 }
 
@@ -256,6 +318,36 @@ Future<void> _runUserC(WidgetTester tester, ApiHelper api) async {
     reason: 'C(일반) 는 한부모 전용 방에서 거부되어야 함. 실제 status=$r3Status',
   );
   await _shot(tester, 'r3_01_rejected');
+
+  // ═══ Round 4 — 신고 / 위치노출(비참여) / 권한 검증 ═══════════════════
+  // 신고 (C → A, USER). POST /reports — 어드민 신고 큐로 이관.
+  await api.reportTarget(
+    targetType: 'USER',
+    targetId: TestConfig.otherUserId1, // A
+    reason: 'HARASSMENT',
+    description: 'e2e 신고 (${_ts()})',
+  );
+  await _shot(tester, 'r4_01_reported');
+
+  // 위치 노출 단계화: C 는 room2(MOM_ONLY) 비참여자 → placeName 비공개.
+  final r2Detail = await api.getRoomDetail(TestConfig.room2Id);
+  expect(r2Detail.containsKey('placeName'), false,
+      reason: '비참여자 응답에 placeName 이 노출되면 안 됨');
+  await _shot(tester, 'r4_02_room_detail_nonmember');
+
+  // 권한: 비방장(C)이 출석 체크를 호출하면 거부(403)되어야 함.
+  final cAtt = await api.submitAttendance(
+    TestConfig.room1Id,
+    [
+      {'userId': TestConfig.userId, 'attended': true},
+    ],
+  );
+  expect(cAtt, isNot(inInclusiveRange(200, 299)),
+      reason: '비방장 출석 체크는 거부되어야 함. 실제 status=$cAtt');
+  await _shot(tester, 'r4_03_attendance_forbidden');
+
+  // (차단 양방향 검증은 공유 방 멤버십 삭제 부작용 때문에 이 3-user 셋업에서
+  //  자동화하지 않는다 — docs/08 BLK-* 참고. 격리 계정/방 셋업 시 자동화 가능.)
 
   await _shot(tester, '99_done');
 }

@@ -152,22 +152,35 @@ export class AuthService {
 
     if (existingSocial) {
       user = existingSocial.user;
-      this.assertActiveStatus(user);
+      if (user.status === 'WITHDRAWN') {
+        // 탈퇴 계정 — unique 컬럼/연결 끊고 새 계정으로 가입 처리.
+        await this.recycleWithdrawnSocialUser(user);
+        user = await this.createNewSocialUser(dto.provider, normalized);
+        isNewUser = true;
+      } else {
+        this.assertActiveStatus(user);
+      }
     } else if (normalized.email) {
       // 2. 같은 이메일 유저가 있으면 SocialAccount만 연결
       const existingUserByEmail = await this.userRepository.findOne({
         where: { email: normalized.email },
       });
       if (existingUserByEmail) {
-        this.assertActiveStatus(existingUserByEmail);
-        await this.socialAccountRepository.save(
-          this.socialAccountRepository.create({
-            userId: existingUserByEmail.id,
-            provider: dto.provider,
-            providerId: normalized.providerId,
-          }),
-        );
-        user = existingUserByEmail;
+        if (existingUserByEmail.status === 'WITHDRAWN') {
+          await this.recycleWithdrawnSocialUser(existingUserByEmail);
+          user = await this.createNewSocialUser(dto.provider, normalized);
+          isNewUser = true;
+        } else {
+          this.assertActiveStatus(existingUserByEmail);
+          await this.socialAccountRepository.save(
+            this.socialAccountRepository.create({
+              userId: existingUserByEmail.id,
+              provider: dto.provider,
+              providerId: normalized.providerId,
+            }),
+          );
+          user = existingUserByEmail;
+        }
       } else {
         user = await this.createNewSocialUser(dto.provider, normalized);
         isNewUser = true;
@@ -205,6 +218,20 @@ export class AuthService {
       user: this.sanitizeUser(user),
       isNewUser,
     };
+  }
+
+  // 탈퇴(WITHDRAWN) 계정이 동일 SNS/이메일로 재가입할 수 있도록
+  // unique 컬럼(email, socialId)을 비우고 social_account 연결을 해제한다.
+  // KCP 의 handleDuplicateCi 와 같은 패턴(탈퇴 계정의 unique 자리 회수).
+  private async recycleWithdrawnSocialUser(user: User): Promise<void> {
+    await this.dataSource.transaction(async (manager) => {
+      await manager.delete(SocialAccount, { userId: user.id });
+      await manager.delete(RefreshToken, { userId: user.id });
+      await manager.update(User, user.id, {
+        email: null as any,
+        socialId: null as any,
+      });
+    });
   }
 
   private async createNewSocialUser(

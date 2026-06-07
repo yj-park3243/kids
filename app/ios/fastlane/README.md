@@ -63,13 +63,29 @@ TestFlight 배포
 
 이미 빌드된 IPA 를 TestFlight 에 업로드 (flutter build 없이)
 
+### ios submit_when_ready
+
+```sh
+[bundle exec] fastlane ios submit_when_ready
+```
+
+방금 올린 TestFlight 빌드 처리 완료까지 대기 후 App Store 심사 제출
+
+### ios ensure_version
+
+```sh
+[bundle exec] fastlane ios ensure_version
+```
+
+ASC 에 현재 marketing version 의 편집(editable) 버전이 없으면 생성
+
 ### ios submit
 
 ```sh
 [bundle exec] fastlane ios submit
 ```
 
-App Store 심사 제출 (TestFlight 에 올라간 빌드 사용)
+App Store 심사 제출 (TestFlight 에 올라간 빌드 사용). `fastlane submit build:55` 로 빌드번호 지정 가능.
 
 ----
 

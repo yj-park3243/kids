@@ -42,6 +42,14 @@ export class Child {
   })
   verificationPhotoUrl: string; // 출생증명서/키즈노트 캡쳐 — 어드민 검수 전용, 비공개.
 
+  // 'MORNING' | 'AFTERNOON' | 'LATE_AFTERNOON' | 'EVENING' | 'NONE' | null
+  @Column({ name: 'nap_time', type: 'varchar', length: 20, nullable: true })
+  napTime: string;
+
+  // 기질 태그 — 최대 5개. 클라이언트 키(영문) 배열로 저장하고 라벨은 앱에서 매핑.
+  @Column({ name: 'temperament_tags', type: 'jsonb', nullable: true })
+  temperamentTags: string[];
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

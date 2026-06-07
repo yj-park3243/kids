@@ -188,10 +188,13 @@ TOMORROW=$(date -v+1d +%Y-%m-%d 2>/dev/null || date -d "+1 day" +%Y-%m-%d)
 
 create_room_a() {
   # $1 title  $2 joinType  $3 genderFilter  $4 singleParentOnly(true/false)
+  # placeName/placeAddress 는 위치 노출 단계화 검증용 — 참여 확정자에게만 공개됨.
   auth_post "$TOKEN_A" "/rooms" "{
     \"title\":\"$1\",
     \"description\":\"e2e $1 (${TS})\",
     \"placeType\":\"PLAYGROUND\",
+    \"placeName\":\"역삼 어린이공원\",
+    \"placeAddress\":\"서울 강남구 역삼동 123-45\",
     \"joinType\":\"$2\",
     \"genderFilter\":\"$3\",
     \"singleParentOnly\":$4,

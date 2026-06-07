@@ -75,6 +75,8 @@ class AuthRepository {
     String? gender,
     String? photoUrl,
     String? verificationPhotoUrl,
+    String? napTime,
+    List<String>? temperamentTags,
   }) async {
     final response = await _dio.post(ApiConstants.children, data: {
       'nickname': nickname,
@@ -84,12 +86,14 @@ class AuthRepository {
       if (photoUrl != null) 'photoUrl': photoUrl,
       if (verificationPhotoUrl != null)
         'verificationPhotoUrl': verificationPhotoUrl,
+      if (napTime != null) 'napTime': napTime,
+      if (temperamentTags != null) 'temperamentTags': temperamentTags,
     });
     final data = response.data['data'] ?? response.data;
     return Child.fromJson(data);
   }
 
-  // Update Child
+  // Update Child — 기존 항목 (사진/이름/생년월/성별).
   Future<Child> updateChild({
     required String childId,
     String? nickname,
@@ -107,6 +111,20 @@ class AuthRepository {
       if (photoUrl != null) 'photoUrl': photoUrl,
       if (verificationPhotoUrl != null)
         'verificationPhotoUrl': verificationPhotoUrl,
+    });
+    final data = response.data['data'] ?? response.data;
+    return Child.fromJson(data);
+  }
+
+  /// 아이 기질/낮잠 항목만 갱신 — null/빈배열은 "비우기"로 명시적으로 전송한다.
+  Future<Child> updateChildTraits({
+    required String childId,
+    required String? napTime,
+    required List<String> temperamentTags,
+  }) async {
+    final response = await _dio.patch('${ApiConstants.children}/$childId', data: {
+      'napTime': napTime,
+      'temperamentTags': temperamentTags,
     });
     final data = response.data['data'] ?? response.data;
     return Child.fromJson(data);

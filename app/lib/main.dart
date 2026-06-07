@@ -126,6 +126,8 @@ class KidsApp extends StatelessWidget {
     return MaterialApp.router(
       title: '같이크자',
       debugShowCheckedModeBanner: false,
+      // 포어그라운드 FCM 인앱 알림(SnackBar) 표시용.
+      scaffoldMessengerKey: FcmTapHandler.messengerKey,
       routerConfig: appRouter,
       scrollBehavior: const AppScrollBehavior(),
       locale: const Locale('ko', 'KR'),

@@ -7,7 +7,7 @@ class ApiConstants {
 
   static const String _environment = String.fromEnvironment(
     'ENVIRONMENT',
-    defaultValue: 'development',
+    defaultValue: 'production',
   );
 
   // API_BASE_URL이 주어지면 그것을 우선, 없으면 ENVIRONMENT로 분기
@@ -50,6 +50,7 @@ class ApiConstants {
   static const String notifications = '/notifications';
   static const String deviceToken = '/notifications/device-token';
   static const String unreadCount = '/notifications/unread-count';
+  static const String notificationSettings = '/notifications/settings';
 
   // App bootstrap / version
   static const String appVersion = '/app-version';
@@ -81,10 +82,6 @@ class ApiConstants {
   static const String myFollows = '/follows/me';
   static String followByTarget(String targetUserId) =>
       '/follows/$targetUserId';
-
-  // Growth guide
-  static const String guides = '/guides';
-  static String guide(int ageMonth) => '/guides/$ageMonth';
 
   // Notice
   static const String notices = '/notices';

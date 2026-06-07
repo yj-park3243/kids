@@ -172,15 +172,16 @@ class ApiHelper {
     return (data is List) ? data : (data['items'] as List? ?? []);
   }
 
-  /// status: APPROVED | REJECTED
+  /// action: ACCEPT | REJECT — 서버 JoinActionDto 와 일치해야 함
+  /// (whitelist+forbidNonWhitelisted 라 잘못된 키는 400).
   Future<void> respondJoinRequest({
     required String roomId,
     required String requestId,
-    required String status,
+    required String action,
   }) async {
     final res = await _dio.patch(
       '/rooms/$roomId/join-requests/$requestId',
-      data: {'status': status},
+      data: {'action': action},
     );
     _assertOk(res, 'respondJoinRequest');
   }
@@ -203,8 +204,8 @@ class ApiHelper {
 
   // ─── review ────────────────────────────────────────────────────────
 
-  /// score: 1~5, tags: 최대 10
-  Future<void> createReview({
+  /// score: 1~5, tags: 최대 10. 생성된 reviewId 를 반환(없으면 빈 문자열).
+  Future<String> createReview({
     required String roomId,
     required String targetUserId,
     int score = 5,
@@ -218,6 +219,23 @@ class ApiHelper {
       if (comment != null) 'comment': comment,
     });
     _assertOk(res, 'createReview');
+    final data = _unwrap(res.data);
+    return (data is Map && data['id'] != null) ? data['id'] as String : '';
+  }
+
+  /// 후기 수정 (완료 7일 이내). PATCH /reviews/:id
+  Future<void> updateReview(
+    String reviewId, {
+    int? score,
+    List<String>? tags,
+    String? comment,
+  }) async {
+    final res = await _dio.patch('/reviews/$reviewId', data: {
+      if (score != null) 'score': score,
+      if (tags != null) 'tags': tags,
+      if (comment != null) 'comment': comment,
+    });
+    _assertOk(res, 'updateReview');
   }
 
   // ─── report ────────────────────────────────────────────────────────
@@ -233,6 +251,131 @@ class ApiHelper {
       if (detail != null) 'detail': detail,
     });
     _assertOk(res, 'reportUser');
+  }
+
+  /// 정식 신고 엔드포인트. POST /reports (CreateReportDto)
+  /// targetType: USER | ROOM | CHAT_MESSAGE
+  /// reason: SPAM | INAPPROPRIATE | HARASSMENT | FAKE_PROFILE | NO_SHOW | OTHER
+  Future<void> reportTarget({
+    required String targetType,
+    required String targetId,
+    String reason = 'HARASSMENT',
+    String? description,
+  }) async {
+    final res = await _dio.post('/reports', data: {
+      'targetType': targetType,
+      'targetId': targetId,
+      'reason': reason,
+      if (description != null) 'description': description,
+    });
+    _assertOk(res, 'reportTarget');
+  }
+
+  // ─── block ─────────────────────────────────────────────────────────
+
+  Future<void> blockUser(String targetUserId) async {
+    final res = await _dio.post('/blocks', data: {'targetUserId': targetUserId});
+    _assertOk(res, 'blockUser');
+  }
+
+  Future<void> unblockUser(String targetUserId) async {
+    final res = await _dio.delete('/blocks/$targetUserId');
+    _assertOk(res, 'unblockUser');
+  }
+
+  Future<List<dynamic>> listBlocks() async {
+    final res = await _dio.get('/blocks');
+    _assertOk(res, 'listBlocks');
+    final data = _unwrap(res.data);
+    return (data is List) ? data : (data['items'] as List? ?? []);
+  }
+
+  // ─── follow ────────────────────────────────────────────────────────
+
+  Future<void> followUser(String targetUserId) async {
+    final res = await _dio.post('/follows', data: {'targetUserId': targetUserId});
+    _assertOk(res, 'followUser');
+  }
+
+  Future<void> unfollowUser(String targetUserId) async {
+    final res = await _dio.delete('/follows/$targetUserId');
+    _assertOk(res, 'unfollowUser');
+  }
+
+  Future<List<dynamic>> listFollowing() async {
+    final res = await _dio.get('/follows/me');
+    _assertOk(res, 'listFollowing');
+    final data = _unwrap(res.data);
+    return (data is List) ? data : (data['items'] as List? ?? []);
+  }
+
+  // ─── user (me / others) ────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> getMe() async {
+    final res = await _dio.get('/users/me');
+    _assertOk(res, 'getMe');
+    return Map<String, dynamic>.from(_unwrap(res.data) as Map);
+  }
+
+  /// PATCH /users/me — 수정 불가 필드(parentGender/isSingleParent) 검증용.
+  /// 서버는 받기만 하고 무시하므로 2xx 가 와도 값은 불변이어야 한다.
+  Future<void> updateMe(Map<String, dynamic> data) async {
+    final res = await _dio.patch('/users/me', data: data);
+    _assertOk(res, 'updateMe');
+  }
+
+  Future<Map<String, dynamic>> getUserById(String userId) async {
+    final res = await _dio.get('/users/$userId');
+    _assertOk(res, 'getUserById');
+    return Map<String, dynamic>.from(_unwrap(res.data) as Map);
+  }
+
+  // ─── room (read / manage) ──────────────────────────────────────────
+
+  Future<Map<String, dynamic>> getRoomDetail(String roomId) async {
+    final res = await _dio.get('/rooms/$roomId');
+    _assertOk(res, 'getRoomDetail');
+    return Map<String, dynamic>.from(_unwrap(res.data) as Map);
+  }
+
+  Future<List<dynamic>> listRooms() async {
+    final res = await _dio.get('/rooms');
+    _assertOk(res, 'listRooms');
+    final data = _unwrap(res.data);
+    return (data is List) ? data : (data['items'] as List? ?? []);
+  }
+
+  Future<List<dynamic>> listMyRooms({
+    String type = 'ALL',
+    String status = 'UPCOMING',
+  }) async {
+    final res = await _dio.get('/rooms/my',
+        queryParameters: {'type': type, 'status': status});
+    _assertOk(res, 'listMyRooms');
+    final data = _unwrap(res.data);
+    return (data is List) ? data : (data['items'] as List? ?? []);
+  }
+
+  /// 출석 체크 제출. status 반환 (방장 2xx / 비방장 403 검증).
+  Future<int> submitAttendance(
+    String roomId,
+    List<Map<String, dynamic>> records,
+  ) async {
+    final res = await _dio.post('/rooms/$roomId/attendance',
+        data: {'records': records});
+    return res.statusCode ?? 0;
+  }
+
+  /// 참여자 강퇴. status 반환.
+  Future<int> kickMember(String roomId, String targetUserId) async {
+    final res = await _dio.delete('/rooms/$roomId/members/$targetUserId');
+    return res.statusCode ?? 0;
+  }
+
+  /// 방 수정 시도. status 반환 (비방장 403 검증용).
+  Future<int> tryUpdateRoom(String roomId, Map<String, dynamic> data) async {
+    final res = await _dio.patch('/rooms/$roomId', data: data);
+    return res.statusCode ?? 0;
   }
 
   // ─── internal ──────────────────────────────────────────────────────

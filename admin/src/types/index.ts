@@ -189,22 +189,3 @@ export interface ReportDetail extends ReportListItem {
   adminAction?: AdminAction;
   adminNote?: string;
 }
-
-// ============ Guides ============
-export interface Guide {
-  ageMonth: number;        // 0~72
-  title: string;
-  summary: string;
-  bodyMarkdown: string;
-  coverImage?: string | null;
-  tags: string[];
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-export interface GuideListItem {
-  ageMonth: number;
-  title: string;
-  summary: string;
-  coverImage?: string | null;
-}

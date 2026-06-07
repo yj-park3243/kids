@@ -15,6 +15,7 @@ import '../../../models/room.dart';
 import '../../../widgets/app_bar.dart';
 import '../../../widgets/common_button.dart';
 import '../../../widgets/design/accent_blobs.dart';
+import '../../../widgets/design/glass_card.dart';
 import '../../../widgets/empty_state.dart';
 import '../../../widgets/loading.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -27,8 +28,14 @@ import 'widgets/category_badge.dart';
 
 class RoomDetailScreen extends ConsumerStatefulWidget {
   final String roomId;
+  // 기본은 표시. 지도 단일 핀 → 상세 흐름만 false 를 넘긴다.
+  final bool showBack;
 
-  const RoomDetailScreen({super.key, required this.roomId});
+  const RoomDetailScreen({
+    super.key,
+    required this.roomId,
+    this.showBack = true,
+  });
 
   @override
   ConsumerState<RoomDetailScreen> createState() => _RoomDetailScreenState();
@@ -57,7 +64,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
       if (state.error != null) {
         return Scaffold(
           backgroundColor: Colors.transparent,
-          appBar: const CustomAppBar(title: ''),
+          appBar: CustomAppBar(title: '', showBack: widget.showBack),
           extendBodyBehindAppBar: true,
           body: AccentBlobsBackground(
             child: SafeArea(
@@ -88,6 +95,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
       extendBodyBehindAppBar: true,
       appBar: CustomAppBar(
         title: room.title,
+        showBack: widget.showBack,
         actions: [
           IconButton(
             icon:
@@ -157,108 +165,44 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
       ),
       body: AccentBlobsBackground(
         child: SingleChildScrollView(
-        // extendBodyBehindAppBar 일 때 컨텐츠가 AppBar 뒤로 깔려 흰색 카드가
-        // AppBar 영역까지 보이는 문제를 막기 위해 status bar + AppBar 높이만큼 띄움.
-        padding: EdgeInsets.only(
-          top: MediaQuery.of(context).padding.top + kToolbarHeight + 8,
-          bottom: 120,
-        ),
+        padding: const EdgeInsets.only(bottom: 120),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Flash meeting strip
-            if (room.isFlashMeeting)
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFFFC0AC), AppColors.accentCoral],
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.bolt_rounded,
-                        color: Colors.white, size: 18),
-                    const SizedBox(width: 6),
-                    Text(
-                      '⚡ 번개 모임 · 24시간 이내',
-                      style: AppTextStyles.body2Bold
-                          .copyWith(color: Colors.white),
-                    ),
-                  ],
+            // 풀폭 그라데이션 히어로 — 칩 + 큰 제목 + 일시·동을 한눈에.
+            _RoomHero(room: room),
+
+            // 카테고리 배지(엄마만/아빠만/한부모) — 히어로 칩과 색상 의미가
+            // 다르니 본문 위쪽에 별도로 노출.
+            if (room.genderFilter != 'ALL' || room.singleParentOnly)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                child: CategoryBadge(
+                  genderFilter: room.genderFilter,
+                  singleParentOnly: room.singleParentOnly,
                 ),
               ),
 
-            // Header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Badges row: place type + category
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: AppColors.secondary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          AppConstants.placeTypes[room.placeType] ?? '기타',
-                          style: AppTextStyles.captionBold
-                              .copyWith(color: AppColors.secondary),
-                        ),
-                      ),
-                      CategoryBadge(
-                        genderFilter: room.genderFilter,
-                        singleParentOnly: room.singleParentOnly,
-                      ),
-                    ],
-                  ),
-                  if (room.description != null && room.description!.trim().isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.04),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Text(
-                        room.description!,
-                        style: AppTextStyles.body2.copyWith(
-                          color: AppColors.textPrimary,
-                          height: 1.5,
-                        ),
-                      ),
+            // 설명 — 별도 카드.
+            if (room.description != null &&
+                room.description!.trim().isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                child: GlassCard(
+                  radius: 16,
+                  padding: const EdgeInsets.all(14),
+                  child: Text(
+                    room.description!,
+                    style: AppTextStyles.body2.copyWith(
+                      color: AppColors.textPrimary,
+                      height: 1.5,
                     ),
-                  ],
-                ],
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
-            // 1) 일시 — Hero 카드. 가장 큰 텍스트로 먼저 눈에 들어오게.
-            _HeroDateTimeCard(room: room),
-
-            const SizedBox(height: 12),
-
-            // 2) 장소 — 참여자에겐 정확한 주소, 비참여자에겐 잠금 안내.
+            // 1) 장소 — 참여자에겐 정확한 주소, 비참여자에겐 잠금 안내.
             if (isParticipant)
               _LocationCard(room: room)
             else
@@ -491,75 +435,130 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
   }
 }
 
-/// 1) 일시 Hero 카드 — 가장 중요한 정보를 가장 큰 텍스트로.
-class _HeroDateTimeCard extends StatelessWidget {
+/// 상단 풀폭 히어로 — 그라데이션 배경에 칩 묶음 + 큰 제목 + 일시/지역.
+/// 일시 정보가 여기 들어가서 별도 일시 카드는 제거됐다.
+class _RoomHero extends StatelessWidget {
   final Room room;
-  const _HeroDateTimeCard({required this.room});
+  const _RoomHero({required this.room});
 
   @override
   Widget build(BuildContext context) {
-    final timeText =
-        '${AppDateUtils.formatTime(room.startTime)}${room.endTime != null ? ' ~ ${AppDateUtils.formatTime(room.endTime!)}' : ''}';
-
+    final topPad = MediaQuery.of(context).padding.top + kToolbarHeight;
+    final timeText = AppDateUtils.formatTime(room.startTime) +
+        (room.endTime != null
+            ? ' ~ ${AppDateUtils.formatTime(room.endTime!)}'
+            : '');
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(24, topPad + 4, 24, 28),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            AppColors.primary.withValues(alpha: 0.10),
-            AppColors.secondary.withValues(alpha: 0.10),
-          ],
+          colors: _heroColors(room.ageMonthMin),
         ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.18)),
+        borderRadius: const BorderRadius.vertical(
+          bottom: Radius.circular(28),
+        ),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.event_rounded,
-                color: Colors.white, size: 22),
+          // 칩 묶음 — 번개 / 장소 / 연령 / 모집중.
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              if (room.isFlashMeeting) _heroChip('⚡ 번개', highlighted: true),
+              _heroChip(AppConstants.placeTypes[room.placeType] ?? '기타'),
+              _heroChip('${room.ageMonthMin}~${room.ageMonthMax}개월'),
+              if (room.status == 'RECRUITING') _heroChip('모집중'),
+            ],
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  AppDateUtils.formatDate(room.date),
-                  style: AppTextStyles.heading2.copyWith(height: 1.2),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(Icons.access_time_rounded,
-                        size: 14, color: AppColors.textSecondary),
-                    const SizedBox(width: 4),
-                    Text(
-                      timeText,
-                      style: AppTextStyles.body2Bold
-                          .copyWith(color: AppColors.textSecondary),
-                    ),
-                  ],
-                ),
-              ],
+          const SizedBox(height: 14),
+          // 큰 제목 — 첫 화면 시선 잡이.
+          Text(
+            room.title,
+            style: AppTextStyles.heading1.copyWith(
+              color: Colors.white,
+              fontSize: 24,
+              height: 1.25,
             ),
           ),
+          const SizedBox(height: 14),
+          // 일시 — 날짜 + 시간 한 줄.
+          _heroInfoRow(
+            Icons.event_rounded,
+            '${AppDateUtils.formatDate(room.date)} · $timeText',
+          ),
+          if (room.regionDong.trim().isNotEmpty) ...[
+            const SizedBox(height: 6),
+            _heroInfoRow(
+              Icons.location_on_rounded,
+              [
+                if ((room.regionSigungu ?? '').trim().isNotEmpty)
+                  room.regionSigungu!,
+                room.regionDong,
+              ].join(' · '),
+            ),
+          ],
         ],
       ),
     );
   }
+
+  Widget _heroInfoRow(IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: Colors.white.withValues(alpha: 0.95)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.95),
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _heroChip(String label, {bool highlighted = false}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color:
+            highlighted ? Colors.white : Colors.white.withValues(alpha: 0.22),
+        borderRadius: BorderRadius.circular(999),
+        border: highlighted
+            ? null
+            : Border.all(color: Colors.white.withValues(alpha: 0.45)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: highlighted ? AppColors.primaryDark : Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+
+  // 카드와 같은 나이 → 색 매핑. 톤은 카드보다 약간 진하게.
+  List<Color> _heroColors(int age) {
+    if (age < 6) return const [Color(0xFFF26E96), Color(0xFFD14B73)];
+    if (age < 12) return const [Color(0xFFD14B73), Color(0xFFA63A5C)];
+    if (age < 24) return const [Color(0xFFB89BE8), Color(0xFF9176CC)];
+    if (age < 36) return const [Color(0xFF9176CC), Color(0xFF7E3FA0)];
+    return const [Color(0xFFFF9476), Color(0xFFE07560)];
+  }
 }
 
-/// 2) 장소 카드 — 참여자 전용. 이름/주소 강조 + 길찾기 버튼.
+/// 1) 장소 카드 — 참여자 전용. 이름/주소 강조 + 길찾기 버튼.
 class _LocationCard extends StatelessWidget {
   final Room room;
   const _LocationCard({required this.room});

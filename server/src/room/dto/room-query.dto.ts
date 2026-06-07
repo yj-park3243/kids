@@ -70,21 +70,27 @@ export class RoomQueryDto {
 }
 
 export class MapQueryDto {
-  @ApiProperty()
+  // 뷰포트 제한은 선택. 빠지면 "전국 모든 활성 방"을 반환한다 — 클라이언트가
+  // 지도 화면에서 줌/팬 해도 별도 재조회 없이 전체 핀을 한 번에 다룰 수 있게.
+  @ApiProperty({ required: false })
   @IsNumber()
-  swLat: number;
+  @IsOptional()
+  swLat?: number;
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
   @IsNumber()
-  swLng: number;
+  @IsOptional()
+  swLng?: number;
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
   @IsNumber()
-  neLat: number;
+  @IsOptional()
+  neLat?: number;
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
   @IsNumber()
-  neLng: number;
+  @IsOptional()
+  neLng?: number;
 
   @ApiProperty({ required: false })
   @IsInt()

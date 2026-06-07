@@ -322,10 +322,11 @@ export default function UserDetailPage() {
             {user.isSingleParent ? '예' : '아니오'}
           </Descriptions.Item>
           <Descriptions.Item label="매너 온도">
-            {(user.mannerScore ?? 36.5).toFixed(1)}°C
+            {/* numeric 컬럼은 API에서 문자열로 와서 toFixed가 없으므로 Number 강제변환 */}
+            {Number(user.mannerScore ?? 36.5).toFixed(1)}°C
           </Descriptions.Item>
           <Descriptions.Item label="노쇼 카운트">
-            {(user.noShowCount ?? 0).toFixed(1)}회
+            {Number(user.noShowCount ?? 0).toFixed(1)}회
           </Descriptions.Item>
           <Descriptions.Item label="가입일">
             {dayjs(user.createdAt).format('YYYY.MM.DD HH:mm')}

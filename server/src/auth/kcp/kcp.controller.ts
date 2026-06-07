@@ -73,9 +73,22 @@ export class KcpController {
         .header('Content-Type', 'text/html; charset=utf-8')
         .send(html);
     } catch (err: any) {
-      this.logger.error(`[KCP Callback] ${err?.message}`);
-      const message =
-        err?.response?.message || err?.message || '인증에 실패했습니다.';
+      // raw 메시지 그대로 노출 방지 — PG QueryFailedError (code 23505) 또는
+      // typeorm/pg 의 "duplicate key ... unique constraint" 메시지는 친화 문구로.
+      const raw = err?.response?.message || err?.message || '';
+      const isUniqueViolation =
+        err?.code === '23505' ||
+        err?.driverError?.code === '23505' ||
+        /duplicate key|unique constraint/i.test(String(raw));
+      // 사용자가 이미 인증된 계정으로 재시도하는 정상 케이스 — ERROR 알람이 시끄러우니 WARN.
+      if (isUniqueViolation) {
+        this.logger.warn(`[KCP Callback] 중복 인증 시도 (이미 사용 중)`);
+      } else {
+        this.logger.error(`[KCP Callback] ${raw || err?.message || 'unknown'}`);
+      }
+      const message = isUniqueViolation
+        ? '이미 다른 계정에서 사용 중인 본인인증 정보입니다. 고객센터에 문의해 주세요.'
+        : raw || '인증에 실패했습니다.';
       const appUrl = this.kcpService.buildErrorRedirect(String(message));
 
       const html = `<!DOCTYPE html>

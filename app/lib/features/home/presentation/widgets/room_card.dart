@@ -8,6 +8,7 @@ import '../../../../core/utils/date_utils.dart';
 import '../../../../models/room.dart';
 import '../../../../widgets/design/age_badge.dart';
 import '../../../../widgets/design/design_chip.dart';
+import '../../../../widgets/design/glass_card.dart';
 
 class RoomCard extends ConsumerWidget {
   final Room room;
@@ -324,6 +325,184 @@ class RoomCard extends ConsumerWidget {
     }
     return DesignChip(label: label, tone: ChipTone.outline, height: 22);
   }
+}
+
+/// 홈 2열 그리드용 컴팩트 카드 — 정보는 [RoomCard] 와 동일하지만 세로 레이아웃.
+/// 좁은 폭에 맞춰 글자/칩 크기를 줄이고, 태그는 처음 2개만 표시.
+class RoomCardCompact extends ConsumerWidget {
+  final Room room;
+  final VoidCallback? onTap;
+
+  const RoomCardCompact({super.key, required this.room, this.onTap});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final myPos = ref.watch(currentPositionProvider).valueOrNull;
+    String? distanceText;
+    if (room.latitude != null &&
+        room.longitude != null &&
+        !room.joined &&
+        myPos != null) {
+      distanceText = formatDistance(distanceKm(
+        myPos.latitude,
+        myPos.longitude,
+        room.latitude!,
+        room.longitude!,
+      ));
+    }
+
+    return GlassCard(
+      onTap: onTap,
+      radius: 18,
+      borderWidth: 2,
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 상단 나이 컬러 헤더 — 카드 폭 전체.
+          Container(
+            height: 60,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: _compactAgeColors(room.ageMonthMin),
+              ),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(18)),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              '${room.ageMonthMin}~${room.ageMonthMax}개월',
+              style: AppTextStyles.cardTitle.copyWith(
+                color: Colors.white,
+                fontSize: 14,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 9, 10, 11),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 칩 행 — 장소 + 상태
+                Row(
+                  children: [
+                    Flexible(
+                      child: DesignChip(
+                        label:
+                            AppConstants.placeTypes[room.placeType] ?? '기타',
+                        tone: ChipTone.lilac,
+                        height: 18,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    _compactStatusChip(room.status),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  room.title,
+                  style: AppTextStyles.body2Bold,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 6),
+                // 시간
+                Row(
+                  children: [
+                    const Icon(Icons.schedule_rounded,
+                        size: 11, color: AppColors.ink500),
+                    const SizedBox(width: 3),
+                    Expanded(
+                      child: Text(
+                        AppDateUtils.formatDateTime(room.date, room.startTime),
+                        style: AppTextStyles.caption.copyWith(fontSize: 11),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                // 동·거리
+                if (room.regionDong.trim().isNotEmpty ||
+                    distanceText != null) ...[
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on_rounded,
+                          size: 11, color: AppColors.ink500),
+                      const SizedBox(width: 3),
+                      Expanded(
+                        child: Text(
+                          [
+                            if (room.regionDong.trim().isNotEmpty)
+                              room.regionDong,
+                            if (distanceText != null) distanceText,
+                          ].join(' · '),
+                          style: AppTextStyles.caption.copyWith(
+                            fontSize: 11,
+                            color: distanceText != null
+                                ? AppColors.primary
+                                : null,
+                            fontWeight: distanceText != null
+                                ? FontWeight.w700
+                                : null,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 8),
+                // 인원 칩
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: DesignChip(
+                    label:
+                        '${room.currentMembers}/${room.maxMembers}명',
+                    tone: room.isFull ? ChipTone.ink : ChipTone.primarySolid,
+                    height: 20,
+                    icon: Icons.people_rounded,
+                  ),
+                ),
+                // 태그 — 좁은 폭이라 처음 2개만.
+                if (room.tags.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
+                    children: room.tags
+                        .take(2)
+                        .map((tag) => _TagChip(label: tag))
+                        .toList(),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+List<Color> _compactAgeColors(int age) {
+  if (age < 6) return const [Color(0xFFFAD2DD), AppColors.primary];
+  if (age < 12) return const [Color(0xFFF7A8BF), AppColors.primaryDark];
+  if (age < 24) return const [Color(0xFFD5C7F2), AppColors.accentLavender];
+  if (age < 36) return const [Color(0xFFC9B2EC), AppColors.secondaryDark];
+  return const [Color(0xFFFFC0AC), AppColors.accentCoral];
+}
+
+Widget _compactStatusChip(String status) {
+  final label = AppConstants.roomStatus[status] ?? status;
+  if (status == 'RECRUITING') {
+    return DesignChip(label: label, tone: ChipTone.primaryGhost, height: 18);
+  }
+  return DesignChip(label: label, tone: ChipTone.outline, height: 18);
 }
 
 /// 태그(#태그) 칩 — 태그별로 색이 다양하게 순환된다.

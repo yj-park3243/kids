@@ -150,6 +150,8 @@ class Child {
   final String? gender;
   final String? photoUrl;
   final String? verificationPhotoUrl;
+  final String? napTime; // NapTime enum key, null 가능
+  final List<String> temperamentTags; // 기질 태그 key 배열, 최대 5
   final String? createdAt;
 
   Child({
@@ -161,6 +163,8 @@ class Child {
     this.gender,
     this.photoUrl,
     this.verificationPhotoUrl,
+    this.napTime,
+    this.temperamentTags = const [],
     this.createdAt,
   });
 
@@ -174,6 +178,10 @@ class Child {
       gender: json['gender'],
       photoUrl: json['photoUrl'],
       verificationPhotoUrl: json['verificationPhotoUrl'],
+      napTime: json['napTime'],
+      temperamentTags: json['temperamentTags'] != null
+          ? (json['temperamentTags'] as List).map((e) => e.toString()).toList()
+          : const [],
       createdAt: json['createdAt'],
     );
   }
@@ -185,5 +193,7 @@ class Child {
         'gender': gender,
         'photoUrl': photoUrl,
         'verificationPhotoUrl': verificationPhotoUrl,
+        'napTime': napTime,
+        'temperamentTags': temperamentTags,
       };
 }

@@ -12,7 +12,6 @@ import '../../../widgets/design/primary_button.dart';
 import '../../../widgets/empty_state.dart';
 import '../../../widgets/loading.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../notice/presentation/widgets/pinned_notice_banner.dart';
 import '../providers/home_provider.dart';
 import 'widgets/native_ad_card.dart';
 import 'widgets/room_card.dart';
@@ -26,14 +25,9 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   final _scrollController = ScrollController();
-  final _searchController = TextEditingController();
 
   // 칩 영역(아이 선택 + 필터) 접기/펴기 상태.
   bool _filtersExpanded = true;
-
-  // 인라인 검색바 표시 여부 및 검색어.
-  bool _searchOpen = false;
-  String _searchQuery = '';
 
   @override
   void initState() {
@@ -59,18 +53,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void dispose() {
     _scrollController.dispose();
-    _searchController.dispose();
     super.dispose();
-  }
-
-  void _toggleSearch() {
-    setState(() {
-      _searchOpen = !_searchOpen;
-      if (!_searchOpen) {
-        _searchController.clear();
-        _searchQuery = '';
-      }
-    });
   }
 
   @override
@@ -97,58 +80,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              // Top bar
+              // 모임 탭 상단 — 방 만들기(+) 버튼만 유지.
+              // 로고/제목/검색/알림과 공지 배너는 홈 대시보드로 이전됨.
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
                 child: Row(
                   children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        gradient: AppColors.primaryGradient,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      alignment: Alignment.center,
-                      child: const Text(
-                        '같',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 18,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Text('같이크자', style: AppTextStyles.sectionHead),
                     const Spacer(),
                     GlassIconButton(
                       key: const Key('btn-home-create-room'),
                       icon: Icons.add_rounded,
                       onTap: () => context.push('/rooms/create'),
                     ),
-                    const SizedBox(width: 8),
-                    GlassIconButton(
-                      icon: _searchOpen
-                          ? Icons.close_rounded
-                          : Icons.search_rounded,
-                      onTap: _toggleSearch,
-                    ),
-                    const SizedBox(width: 8),
-                    GlassIconButton(
-                      icon: Icons.notifications_outlined,
-                      showDot: homeState.unreadCount > 0,
-                      onTap: () => context.push('/notifications'),
-                    ),
                   ],
                 ),
               ),
-
-              // 공지사항 배너 — 앱바 바로 아래
-              const PinnedNoticeBanner(),
-
-              // 인라인 검색바 — 돋보기 아이콘으로 토글.
-              if (_searchOpen) _buildSearchBar(),
 
               // 필터 영역 토글 버튼.
               Padding(
@@ -328,54 +274,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget _paddedChip(Widget chip) =>
       Padding(padding: const EdgeInsets.only(right: 8), child: chip);
 
-  // 인라인 검색바 — 방 제목/태그 기준 거름.
-  Widget _buildSearchBar() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-      child: Container(
-        height: 44,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.8),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.primary200, width: 0.8),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.search_rounded,
-                size: 18, color: AppColors.primary),
-            const SizedBox(width: 8),
-            Expanded(
-              child: TextField(
-                key: const Key('field-home-search'),
-                controller: _searchController,
-                autofocus: true,
-                style: AppTextStyles.body2,
-                decoration: const InputDecoration(
-                  isDense: true,
-                  border: InputBorder.none,
-                  hintText: '방 제목 · 태그 검색',
-                ),
-                onChanged: (v) =>
-                    setState(() => _searchQuery = v.trim().toLowerCase()),
-              ),
-            ),
-            if (_searchQuery.isNotEmpty)
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () {
-                  _searchController.clear();
-                  setState(() => _searchQuery = '');
-                },
-                child: const Icon(Icons.cancel_rounded,
-                    size: 18, color: AppColors.ink500),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
   // 색이 칩마다 다른 필터 칩.
   Widget _filterChip({
     required String label,
@@ -474,54 +372,71 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildRoomList(HomeState homeState) {
+    // 초기 로딩(시머)은 풀투리프레시가 의미 없어 그대로 둔다.
     if (homeState.isLoading && homeState.rooms.isEmpty) {
       return const ShimmerList();
     }
+
+    Future<void> onRefresh() =>
+        ref.read(homeProvider.notifier).loadRooms(refresh: true);
+
+    // 에러/빈 상태도 RefreshIndicator + 항상 스크롤 가능한 ListView 로 감싸
+    // 사용자가 아래로 당겨 다시 시도할 수 있도록 한다. 콘텐츠가 짧을 때도
+    // AlwaysScrollableScrollPhysics 가 있어야 풀투리프레시 제스처가 잡힌다.
     if (homeState.error != null && homeState.rooms.isEmpty) {
-      return ErrorState(
-        message: homeState.error!,
-        onRetry: () => ref.read(homeProvider.notifier).loadRooms(refresh: true),
+      return RefreshIndicator(
+        onRefresh: onRefresh,
+        color: AppColors.primary,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            SizedBox(
+              height: MediaQuery.of(context).size.height * 0.55,
+              child: ErrorState(
+                message: homeState.error!,
+                onRetry: onRefresh,
+              ),
+            ),
+          ],
+        ),
       );
     }
     if (homeState.rooms.isEmpty) {
-      return EmptyState(
-        icon: Icons.child_care_rounded,
-        title: '아직 모임이 없어요',
-        subtitle: '첫 번째 모임을 만들어 보세요!',
-        buttonText: '모임 만들기',
-        onButtonTap: () => context.push('/rooms/create'),
+      return RefreshIndicator(
+        onRefresh: onRefresh,
+        color: AppColors.primary,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            SizedBox(
+              height: MediaQuery.of(context).size.height * 0.55,
+              child: EmptyState(
+                icon: Icons.child_care_rounded,
+                title: '아직 모임이 없어요',
+                subtitle: '첫 번째 모임을 만들어 보세요!',
+                buttonText: '모임 만들기',
+                onButtonTap: () => context.push('/rooms/create'),
+              ),
+            ),
+          ],
+        ),
       );
     }
 
-    // 검색어가 있으면 방 제목/태그 기준으로 거른다.
-    final rooms = _searchQuery.isEmpty
-        ? homeState.rooms
-        : homeState.rooms.where((r) {
-            final q = _searchQuery;
-            return r.title.toLowerCase().contains(q) ||
-                r.tags.any((t) => t.toLowerCase().contains(q));
-          }).toList();
-
-    if (rooms.isEmpty) {
-      return const EmptyState(
-        icon: Icons.search_off_rounded,
-        title: '검색 결과가 없어요',
-        subtitle: '다른 키워드로 검색해 보세요',
-      );
-    }
-    final adCount = _adCount(rooms.length);
+    final rooms = homeState.rooms;
+    final homeRows = _buildHomeRows(rooms.length);
     return RefreshIndicator(
-      onRefresh: () async {
-        await ref.read(homeProvider.notifier).loadRooms(refresh: true);
-      },
+      onRefresh: onRefresh,
       color: AppColors.primary,
       child: ListView.builder(
         controller: _scrollController,
+        // 행이 화면보다 적어도 풀투리프레시·스크롤 제스처가 동작하게.
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(10, 4, 10, 110),
-        itemCount: rooms.length + adCount + (homeState.isLoadingMore ? 1 : 0),
+        itemCount: homeRows.length + (homeState.isLoadingMore ? 1 : 0),
         itemBuilder: (context, index) {
           // 더보기 로딩 인디케이터 (맨 끝)
-          if (homeState.isLoadingMore && index == rooms.length + adCount) {
+          if (homeState.isLoadingMore && index == homeRows.length) {
             return const Padding(
               padding: EdgeInsets.all(16),
               child: Center(
@@ -532,31 +447,85 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             );
           }
-          // 광고 슬롯 — 6번째 카드 뒤(index 6), 이후 8개 간격(index 6+9k)
-          if (index >= _firstAdIndex &&
-              (index - _firstAdIndex) % _adStride == 0) {
-            final adSlot = (index - _firstAdIndex) ~/ _adStride;
-            return NativeAdCard(key: ValueKey('native-ad-$adSlot'));
+          final row = homeRows[index];
+          if (row.isAd) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: NativeAdCard(key: ValueKey('native-ad-${row.adSlot}')),
+            );
           }
-          // 방 카드
-          final roomIndex = index -
-              (index < _firstAdIndex
-                  ? 0
-                  : 1 + ((index - _firstAdIndex) ~/ _adStride));
-          final room = rooms[roomIndex];
-          return RoomCard(
-            room: room,
-            onTap: () => context.push('/rooms/${room.id}'),
+          // 카드 페어 — 한 행에 2개씩.
+          final left = rooms[row.leftRoomIndex!];
+          final right = row.rightRoomIndex != null
+              ? rooms[row.rightRoomIndex!]
+              : null;
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 3),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: RoomCardCompact(
+                    room: left,
+                    onTap: () => context.push('/rooms/${left.id}'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: right != null
+                      ? RoomCardCompact(
+                          room: right,
+                          onTap: () => context.push('/rooms/${right.id}'),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+              ],
+            ),
           );
         },
       ),
     );
   }
 
-  // 광고 배치: 방 6개마다 첫 광고, 이후 8개 간격.
-  static const int _firstAdIndex = 6; // 첫 광고의 표시 인덱스
-  static const int _adStride = 9; // 광고 사이 표시 인덱스 간격(방 8 + 광고 1)
+  /// 홈 리스트 행 구조를 미리 계산.
+  /// - 카드 페어 행: 방 2개를 한 행으로 묶음 (홀수면 오른쪽 비움)
+  /// - 광고 행: 페어 3개째 뒤에 첫 광고, 그 뒤 페어 4개마다 광고 1행
+  List<_HomeRow> _buildHomeRows(int roomCount) {
+    final rows = <_HomeRow>[];
+    int pairsAdded = 0;
+    int adSlot = 0;
+    int i = 0;
+    while (i < roomCount) {
+      final left = i;
+      final right = i + 1 < roomCount ? i + 1 : null;
+      rows.add(_HomeRow.pair(left, right));
+      pairsAdded++;
+      i += 2;
+      if (pairsAdded == 3 ||
+          (pairsAdded > 3 && (pairsAdded - 3) % 4 == 0)) {
+        rows.add(_HomeRow.ad(adSlot++));
+      }
+    }
+    return rows;
+  }
+}
 
-  int _adCount(int roomCount) =>
-      roomCount < 6 ? 0 : 1 + ((roomCount - 6) ~/ 8);
+/// 홈 리스트의 한 행 — 카드 페어이거나 광고.
+class _HomeRow {
+  final bool isAd;
+  final int? leftRoomIndex;
+  final int? rightRoomIndex;
+  final int? adSlot;
+
+  const _HomeRow.pair(int left, int? right)
+      : isAd = false,
+        leftRoomIndex = left,
+        rightRoomIndex = right,
+        adSlot = null;
+
+  const _HomeRow.ad(int slot)
+      : isAd = true,
+        leftRoomIndex = null,
+        rightRoomIndex = null,
+        adSlot = slot;
 }

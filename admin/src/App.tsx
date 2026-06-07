@@ -12,7 +12,8 @@ import RoomDetailPage from './pages/RoomDetailPage';
 import ReportsPage from './pages/ReportsPage';
 import InquiriesPage from './pages/InquiriesPage';
 import NoticesPage from './pages/NoticesPage';
-import GuidesPage from './pages/GuidesPage';
+import VersionPage from './pages/VersionPage';
+import VersionLogsPage from './pages/VersionLogsPage';
 
 export default function App() {
   return (
@@ -43,7 +44,8 @@ export default function App() {
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/inquiries" element={<InquiriesPage />} />
             <Route path="/notices" element={<NoticesPage />} />
-            <Route path="/guides" element={<GuidesPage />} />
+            <Route path="/app-version" element={<VersionPage />} />
+            <Route path="/version-logs" element={<VersionLogsPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

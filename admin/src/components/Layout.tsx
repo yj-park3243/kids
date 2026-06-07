@@ -8,11 +8,12 @@ import {
   FlagOutlined,
   MessageOutlined,
   NotificationOutlined,
-  ReadOutlined,
   SettingOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  MobileOutlined,
+  EnvironmentOutlined,
 } from '@ant-design/icons';
 import { authStore } from '../stores/authStore';
 
@@ -60,9 +61,14 @@ export default function Layout() {
       label: '공지사항',
     },
     {
-      key: '/guides',
-      icon: <ReadOutlined />,
-      label: '📘 발달 가이드',
+      key: '/app-version',
+      icon: <MobileOutlined />,
+      label: '앱 버전',
+    },
+    {
+      key: '/version-logs',
+      icon: <EnvironmentOutlined />,
+      label: '접속 로그',
     },
     {
       type: 'divider' as const,
@@ -102,9 +108,7 @@ export default function Layout() {
           ? '/inquiries'
           : location.pathname.startsWith('/notices')
             ? '/notices'
-            : location.pathname.startsWith('/guides')
-              ? '/guides'
-              : location.pathname;
+            : location.pathname;
 
   return (
     <AntLayout style={{ minHeight: '100vh' }}>

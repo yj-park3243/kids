@@ -6,11 +6,15 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/constants/child_traits.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../widgets/app_bar.dart';
+import '../../../widgets/child_traits_selector.dart';
 import '../../../widgets/common_button.dart';
 import '../../../widgets/common_input.dart';
+import '../../../widgets/cupertino_picker_sheet.dart';
 import '../../../widgets/design/avatar.dart';
+import '../../../widgets/picker_field.dart';
 import '../providers/auth_provider.dart';
 
 class ChildSetupScreen extends ConsumerStatefulWidget {
@@ -110,6 +114,8 @@ class _ChildSetupScreenState extends ConsumerState<ChildSetupScreen> {
               gender: child.gender,
               photoUrl: profileUrl,
               verificationPhotoUrl: verificationUrl,
+              napTime: child.napTime,
+              temperamentTags: child.temperamentTags.toList(),
             );
       }
       if (widget.popOnDone) {
@@ -272,6 +278,8 @@ class _ChildData {
   String? gender;
   String? profilePhotoPath; // 프로필 사진 — 공개 노출용 로컬 경로
   String? verificationPhotoPath; // 인증 사진 — 출생증명서/키즈노트 캡쳐 등, 어드민 검수용
+  String? napTime; // child_traits.dart NapTimeOption.key
+  final Set<String> temperamentTags = <String>{}; // TemperamentTag.key, 최대 5
 }
 
 class _ChildCard extends StatefulWidget {
@@ -434,64 +442,50 @@ class _ChildCardState extends State<_ChildCard> {
           ),
           const SizedBox(height: 16),
 
-          // Birth Year & Month
+          // Birth Year & Month — 휠 시트.
           Text('생년월', style: AppTextStyles.body2Bold),
           const SizedBox(height: 8),
           Row(
             children: [
               Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.divider),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<int>(
-                      isExpanded: true,
-                      hint: Text('연도', style: AppTextStyles.body1.copyWith(color: AppColors.textHint)),
-                      value: data.birthYear,
-                      items: List.generate(8, (i) => currentYear - i)
-                          .map((year) => DropdownMenuItem(
-                                value: year,
-                                child: Text('$year년', style: AppTextStyles.body1),
-                              ))
-                          .toList(),
-                      onChanged: (value) {
-                        data.birthYear = value;
-                        onChanged();
-                      },
-                    ),
-                  ),
+                child: PickerField(
+                  label: '연도',
+                  value: data.birthYear != null ? '${data.birthYear}년' : null,
+                  hint: '연도 선택',
+                  onTap: () async {
+                    final years = List.generate(8, (i) => currentYear - i);
+                    final v = await showWheelSheet<int>(
+                      context,
+                      title: '연도 선택',
+                      options: years,
+                      initial: data.birthYear ?? years.first,
+                      format: (y) => '$y년',
+                    );
+                    if (v == null) return;
+                    data.birthYear = v;
+                    onChanged();
+                  },
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.divider),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<int>(
-                      isExpanded: true,
-                      hint: Text('월', style: AppTextStyles.body1.copyWith(color: AppColors.textHint)),
-                      value: data.birthMonth,
-                      items: List.generate(12, (i) => i + 1)
-                          .map((month) => DropdownMenuItem(
-                                value: month,
-                                child: Text('$month월', style: AppTextStyles.body1),
-                              ))
-                          .toList(),
-                      onChanged: (value) {
-                        data.birthMonth = value;
-                        onChanged();
-                      },
-                    ),
-                  ),
+                child: PickerField(
+                  label: '월',
+                  value: data.birthMonth != null ? '${data.birthMonth}월' : null,
+                  hint: '월 선택',
+                  onTap: () async {
+                    final months = List.generate(12, (i) => i + 1);
+                    final v = await showWheelSheet<int>(
+                      context,
+                      title: '월 선택',
+                      options: months,
+                      initial: data.birthMonth ?? 1,
+                      format: (m) => '$m월',
+                    );
+                    if (v == null) return;
+                    data.birthMonth = v;
+                    onChanged();
+                  },
                 ),
               ),
             ],
@@ -505,6 +499,8 @@ class _ChildCardState extends State<_ChildCard> {
             children: [
               _GenderChip(
                 label: '남아',
+                emoji: '👦',
+                accent: AppColors.accentSky,
                 isSelected: data.gender == 'MALE',
                 onTap: () {
                   data.gender = data.gender == 'MALE' ? null : 'MALE';
@@ -514,6 +510,8 @@ class _ChildCardState extends State<_ChildCard> {
               const SizedBox(width: 8),
               _GenderChip(
                 label: '여아',
+                emoji: '👧',
+                accent: AppColors.primary,
                 isSelected: data.gender == 'FEMALE',
                 onTap: () {
                   data.gender = data.gender == 'FEMALE' ? null : 'FEMALE';
@@ -521,6 +519,30 @@ class _ChildCardState extends State<_ChildCard> {
                 },
               ),
             ],
+          ),
+          const SizedBox(height: 16),
+
+          // 낮잠 시간대 (선택)
+          NapTimeSelector(
+            selectedKey: data.napTime,
+            onChanged: (key) {
+              data.napTime = key;
+              onChanged();
+            },
+          ),
+          const SizedBox(height: 16),
+
+          // 기질 태그 (선택, 최대 5)
+          TemperamentTagSelector(
+            selectedKeys: data.temperamentTags,
+            onToggle: (key) {
+              if (data.temperamentTags.contains(key)) {
+                data.temperamentTags.remove(key);
+              } else if (data.temperamentTags.length < maxTemperamentTags) {
+                data.temperamentTags.add(key);
+              }
+              onChanged();
+            },
           ),
         ],
       ),
@@ -619,11 +641,16 @@ class _ExistingChildTile extends StatelessWidget {
 
 class _GenderChip extends StatelessWidget {
   final String label;
+  final String? emoji;
+  // 선택 시 적용할 액센트 색 — 남아 sky / 여아 pink.
+  final Color accent;
   final bool isSelected;
   final VoidCallback onTap;
 
   const _GenderChip({
     required this.label,
+    this.emoji,
+    required this.accent,
     required this.isSelected,
     required this.onTap,
   });
@@ -635,19 +662,31 @@ class _GenderChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary.withValues(alpha: 0.1) : AppColors.surface,
+          color: isSelected
+              ? accent.withValues(alpha: 0.12)
+              : AppColors.surface,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.divider,
+            color: isSelected ? accent : AppColors.divider,
             width: isSelected ? 1.5 : 1,
           ),
         ),
-        child: Text(
-          label,
-          style: AppTextStyles.body2.copyWith(
-            color: isSelected ? AppColors.primary : AppColors.textSecondary,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (emoji != null) ...[
+              Text(emoji!, style: const TextStyle(fontSize: 14)),
+              const SizedBox(width: 6),
+            ],
+            Text(
+              label,
+              style: AppTextStyles.body2.copyWith(
+                color: isSelected ? accent : AppColors.textSecondary,
+                fontWeight:
+                    isSelected ? FontWeight.w600 : FontWeight.w400,
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -185,8 +185,10 @@ platform :ios do
     UI.success("TestFlight 업로드 완료!")
   end
 
-  desc "App Store 심사 제출 (TestFlight 에 올라간 빌드 사용)"
-  lane :submit do
+  desc "방금 올린 TestFlight 빌드 처리 완료까지 대기 후 App Store 심사 제출"
+  lane :submit_when_ready do
+    require "spaceship"
+
     api_key = app_store_connect_api_key(
       key_id: ENV["ASC_KEY_ID"],
       issuer_id: ENV["ASC_ISSUER_ID"],
@@ -196,6 +198,162 @@ platform :ios do
     File.read(File.join(APP_DIR, "pubspec.yaml")) =~ /version:\s*([\d.]+)\+(\d+)/
     app_version = $1
     build_num = $2
+    notes = "버그를 수정하고 안정성을 개선했어요."
+
+    # 편집 버전 보장 / whatsNew 채우기용 spaceship 토큰
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+      key_id: ENV["ASC_KEY_ID"],
+      issuer_id: ENV["ASC_ISSUER_ID"],
+      filepath: ENV["ASC_KEY_PATH"],
+    )
+    app = Spaceship::ConnectAPI::App.find(ENV["APP_IDENTIFIER"])
+    UI.user_error!("ASC 에서 앱을 찾지 못했습니다: #{ENV['APP_IDENTIFIER']}") unless app
+
+    # 편집(editable) 버전이 없으면 생성
+    versions = app.get_app_store_versions(
+      filter: { versionString: app_version, platform: "IOS" },
+    )
+    unless versions.first
+      UI.message("ASC v#{app_version} 편집 버전 생성 중...")
+      Spaceship::ConnectAPI.post_app_store_version(
+        app_id: app.id,
+        attributes: { versionString: app_version, platform: "IOS" },
+      )
+    end
+
+    UI.message("Build #{build_num} (v#{app_version}) 처리 대기 — 보통 5~15분, 최대 30분")
+    build = nil
+    40.times do
+      build = Spaceship::ConnectAPI::Build.all(
+        app_id: app.id,
+        version: app_version,
+        build_number: build_num,
+        sort: "-uploadedDate",
+        includes: "preReleaseVersion",
+        limit: 1,
+      ).first
+      state = build&.processing_state
+      break if state == "VALID"
+      if state == "INVALID" || state == "FAILED"
+        UI.user_error!("빌드 #{build_num} 처리 실패: #{state}")
+      end
+      UI.message("처리중(#{state || 'NOT_FOUND'})... 45초 후 재확인")
+      sleep(45)
+    end
+    UI.user_error!("빌드 #{build_num} 처리 대기 시간 초과") unless build&.processing_state == "VALID"
+
+    # whatsNew(이 버전의 새로운 기능)가 비어 있으면 채운다 — 비면 submit 단계에서 거부됨.
+    asc_version = app.get_app_store_versions(
+      filter: { versionString: app_version, platform: "IOS" },
+    ).first
+    if asc_version
+      asc_version.get_app_store_version_localizations.each do |loc|
+        if loc.whats_new.to_s.strip.empty?
+          UI.message("locale=#{loc.locale} → whats_new 채움")
+          loc.update(attributes: { whats_new: notes })
+        end
+      end
+    end
+
+    UI.message("App Store 심사 제출: v#{app_version} (build #{build_num})")
+    upload_to_app_store(
+      api_key: api_key,
+      app_identifier: ENV["APP_IDENTIFIER"],
+      app_version: app_version,
+      build_number: build_num,
+      skip_binary_upload: true,
+      skip_metadata: true,
+      skip_screenshots: true,
+      submit_for_review: true,
+      automatic_release: true,
+      force: true,
+      precheck_include_in_app_purchases: false,
+      submission_information: {
+        export_compliance_uses_encryption: false,
+      },
+    )
+
+    UI.success("App Store 심사 제출 완료!")
+  end
+
+  desc "ASC 에 현재 marketing version 의 편집(editable) 버전이 없으면 생성"
+  lane :ensure_version do
+    require "spaceship"
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+      key_id: ENV["ASC_KEY_ID"],
+      issuer_id: ENV["ASC_ISSUER_ID"],
+      filepath: ENV["ASC_KEY_PATH"],
+    )
+
+    File.read(File.join(APP_DIR, "pubspec.yaml")) =~ /version:\s*([\d.]+)\+(\d+)/
+    app_version = $1
+
+    app = Spaceship::ConnectAPI::App.find(ENV["APP_IDENTIFIER"])
+    UI.user_error!("ASC 에서 앱을 찾지 못했습니다: #{ENV['APP_IDENTIFIER']}") unless app
+
+    versions = app.get_app_store_versions(
+      filter: { versionString: app_version, platform: "IOS" },
+    )
+    if versions.first
+      UI.success("ASC v#{app_version} 이미 존재 — id=#{versions.first.id}")
+    else
+      UI.message("ASC v#{app_version} 편집 버전 생성 중...")
+      Spaceship::ConnectAPI.post_app_store_version(
+        app_id: app.id,
+        attributes: {
+          versionString: app_version,
+          platform: "IOS",
+        },
+      )
+      UI.success("ASC v#{app_version} 편집 버전 생성 완료")
+    end
+  end
+
+  desc "App Store 심사 제출 (TestFlight 에 올라간 빌드 사용). `fastlane submit build:55` 로 빌드번호 지정 가능."
+  lane :submit do |options|
+    require "spaceship"
+
+    File.read(File.join(APP_DIR, "pubspec.yaml")) =~ /version:\s*([\d.]+)\+(\d+)/
+    app_version = options[:version] || $1
+    build_num = options[:build] || $2
+    notes = "버그를 수정하고 안정성을 개선했어요."
+
+    # 1. ASC 의 "이 버전의 새로운 기능" 을 Spaceship 으로 먼저 채운다.
+    #    upload_to_app_store(skip_metadata: true) 는 release_notes 인자를
+    #    무시하기 때문에, ASC 의 whatsNew 가 비어있으면 submit 단계에서
+    #    "missing required attribute whatsNew" 로 거부된다.
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+      key_id: ENV["ASC_KEY_ID"],
+      issuer_id: ENV["ASC_ISSUER_ID"],
+      filepath: ENV["ASC_KEY_PATH"],
+    )
+
+    app = Spaceship::ConnectAPI::App.find(ENV["APP_IDENTIFIER"])
+    UI.user_error!("ASC 에서 앱을 찾지 못했습니다: #{ENV['APP_IDENTIFIER']}") unless app
+
+    versions = app.get_app_store_versions(
+      filter: { versionString: app_version, platform: "IOS" },
+    )
+    asc_version = versions.first
+    UI.user_error!("ASC 에 v#{app_version} 편집 버전이 없습니다") unless asc_version
+    UI.message("ASC 버전 #{app_version} 발견 — id=#{asc_version.id}, state=#{asc_version.app_store_state}")
+
+    asc_version.get_app_store_version_localizations.each do |loc|
+      current = loc.whats_new.to_s
+      if current.strip.empty?
+        UI.message("locale=#{loc.locale} → whats_new 채움")
+        loc.update(attributes: { whats_new: notes })
+      else
+        UI.message("locale=#{loc.locale} → whats_new 이미 있음, 유지")
+      end
+    end
+
+    # 2. upload_to_app_store 로 심사 제출.
+    api_key = app_store_connect_api_key(
+      key_id: ENV["ASC_KEY_ID"],
+      issuer_id: ENV["ASC_ISSUER_ID"],
+      key_filepath: ENV["ASC_KEY_PATH"],
+    )
     UI.message("App Store 심사 제출: v#{app_version} (build #{build_num})")
 
     upload_to_app_store(

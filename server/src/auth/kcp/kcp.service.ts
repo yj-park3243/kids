@@ -297,12 +297,17 @@ export class KcpService {
     }
 
     if (existingUser.status === 'WITHDRAWN') {
-      // 탈퇴 계정의 phoneNumber 충돌 회피
-      if (existingUser.phoneNumber) {
-        await this.userRepository.update(existingUser.id, {
-          phoneNumber: `${existingUser.phoneNumber}+0`,
-        });
-      }
+      // 탈퇴 계정의 unique 컬럼들(ci, phoneNumber)을 비워 같은 사람이
+      // 재가입할 때 currentUser 쪽에 동일 ci/phone 부여해도 충돌 안 나게 한다.
+      // (이전엔 phoneNumber 만 회피했고 ci 가 그대로라 PASS 재인증 시
+      //  UQ_user_ci 위반 → "duplicate key value violates unique constraint" 노출)
+      await this.userRepository.update(existingUser.id, {
+        ci: null as any,
+        di: null as any,
+        phoneNumber: existingUser.phoneNumber
+          ? `${existingUser.phoneNumber}+0`
+          : (null as any),
+      });
 
       const birthDate = this.parseBirthDate(kcpData.birthDate);
       const gender = this.normalizeGender(kcpData.gender);

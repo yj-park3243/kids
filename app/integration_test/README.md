@@ -45,6 +45,21 @@ orchestrator 가 미리 처리:
 
 스크린샷은 모두 `app/test_results/` 한 곳에 평탄하게 쌓입니다.
 
+> 참고: 위 A/B 요약은 초기 2-sim 버전 기준이며, 현재 코드는 **A/B/C 3-sim × 다중 라운드**입니다. 전체 케이스 매핑은 [`docs/08_테스트시나리오.md`](../../docs/08_테스트시나리오.md) 부록 A 참고.
+
+### 확장 라운드 (Round 4~6)
+
+기존 Round 1~3(방 생성/참여/승인/거부/채팅/후기) 위에 부작용 없는 자동화 케이스를 추가했습니다.
+
+- **Round 4 — B**: A 팔로우(`POST /follows`) + 팔로잉 목록 확인, 위치 노출(참여 확정자는 `placeName` 공개)
+- **Round 4 — C**: A 신고(`POST /reports`), 위치 노출(비참여자는 `placeName` 비공개), 비방장 출석 체크 거부(403)
+- **Round 5 — A**: 출석 체크 제출(`POST /rooms/:id/attendance`), 후기 수정(`PATCH /reviews/:id`)
+- **Round 6 — A**: 프로필 수정 불가 필드(parentGender/isSingleParent) 검증, 내 모임(예정/지난) 조회, 외부 프로필 한부모 비노출 확인
+
+> **Round 2 승인 처리 버그 수정**: 기존 헬퍼가 신청 수락에 `{status:'APPROVED'}`를 보냈으나 서버 `JoinActionDto`는 `{action:'ACCEPT'}`를 기대하며, `forbidNonWhitelisted` 설정상 400으로 거부되고 있었습니다. 정식 페이로드로 수정해 Round 2가 실제로 통과하도록 했습니다.
+
+> **차단(block) 양방향**은 서버가 차단 시 공유 방 멤버십을 삭제해(`removeSharedRoomMembership`) 3-user 공유방 셋업의 다른 역할과 충돌하므로 자동화에서 제외했습니다(격리 계정/방 셋업 시 가능). docs/08 BLK-* 참고.
+
 ## 전제 조건
 
 - macOS + Xcode (iOS 시뮬레이터 2대)

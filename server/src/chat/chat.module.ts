@@ -9,10 +9,12 @@ import { ChatMessage } from './entities/chat-message.entity';
 import { Room } from '../room/entities/room.entity';
 import { RoomMember } from '../room/entities/room-member.entity';
 import { User } from '../user/entities/user.entity';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([ChatMessage, Room, RoomMember, User]),
+    NotificationModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

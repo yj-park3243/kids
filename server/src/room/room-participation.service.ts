@@ -353,8 +353,11 @@ export class RoomParticipationService {
     requestId: string,
     action: string,
   ) {
-    return this.dataSource.transaction(async (manager) => {
-      // Lock the room to prevent race conditions on ACCEPT
+    // 트랜잭션 내부는 DB 변경만. chat/notification 같은 외부 호출은 commit
+    // 후로 빼서 ① pg connection 이 외부 I/O 동안 점유되지 않도록 하고,
+    // ② 외부 호출이 hang 해도 transaction 의 commit/runner 가 영향 받지
+    // 않게 한다. (`join()` 도 같은 패턴.)
+    const result = await this.dataSource.transaction(async (manager) => {
       const room = await manager
         .getRepository(Room)
         .createQueryBuilder('room')
@@ -388,7 +391,6 @@ export class RoomParticipationService {
         request.status = 'ACCEPTED';
         await manager.getRepository(JoinRequest).save(request);
 
-        // Add member within transaction
         const member = manager.getRepository(RoomMember).create({
           roomId: room.id,
           userId: request.userId,
@@ -402,36 +404,71 @@ export class RoomParticipationService {
         }
         await manager.getRepository(Room).save(room);
 
-        // Chat & notifications
-        await this.chatService.addMember(room.chatRoomId, request.userId);
-        const user = await this.userRepository.findOne({ where: { id: request.userId } });
-        await this.chatService.sendSystemMessage(
-          room.chatRoomId,
-          `${user?.nickname || '알 수 없음'}님이 참여했습니다.`,
-        );
+        const user = await manager
+          .getRepository(User)
+          .findOne({ where: { id: request.userId } });
 
-        await this.notificationService.create({
-          userId: request.userId,
+        return {
+          action: 'ACCEPT' as const,
+          chatRoomId: room.chatRoomId,
+          targetUserId: request.userId,
+          targetNickname: user?.nickname ?? '알 수 없음',
+          roomTitle: room.title,
+        };
+      }
+      // REJECT
+      request.status = 'REJECTED';
+      await manager.getRepository(JoinRequest).save(request);
+
+      return {
+        action: 'REJECT' as const,
+        targetUserId: request.userId,
+        roomTitle: room.title,
+      };
+    });
+
+    // ── 트랜잭션 외부: 외부 사이드이펙트(chat/notification). fire-and-forget
+    //    실패해도 사용자 응답은 success — 채팅/알림 누락은 별도 모니터링.
+    if (result.action === 'ACCEPT') {
+      void this.chatService
+        .addMember(result.chatRoomId, result.targetUserId)
+        .catch((e) =>
+          this.logger.warn(`handleJoinRequest chat addMember 실패: ${e?.message}`),
+        );
+      void this.chatService
+        .sendSystemMessage(
+          result.chatRoomId,
+          `${result.targetNickname}님이 참여했습니다.`,
+        )
+        .catch((e) =>
+          this.logger.warn(`handleJoinRequest chat sys msg 실패: ${e?.message}`),
+        );
+      void this.notificationService
+        .create({
+          userId: result.targetUserId,
           type: 'JOIN_ACCEPTED',
           title: '참여 수락',
-          body: `[${room.title}] 참여가 수락되었습니다.`,
-          data: { roomId, chatRoomId: room.chatRoomId },
-        });
-      } else if (action === 'REJECT') {
-        request.status = 'REJECTED';
-        await manager.getRepository(JoinRequest).save(request);
-
-        await this.notificationService.create({
-          userId: request.userId,
+          body: `[${result.roomTitle}] 참여가 수락되었습니다.`,
+          data: { roomId, chatRoomId: result.chatRoomId },
+        })
+        .catch((e) =>
+          this.logger.warn(`handleJoinRequest notif(ACCEPT) 실패: ${e?.message}`),
+        );
+    } else {
+      void this.notificationService
+        .create({
+          userId: result.targetUserId,
           type: 'JOIN_REJECTED',
           title: '참여 거절',
-          body: `[${room.title}] 참여가 거절되었습니다.`,
+          body: `[${result.roomTitle}] 참여가 거절되었습니다.`,
           data: { roomId },
-        });
-      }
+        })
+        .catch((e) =>
+          this.logger.warn(`handleJoinRequest notif(REJECT) 실패: ${e?.message}`),
+        );
+    }
 
-      return { success: true };
-    });
+    return { success: true };
   }
 
   async kickMember(hostUserId: string, roomId: string, targetUserId: string) {

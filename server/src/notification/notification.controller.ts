@@ -11,6 +11,7 @@ import {
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { NotificationService } from './notification.service';
 import { RegisterDeviceTokenDto } from './dto/register-device-token.dto';
+import { UpdateNotificationSettingsDto } from './dto/update-notification-settings.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
@@ -32,6 +33,21 @@ export class NotificationController {
       dto.token,
       dto.platform,
     );
+  }
+
+  @Get('settings')
+  @ApiOperation({ summary: '푸시 알림 설정 조회' })
+  async getSettings(@CurrentUser('id') userId: string) {
+    return this.notificationService.getSettings(userId);
+  }
+
+  @Patch('settings')
+  @ApiOperation({ summary: '푸시 알림 설정 변경' })
+  async updateSettings(
+    @CurrentUser('id') userId: string,
+    @Body() dto: UpdateNotificationSettingsDto,
+  ) {
+    return this.notificationService.updateSettings(userId, dto);
   }
 
   @Get()

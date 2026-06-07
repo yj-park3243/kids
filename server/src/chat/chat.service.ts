@@ -13,6 +13,7 @@ import { RoomMember } from '../room/entities/room-member.entity';
 import { User } from '../user/entities/user.entity';
 import { ChatGateway } from './chat.gateway';
 import { ProfanityFilterService } from '../common/services/profanity-filter.service';
+import { NotificationService } from '../notification/notification.service';
 
 export interface ChatMessageView {
   id: string;
@@ -39,6 +40,7 @@ export class ChatService {
     @Inject(forwardRef(() => ChatGateway))
     private chatGateway: ChatGateway,
     private profanityFilter: ProfanityFilterService,
+    private notificationService: NotificationService,
   ) {}
 
   /**
@@ -194,7 +196,7 @@ export class ChatService {
     content: string,
     type: ChatMessageType = 'TEXT',
   ): Promise<ChatMessageView> {
-    await this.ensureMembership(roomId, userId);
+    const room = await this.ensureMembership(roomId, userId);
     const trimmed = content.trim();
     if (!trimmed) {
       throw new ForbiddenException('빈 메시지는 보낼 수 없습니다.');
@@ -227,7 +229,42 @@ export class ChatService {
     const members = await this.roomMemberRepository.find({ where: { roomId } });
     const view = this.toView(saved, this.computeUnreadCount(saved, members));
     this.chatGateway.broadcastMessage(roomId, view);
+
+    // 푸시 — 지금 채팅방 소켓에 접속해 있지 않은(=백그라운드/종료) 멤버에게만.
+    // 알림함은 더럽히지 않도록 persist:false (푸시만).
+    void this.pushNewChat(room, members, userId, nickname, trimmed, type);
     return view;
+  }
+
+  private async pushNewChat(
+    room: Room,
+    members: RoomMember[],
+    senderId: string,
+    senderNickname: string,
+    content: string,
+    type: ChatMessageType,
+  ): Promise<void> {
+    try {
+      const active = await this.chatGateway.getActiveUserIds(room.id);
+      const preview =
+        type === 'TEXT' ? content.slice(0, 80) : '사진/위치를 보냈어요.';
+      for (const m of members) {
+        if (m.userId === senderId) continue;
+        if (active.has(m.userId)) continue; // 이미 방을 보고 있으면 푸시 생략
+        void this.notificationService
+          .create({
+            userId: m.userId,
+            type: 'NEW_CHAT',
+            title: room.title,
+            body: `${senderNickname}: ${preview}`,
+            data: { chatRoomId: room.id, roomId: room.id },
+            persist: false,
+          })
+          .catch(() => undefined);
+      }
+    } catch {
+      // 푸시 실패는 메시지 전송 흐름을 막지 않는다.
+    }
   }
 
   /**

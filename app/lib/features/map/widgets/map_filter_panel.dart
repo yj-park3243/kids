@@ -11,13 +11,16 @@ class MapFilterPanel extends StatefulWidget {
   const MapFilterPanel({
     super.key,
     required this.filter,
-    required this.childAgeMonth,
+    required this.children,
     required this.onChanged,
     this.isSingleParent = false,
   });
 
   final MapFilter filter;
-  final int? childAgeMonth;
+
+  /// 연령 칩에 노출할 내 아이 목록. 등록된 모든 아이가 각자 칩으로 보인다.
+  final List<MapFilterChildInfo> children;
+
   final ValueChanged<MapFilter> onChanged;
 
   /// 한부모 가정 계정 여부 — 한부모 전용 필터 노출 조건.
@@ -25,6 +28,12 @@ class MapFilterPanel extends StatefulWidget {
 
   @override
   State<MapFilterPanel> createState() => _MapFilterPanelState();
+}
+
+class MapFilterChildInfo {
+  final String nickname;
+  final int ageMonth;
+  const MapFilterChildInfo({required this.nickname, required this.ageMonth});
 }
 
 class _MapFilterPanelState extends State<MapFilterPanel> {
@@ -58,10 +67,29 @@ class _MapFilterPanelState extends State<MapFilterPanel> {
         mainAxisSize: MainAxisSize.min,
         children: [
           _header(),
+          // 헤더 바로 아래 "오늘만 보기" 빠른 토글 — 패널을 펼치지 않아도 보인다.
+          // 내부적으로 날짜 필터(MapDateFilter)를 today ↔ all 로 토글한다.
+          _quickTodayRow(),
           if (_expanded) ...[
             const Divider(height: 1, color: AppColors.divider),
             _body(),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _quickTodayRow() {
+    final isToday = _f.date == MapDateFilter.today;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Row(
+        children: [
+          _toggle('오늘만 보기', isToday, () {
+            _emit(_f.copyWith(
+              date: isToday ? MapDateFilter.all : MapDateFilter.today,
+            ));
+          }),
         ],
       ),
     );
@@ -116,7 +144,6 @@ class _MapFilterPanelState extends State<MapFilterPanel> {
   }
 
   Widget _body() {
-    final childAge = widget.childAgeMonth;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       child: Column(
@@ -125,12 +152,12 @@ class _MapFilterPanelState extends State<MapFilterPanel> {
           _section('연령', [
             _chip('전체', _f.ageMonth == null, _ageColor,
                 () => _emit(_f.copyWith(ageMonth: null))),
-            if (childAge != null)
+            for (final c in widget.children)
               _chip(
-                '우리 아이 ${AppDateUtils.formatAgeMonths(childAge)}',
-                _f.ageMonth == childAge,
+                '${c.nickname} ${AppDateUtils.formatAgeMonths(c.ageMonth)}',
+                _f.ageMonth == c.ageMonth,
                 _ageColor,
-                () => _emit(_f.copyWith(ageMonth: childAge)),
+                () => _emit(_f.copyWith(ageMonth: c.ageMonth)),
               ),
           ]),
           _section(

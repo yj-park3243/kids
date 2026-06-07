@@ -184,6 +184,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     String? gender,
     String? photoUrl,
     String? verificationPhotoUrl,
+    String? napTime,
+    List<String>? temperamentTags,
   }) async {
     final child = await _repository.addChild(
       nickname: nickname,
@@ -192,6 +194,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       gender: gender,
       photoUrl: photoUrl,
       verificationPhotoUrl: verificationPhotoUrl,
+      napTime: napTime,
+      temperamentTags: temperamentTags,
     );
     final user = state.user;
     if (user != null) {
@@ -217,6 +221,26 @@ class AuthNotifier extends StateNotifier<AuthState> {
       gender: gender,
       photoUrl: photoUrl,
     );
+    _replaceChildInState(childId, child);
+    return child;
+  }
+
+  /// 기질 태그·낮잠 시간대 갱신. null/빈배열은 "비우기".
+  Future<Child> updateChildTraits({
+    required String childId,
+    required String? napTime,
+    required List<String> temperamentTags,
+  }) async {
+    final child = await _repository.updateChildTraits(
+      childId: childId,
+      napTime: napTime,
+      temperamentTags: temperamentTags,
+    );
+    _replaceChildInState(childId, child);
+    return child;
+  }
+
+  void _replaceChildInState(String childId, Child child) {
     final user = state.user;
     if (user != null && user.children != null) {
       final next = [
@@ -224,7 +248,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
       ];
       state = state.copyWith(user: user.copyWith(children: next));
     }
-    return child;
   }
 
   Future<void> completeChildSetup() async {

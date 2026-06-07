@@ -9,6 +9,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../widgets/common_button.dart';
 import '../../../widgets/design/accent_blobs.dart';
+import '../../../widgets/top_toast.dart';
 import '../providers/auth_provider.dart';
 
 const _termsUrl = 'https://growtogether.kr/terms';
@@ -29,13 +30,7 @@ class LoginScreen extends ConsumerWidget {
       } else if (next.status == AuthStatus.childSetup) {
         context.go('/child-setup');
       } else if (next.errorMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(next.errorMessage!),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        showTopToast(context, next.errorMessage!);
       }
     });
 
@@ -227,13 +222,7 @@ class LoginScreen extends ConsumerWidget {
   }
 
   void _showError(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: AppColors.error,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    showTopToast(context, message);
   }
 
   Future<void> _openUrl(String url) async {

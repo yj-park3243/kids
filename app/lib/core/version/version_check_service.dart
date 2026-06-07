@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io' show Platform;
 
+import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -20,6 +21,9 @@ class VersionCheckService {
   /// 서버 부트스트랩 응답 — 가입 시 KCP 본인인증 우회 여부(앱 심사 모드).
   /// 서버 응답 전/실패 시엔 false (안전하게 인증 진행).
   static bool bypassPhoneVerification = false;
+
+  /// 광고 노출 여부. 서버 응답 전/없으면 true (기존 동작 = 광고 켜짐).
+  static bool showAd = true;
 
   /// 첫 프레임 이후 호출. 강제/선택 업데이트가 필요하면 다이얼로그/오버레이를 띄움.
   static Future<void> check(BuildContext context) async {
@@ -54,6 +58,8 @@ class VersionCheckService {
       // 서버에 필드가 없으면(옛 서버) 안전하게 false — 인증 진행.
       bypassPhoneVerification =
           (data['bypassPhoneVerification'] as bool?) ?? false;
+      // 서버에 없으면(옛 서버) 광고 켜둠 — 기존 동작 유지.
+      showAd = (data['showAd'] as bool?) ?? true;
 
       if (!context.mounted) return;
 
@@ -125,29 +131,17 @@ class VersionCheckService {
     String? message,
     String? storeUrl,
   }) {
-    showDialog<void>(
+    AwesomeDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('업데이트 안내', style: AppTextStyles.heading3),
-        content: Text(
-          message ?? '새 버전이 있어요. 더 나은 경험을 위해 업데이트해 주세요.',
-          style: AppTextStyles.body2,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('나중에'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              _openStore(storeUrl);
-            },
-            child: const Text('업데이트'),
-          ),
-        ],
-      ),
-    );
+      dialogType: DialogType.info,
+      animType: AnimType.scale,
+      title: '업데이트 안내',
+      desc: message ?? '새 버전이 있어요. 더 나은 경험을 위해 업데이트해 주세요.',
+      btnCancelText: '나중에',
+      btnOkText: '업데이트',
+      btnCancelOnPress: () {},
+      btnOkOnPress: () => _openStore(storeUrl),
+    ).show();
   }
 
   static void _showForceUpdate(

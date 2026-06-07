@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/version/version_check_service.dart';
 
 /// 홈 방 목록 피드에 끼워 넣는 네이티브 광고 카드.
 /// 로딩 중이거나 로드에 실패하면 공간을 차지하지 않는다.
@@ -20,6 +21,8 @@ class _NativeAdCardState extends State<NativeAdCard>
   @override
   void initState() {
     super.initState();
+    // 서버에서 광고 OFF면 로드하지 않는다 (build 에서 SizedBox.shrink 반환).
+    if (!VersionCheckService.showAd) return;
     _ad = NativeAd(
       adUnitId: AppConstants.nativeAdUnitId,
       request: const AdRequest(),

@@ -1,7 +1,7 @@
 name: app
 description: "같이크자 - 우리 아이 또래 친구를 동네에서 쉽게 만나는 육아 모임 플랫폼"
 publish_to: 'none'
-version: 1.0.0+46
+version: 1.0.3+58
 
 environment:
   sdk: ^3.9.2
@@ -12,6 +12,7 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   cupertino_icons: ^1.0.8
+  awesome_dialog: ^3.2.1
 
   # State management
   flutter_riverpod: ^2.6.1
@@ -77,6 +78,11 @@ dependencies:
 
   # 모임 상세 우상단 메뉴 (iOS 스타일 풀다운)
   pull_down_button: ^0.10.2
+
+  # iOS 26 native Liquid Glass tab bar + Cupertino/Material 폴백
+  # 0.1.105~0.1.107의 네이티브 탭바 재빌드 로직이 탭 콜백(valueChanged)을 깨뜨려
+  # 탭해도 화면이 안 넘어가는 회귀가 있어 match와 동일한 0.1.104로 고정.
+  adaptive_platform_ui: 0.1.104
 
 dev_dependencies:
   flutter_test:

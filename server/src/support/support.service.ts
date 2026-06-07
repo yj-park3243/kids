@@ -36,6 +36,12 @@ function isNoise(message: string): boolean {
   return TELEGRAM_NOISE_PATTERNS.some((re) => re.test(message));
 }
 
+// screen_name 이 '-diag' 로 끝나면 진단 로그 — 알람도, 저장도 하지 않는다.
+// 빌드 36 잔재 단말이 부팅마다 [splash-diag] 를 쏘는데 진짜 에러가 아님.
+function isDiag(screenName: string | null | undefined): boolean {
+  return !!screenName && screenName.endsWith('-diag');
+}
+
 @Injectable()
 export class SupportService {
   private readonly logger = new Logger(SupportService.name);
@@ -53,6 +59,11 @@ export class SupportService {
   ) {}
 
   async createErrorLog(userId: string | null, dto: CreateErrorLogDto) {
+    // 진단 로그(-diag)는 저장/알람 모두 스킵 — 구 빌드 잔재라서 정상 동작인데
+    // 알람만 시끄러움. 클라엔 정상 응답을 돌려준다.
+    if (isDiag(dto.screenName)) {
+      return { id: null };
+    }
     try {
       const log = await this.errorRepo.save(
         this.errorRepo.create({

@@ -8,6 +8,7 @@ import '../../../core/constants/app_text_styles.dart';
 import '../../../core/location/location_service.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../models/room.dart';
+import '../../../models/user.dart';
 import '../../../providers/selected_child_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../room/providers/room_detail_provider.dart';
@@ -26,6 +27,14 @@ class MapScreen extends ConsumerStatefulWidget {
 class _MapScreenState extends ConsumerState<MapScreen> {
   NaverMapController? _controller;
   MapPin? _selectedPin;
+  // 같은 위치에 묶인 핀 묶음을 탭했을 때 표시 — 단일 핀(_selectedPin)과
+  // 동일한 패턴으로 build 안에서 위젯으로 시트를 그린다.
+  // platform view 위에서 showModalBottomSheet 을 호출할 때 가끔 modal 라우트가
+  // 전혀 push 되지 않는 케이스가 있어 state 기반으로 통일.
+  List<MapPin>? _selectedGroup;
+  // _selectedPin 이 스택(묶음) 선택 모달을 거쳐 골라졌는지 — 방 상세로 넘어갈 때
+  // 뒤로가기 버튼을 표시할지 결정한다. 단일 핀 직접 탭은 false.
+  bool _selectedFromStack = false;
   List<MapCluster> _clusters = [];
   List<MapPin> _pins = [];
   bool _isLoading = false;
@@ -39,15 +48,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
     setState(() => _isLoading = true);
     try {
-      final region = await controller.getContentBounds();
+      // 줌 레벨만 필요 — 클러스터/핀 모드 전환에 쓰인다. 뷰포트 인자는
+      // 보내지 않는다("같이 놀자에 등록된 모든 방"을 한 번에 받는다).
       final cameraPosition = await controller.getCameraPosition();
       final zoom = cameraPosition.zoom.round();
 
       final data = await ref.read(roomRepositoryProvider).getMapRooms(
-            swLat: region.southWest.latitude,
-            swLng: region.southWest.longitude,
-            neLat: region.northEast.latitude,
-            neLng: region.northEast.longitude,
             zoomLevel: zoom,
             filters: _filter.toQuery(),
           );
@@ -131,9 +137,20 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         );
         marker.setOnTapListener((NMarker overlay) {
           if (isStack) {
-            _showStackedPinSheet(group);
+            // 묶음 시트는 _selectedPin 과 동일하게 state 로 띄운다 —
+            // 콜백에서 showModalBottomSheet 을 호출하면 평면 view 위에서
+            // 가끔 라우트가 push 안 되는 문제가 있었음.
+            setState(() {
+              _selectedGroup = group;
+              _selectedPin = null;
+              _selectedFromStack = false;
+            });
           } else {
-            setState(() => _selectedPin = head);
+            setState(() {
+              _selectedPin = head;
+              _selectedGroup = null;
+              _selectedFromStack = false;
+            });
           }
         });
         await controller.addOverlay(marker);
@@ -153,99 +170,20 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     return byKey.values.toList();
   }
 
-  /// 한 지점에 모인 핀들을 펼쳐 보여주는 모달 시트.
-  /// 탭한 항목은 상세 카드(_PinBottomSheet)가 뜨도록 _selectedPin 으로 넘긴다.
-  void _showStackedPinSheet(List<MapPin> pins) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      isScrollControlled: true,
-      builder: (ctx) {
-        return SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.dividerStrong,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  '이 위치에 모임 ${pins.length}개',
-                  style: AppTextStyles.body1Bold,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '보고 싶은 모임을 골라주세요.',
-                  style: AppTextStyles.caption
-                      .copyWith(color: AppColors.textSecondary),
-                ),
-                const SizedBox(height: 8),
-                Flexible(
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: pins.length,
-                    separatorBuilder: (_, __) =>
-                        const Divider(height: 1, color: AppColors.divider),
-                    itemBuilder: (_, i) {
-                      final p = pins[i];
-                      final accent = _pinAccent(p);
-                      return ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(
-                          p.title,
-                          style: AppTextStyles.body2Bold,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: Text(
-                          '${p.ageMonthMin}~${p.ageMonthMax}개월 · ${p.currentMembers}/${p.maxMembers}명',
-                          style: AppTextStyles.caption
-                              .copyWith(color: AppColors.textSecondary),
-                        ),
-                        leading: Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: accent,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        trailing: const Icon(Icons.chevron_right_rounded,
-                            color: AppColors.ink500),
-                        onTap: () {
-                          Navigator.pop(ctx);
-                          setState(() => _selectedPin = p);
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+  void _onSelectFromGroup(MapPin pin) {
+    setState(() {
+      _selectedGroup = null;
+      _selectedPin = pin;
+      // 스택 모달을 거쳐 선택된 핀 — 상세 진입 시 뒤로가기 버튼을 표시한다.
+      _selectedFromStack = true;
+    });
   }
 
   void _onFilterChanged(MapFilter next) {
     setState(() {
       _filter = next;
       _selectedPin = null;
+      _selectedGroup = null;
     });
     _loadMapDataForCurrentRegion();
   }
@@ -313,8 +251,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             // 카메라 이동/줌마다 API 호출하지 않는다 — 첫 진입, 필터 변경,
             // 우상단 새로고침 버튼 탭 시에만 재조회한다.
             onMapTapped: (_, __) {
-              if (_selectedPin != null) {
-                setState(() => _selectedPin = null);
+              if (_selectedPin != null || _selectedGroup != null) {
+                setState(() {
+                  _selectedPin = null;
+                  _selectedGroup = null;
+                });
               }
             },
           ),
@@ -326,7 +267,15 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             right: 16,
             child: MapFilterPanel(
               filter: _filter,
-              childAgeMonth: _filter.ageMonth,
+              children: [
+                for (final c in (ref.watch(authProvider).user?.children ??
+                    const <Child>[]))
+                  MapFilterChildInfo(
+                    nickname: c.nickname,
+                    ageMonth: AppDateUtils.calculateAgeMonths(
+                        c.birthYear, c.birthMonth),
+                  ),
+              ],
               onChanged: _onFilterChanged,
               isSingleParent:
                   ref.watch(authProvider).user?.isSingleParent == true,
@@ -418,15 +367,35 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 pin: _selectedPin!,
                 distanceText: selectedDistance,
                 onClose: () => setState(() => _selectedPin = null),
-                onOpenDetail: () =>
-                    context.push('/rooms/${_selectedPin!.id}'),
+                onOpenDetail: () {
+                  // 단일 핀 → 상세는 뒤로가기 버튼을 숨긴다 — 바텀시트 닫고 지도로
+                  // 돌아가는 자연스러운 흐름이라 굳이 필요 없다.
+                  // 스택 모달을 거쳐 들어온 경우엔 기본대로 뒤로가기를 표시한다.
+                  final path = '/rooms/${_selectedPin!.id}'
+                      '${_selectedFromStack ? '' : '?noBack=1'}';
+                  context.push(path);
+                },
+              ),
+            ),
+
+          if (_selectedGroup != null)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: _StackedPinSheet(
+                pins: _selectedGroup!,
+                onSelect: _onSelectFromGroup,
+                onClose: () => setState(() => _selectedGroup = null),
               ),
             ),
 
           // 방 만들기 — 우하단 떠 있는 버튼. 바텀시트가 떠 있으면 위로 비켜준다.
           Positioned(
             right: 16,
-            bottom: _selectedPin != null ? 360 : 20,
+            bottom: (_selectedPin != null || _selectedGroup != null)
+                ? 360
+                : 20,
             child: FloatingActionButton.extended(
               heroTag: 'map-create-room',
               backgroundColor: AppColors.primary,
@@ -987,6 +956,147 @@ class _Chip extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 한 지점에 모인 핀들을 펼쳐 보여주는 시트 — _PinBottomSheet 과 동일하게
+/// build 안에서 그린다(showModalBottomSheet 미사용).
+class _StackedPinSheet extends StatelessWidget {
+  final List<MapPin> pins;
+  final void Function(MapPin) onSelect;
+  final VoidCallback onClose;
+
+  const _StackedPinSheet({
+    required this.pins,
+    required this.onSelect,
+    required this.onClose,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onVerticalDragEnd: (details) {
+          final v = details.primaryVelocity ?? 0;
+          if (v > 250) onClose();
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(24)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 18,
+                offset: const Offset(0, -4),
+              ),
+            ],
+          ),
+          child: SafeArea(
+            top: false,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.55,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE2E4EA),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '이 위치에 모임 ${pins.length}개',
+                                style: AppTextStyles.sectionHead,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '보고 싶은 모임을 골라주세요.',
+                                style: AppTextStyles.caption.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        InkResponse(
+                          onTap: onClose,
+                          radius: 20,
+                          child: const Padding(
+                            padding: EdgeInsets.all(4),
+                            child: Icon(Icons.close_rounded,
+                                size: 22, color: AppColors.textSecondary),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Flexible(
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: pins.length,
+                        separatorBuilder: (_, __) => const Divider(
+                            height: 1, color: AppColors.divider),
+                        itemBuilder: (_, i) {
+                          final p = pins[i];
+                          final accent = _pinAccent(p);
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(
+                              p.title,
+                              style: AppTextStyles.body2Bold,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            subtitle: Text(
+                              '${p.ageMonthMin}~${p.ageMonthMax}개월 · ${p.currentMembers}/${p.maxMembers}명',
+                              style: AppTextStyles.caption.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            leading: Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: accent,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            trailing: const Icon(Icons.chevron_right_rounded,
+                                color: AppColors.ink500),
+                            onTap: () => onSelect(p),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

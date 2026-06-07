@@ -1,3 +1,4 @@
+import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/constants/child_traits.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../models/user.dart';
 import '../../../widgets/design/avatar.dart';
@@ -155,7 +157,7 @@ class MyPageScreen extends ConsumerWidget {
                         Text('등록된 아이', style: AppTextStyles.body1Bold),
                         const SizedBox(height: 4),
                         Text(
-                          '사진을 탭하면 변경할 수 있어요',
+                          '사진은 탭으로 빠르게 교체, 그 외는 편집을 눌러주세요',
                           style: AppTextStyles.caption
                               .copyWith(color: AppColors.ink500),
                         ),
@@ -166,66 +168,140 @@ class MyPageScreen extends ConsumerWidget {
                           final age = child.ageMonths ??
                               AppDateUtils.calculateAgeMonths(
                                   child.birthYear, child.birthMonth);
+                          final napLabel = napTimeLabel(child.napTime);
+                          final tagLabels = child.temperamentTags
+                              .map(temperamentTagLabel)
+                              .whereType<String>()
+                              .toList();
+                          final hasTraits =
+                              napLabel != null || tagLabels.isNotEmpty;
                           return Padding(
                             padding: EdgeInsets.only(
-                              top: idx == 0 ? 0 : 10,
+                              top: idx == 0 ? 0 : 14,
                             ),
-                            child: Row(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                GestureDetector(
-                                  onTap: () =>
-                                      _editChildPhoto(context, ref, child),
-                                  child: Stack(
-                                    clipBehavior: Clip.none,
-                                    children: [
-                                      BabyAvatar(
-                                        size: 40,
-                                        tone: child.gender == 'MALE'
-                                            ? BabyAvatarTone.lilac
-                                            : BabyAvatarTone.primary,
-                                        imageUrl: child.photoUrl,
-                                      ),
-                                      Positioned(
-                                        right: -2,
-                                        bottom: -2,
-                                        child: Container(
-                                          padding: const EdgeInsets.all(3),
-                                          decoration: BoxDecoration(
-                                            color: AppColors.primary,
-                                            shape: BoxShape.circle,
-                                            border: Border.all(
-                                                color: Colors.white,
-                                                width: 1.5),
+                                Row(
+                                  children: [
+                                    GestureDetector(
+                                      onTap: () => _editChildPhoto(
+                                          context, ref, child),
+                                      child: Stack(
+                                        clipBehavior: Clip.none,
+                                        children: [
+                                          BabyAvatar(
+                                            size: 40,
+                                            tone: child.gender == 'MALE'
+                                                ? BabyAvatarTone.lilac
+                                                : BabyAvatarTone.primary,
+                                            imageUrl: child.photoUrl,
                                           ),
-                                          child: const Icon(
-                                            Icons.camera_alt_rounded,
-                                            size: 10,
-                                            color: Colors.white,
+                                          Positioned(
+                                            right: -2,
+                                            bottom: -2,
+                                            child: Container(
+                                              padding:
+                                                  const EdgeInsets.all(3),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.primary,
+                                                shape: BoxShape.circle,
+                                                border: Border.all(
+                                                    color: Colors.white,
+                                                    width: 1.5),
+                                              ),
+                                              child: const Icon(
+                                                Icons.camera_alt_rounded,
+                                                size: 10,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Wrap(
+                                        spacing: 6,
+                                        runSpacing: 4,
+                                        crossAxisAlignment:
+                                            WrapCrossAlignment.center,
+                                        children: [
+                                          Text(child.nickname,
+                                              style:
+                                                  AppTextStyles.body1Bold),
+                                          Text(
+                                            AppDateUtils.formatAgeMonths(age),
+                                            style: AppTextStyles.caption
+                                                .copyWith(
+                                              color: AppColors.primary700,
+                                            ),
+                                          ),
+                                          if (child.gender != null)
+                                            DesignChip(
+                                              label: child.gender == 'MALE'
+                                                  ? '남아'
+                                                  : '여아',
+                                              tone: child.gender == 'MALE'
+                                                  ? ChipTone.lilac
+                                                  : ChipTone.primaryGhost,
+                                              height: 22,
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                    GestureDetector(
+                                      onTap: () => context.push(
+                                          '/children/${child.id}/edit'),
+                                      child: Container(
+                                        padding:
+                                            const EdgeInsets.symmetric(
+                                                horizontal: 10,
+                                                vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white
+                                              .withValues(alpha: 0.7),
+                                          borderRadius:
+                                              BorderRadius.circular(999),
+                                          border: Border.all(
+                                            color: AppColors.glassBorder,
+                                            width: 0.5,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          '편집',
+                                          style: AppTextStyles.chip.copyWith(
+                                            color: AppColors.primary700,
                                           ),
                                         ),
                                       ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(width: 12),
-                                Text(child.nickname,
-                                    style: AppTextStyles.body1Bold),
-                                const SizedBox(width: 8),
-                                Text(
-                                  AppDateUtils.formatAgeMonths(age),
-                                  style: AppTextStyles.caption.copyWith(
-                                    color: AppColors.primary700,
-                                  ),
-                                ),
-                                if (child.gender != null) ...[
-                                  const SizedBox(width: 8),
-                                  DesignChip(
-                                    label:
-                                        child.gender == 'MALE' ? '남아' : '여아',
-                                    tone: child.gender == 'MALE'
-                                        ? ChipTone.lilac
-                                        : ChipTone.primaryGhost,
-                                    height: 22,
+                                if (hasTraits) ...[
+                                  const SizedBox(height: 8),
+                                  Padding(
+                                    padding:
+                                        const EdgeInsets.only(left: 52),
+                                    child: Wrap(
+                                      spacing: 6,
+                                      runSpacing: 6,
+                                      children: [
+                                        if (napLabel != null)
+                                          DesignChip(
+                                            label: '낮잠 · $napLabel',
+                                            tone: ChipTone.outline,
+                                            height: 22,
+                                          ),
+                                        for (final t in tagLabels)
+                                          DesignChip(
+                                            label: t,
+                                            tone: ChipTone.primaryGhost,
+                                            height: 22,
+                                          ),
+                                      ],
+                                    ),
                                   ),
                                 ],
                               ],
@@ -364,53 +440,40 @@ class MyPageScreen extends ConsumerWidget {
   }
 
   void _logout(BuildContext context, WidgetRef ref) async {
-    final confirmed = await showDialog<bool>(
+    var ok = false;
+    await AwesomeDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('로그아웃'),
-        content: const Text('정말로 로그아웃 하시겠습니까?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('취소'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('로그아웃',
-                style: TextStyle(color: AppColors.primary)),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true) {
+      dialogType: DialogType.warning,
+      animType: AnimType.scale,
+      title: '로그아웃',
+      desc: '정말로 로그아웃 하시겠습니까?',
+      btnCancelText: '취소',
+      btnOkText: '로그아웃',
+      btnCancelOnPress: () {},
+      btnOkOnPress: () => ok = true,
+    ).show();
+    if (ok) {
       await ref.read(authProvider.notifier).logout();
       if (context.mounted) context.go('/login');
     }
   }
 
   void _deleteAccount(BuildContext context, WidgetRef ref) async {
-    final confirmed = await showDialog<bool>(
+    var ok = false;
+    await AwesomeDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('회원탈퇴'),
-        content: const Text(
+      dialogType: DialogType.error,
+      animType: AnimType.scale,
+      title: '회원탈퇴',
+      desc:
           '정말로 탈퇴하시겠습니까?\n탈퇴 후 30일간 데이터가 보관되며, 이후 완전히 삭제됩니다.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('취소'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('탈퇴', style: TextStyle(color: AppColors.error)),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true) {
+      btnCancelText: '취소',
+      btnOkText: '탈퇴',
+      btnOkColor: AppColors.error,
+      btnCancelOnPress: () {},
+      btnOkOnPress: () => ok = true,
+    ).show();
+    if (ok) {
       try {
         await ref.read(authRepositoryProvider).deleteAccount(null);
         ref.read(authProvider.notifier).setUnauthenticated();

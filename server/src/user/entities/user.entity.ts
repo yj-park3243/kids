@@ -117,6 +117,17 @@ export class User {
   @Column({ name: 'is_single_parent', type: 'boolean', default: false })
   isSingleParent: boolean;
 
+  // 푸시 알림 설정. notifyAll 을 끄면 모든 푸시 차단(인앱 알림 목록은 유지),
+  // notifyRoom/notifyChat 은 카테고리별 차단. 기본 전부 ON.
+  @Column({ name: 'notify_all', type: 'boolean', default: true })
+  notifyAll: boolean;
+
+  @Column({ name: 'notify_room', type: 'boolean', default: true })
+  notifyRoom: boolean;
+
+  @Column({ name: 'notify_chat', type: 'boolean', default: true })
+  notifyChat: boolean;
+
   // 쑥쑥 등급 점수. 가입 시 떡잎(10~29) 중간값 20 으로 시작. 신고/노쇼로 9 이하 떨어지면 새싹으로 강등.
   @Column({ name: 'manner_score', type: 'numeric', precision: 4, scale: 1, default: 20 })
   mannerScore: number;

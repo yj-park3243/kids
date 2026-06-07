@@ -9,10 +9,12 @@ import '../../features/auth/presentation/phone_verification_screen.dart';
 import '../../features/auth/presentation/profile_setup_screen.dart';
 import '../../features/chat/presentation/chat_room_screen.dart';
 import '../../features/follow/presentation/following_list_screen.dart';
+import '../../features/home/presentation/home_dashboard_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/map/presentation/map_screen.dart';
 import '../../features/mypage/presentation/appeal_screen.dart';
 import '../../features/mypage/presentation/blocked_users_screen.dart';
+import '../../features/mypage/presentation/child_edit_screen.dart';
 import '../../features/mypage/presentation/debug_data_screen.dart';
 import '../../features/mypage/presentation/my_rooms_screen.dart';
 import '../../features/mypage/presentation/mypage_screen.dart';
@@ -85,11 +87,12 @@ final appRouter = GoRouter(
         return MainScaffold(navigationShell: navigationShell);
       },
       branches: [
+        // 홈 (대시보드) — 참여 모임 유무에 따라 빈 상태/풀 상태 분기.
         StatefulShellBranch(
           routes: [
             GoRoute(
               path: '/home',
-              builder: (context, state) => const HomeScreen(),
+              builder: (context, state) => const HomeDashboardScreen(),
             ),
           ],
         ),
@@ -98,6 +101,15 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/map',
               builder: (context, state) => const MapScreen(),
+            ),
+          ],
+        ),
+        // 모임 — 기존 HomeScreen (방 리스트/필터)을 그대로 사용.
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/rooms',
+              builder: (context, state) => const HomeScreen(),
             ),
           ],
         ),
@@ -131,7 +143,9 @@ final appRouter = GoRouter(
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) {
         final roomId = state.pathParameters['roomId']!;
-        return RoomDetailScreen(roomId: roomId);
+        // 지도 단일 핀에서 진입할 때만 noBack=1 을 붙여 뒤로가기 버튼을 숨긴다.
+        final noBack = state.uri.queryParameters['noBack'] == '1';
+        return RoomDetailScreen(roomId: roomId, showBack: !noBack);
       },
     ),
     GoRoute(
@@ -197,6 +211,14 @@ final appRouter = GoRouter(
       path: '/child-add',
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) => const ChildSetupScreen(popOnDone: true),
+    ),
+
+    // 아이 정보 수정 (마이페이지에서 진입)
+    GoRoute(
+      path: '/children/:childId/edit',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) =>
+          ChildEditScreen(childId: state.pathParameters['childId']!),
     ),
 
     // Profile edit

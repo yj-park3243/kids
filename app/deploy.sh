@@ -9,8 +9,8 @@ PLATFORM="${1:-all}"  # ios, android, all(기본)
 # App Store Connect API Key (fastlane 연동)
 source ios/fastlane/.env 2>/dev/null || true
 
-# Google Play 서비스 계정 키 경로 (추후 설정)
-PLAY_KEY="$SCRIPT_DIR/../etc/google-play-key.json"
+# Google Play 서비스 계정 키 경로 — Appfile 과 동일한 파일을 가리킨다.
+PLAY_KEY="$SCRIPT_DIR/../etc/kids-fastlane.json"
 
 # ─── 빌드번호 자동 증가 ───
 CURRENT_VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //')

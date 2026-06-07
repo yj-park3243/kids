@@ -98,6 +98,8 @@ export class ChildService {
       gender: child.gender,
       photoUrl: child.photoUrl,
       verificationPhotoUrl: child.verificationPhotoUrl,
+      napTime: child.napTime ?? null,
+      temperamentTags: child.temperamentTags ?? [],
       createdAt: child.createdAt,
     };
   }
