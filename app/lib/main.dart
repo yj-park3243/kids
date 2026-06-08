@@ -140,17 +140,15 @@ class KidsApp extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
       ],
-      builder: (context, child) => GestureDetector(
-        // 빈 영역 탭 / 스크롤 시 키보드 닫기 — 모든 화면 공통.
-        behavior: HitTestBehavior.translucent,
-        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-        child: NotificationListener<ScrollStartNotification>(
-          onNotification: (_) {
-            FocusManager.instance.primaryFocus?.unfocus();
-            return false;
-          },
-          child: _AppBootstrap(child: child ?? const SizedBox.shrink()),
-        ),
+      // 주의: 여기를 GestureDetector(onTap: unfocus)로 감싸면 제스처 경합으로
+      // iOS 26 네이티브 탭바(PlatformView)의 탭이 씹힌다(드래그만 먹힘).
+      // 키보드 닫기는 스크롤 시작 시점에만 처리한다.
+      builder: (context, child) => NotificationListener<ScrollStartNotification>(
+        onNotification: (_) {
+          FocusManager.instance.primaryFocus?.unfocus();
+          return false;
+        },
+        child: _AppBootstrap(child: child ?? const SizedBox.shrink()),
       ),
       theme: ThemeData(
         useMaterial3: true,
