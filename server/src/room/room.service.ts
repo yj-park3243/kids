@@ -174,8 +174,77 @@ export class RoomService {
       .dispatchFollowNewRoomNotification(savedRoom.id, userId)
       .catch(() => undefined);
 
+    // 같은 동네(시군구) 사용자에게 NEW_ROOM 푸시 (fire-and-forget)
+    void this.dispatchNearbyNewRoomNotification(savedRoom, userId).catch(
+      () => undefined,
+    );
+
     // Fetch full room data
     return this.getDetail(savedRoom.id, userId);
+  }
+
+  // 같은 동네(시군구) 사용자에게 NEW_ROOM 푸시.
+  // 본인 / 팔로워(FOLLOW_NEW_ROOM 중복) / 차단(양방향) 은 제외한다.
+  private async dispatchNearbyNewRoomNotification(
+    room: Room,
+    hostUserId: string,
+  ) {
+    if (!room.regionSigungu) return;
+
+    // 방 자격에 맞는 사용자에게만 — 한부모 방은 한부모, 성별 방은 해당 성별.
+    // (못 보는 방의 알림이 가지 않도록 노출 필터와 동일한 기준 적용)
+    const where: {
+      regionSigungu: string;
+      isSingleParent?: boolean;
+      parentGender?: string;
+    } = { regionSigungu: room.regionSigungu };
+    if (room.singleParentOnly) where.isSingleParent = true;
+    if (room.genderFilter === 'MOM_ONLY') where.parentGender = 'MOM';
+    else if (room.genderFilter === 'DAD_ONLY') where.parentGender = 'DAD';
+
+    const nearby = await this.userRepository.find({ where, select: ['id'] });
+    if (nearby.length === 0) return;
+
+    const exclude = new Set<string>([hostUserId]);
+
+    // 팔로워는 FOLLOW_NEW_ROOM 으로 이미 받으므로 중복 제외
+    const followerRows = await this.roomRepository.query(
+      `SELECT follower_id FROM follow WHERE target_user_id = $1`,
+      [hostUserId],
+    );
+    for (const r of followerRows) exclude.add(r.follower_id);
+
+    // 차단(양방향) 제외 — block 테이블 미동기화 환경은 건너뜀
+    try {
+      const blockRows = await this.roomRepository.query(
+        `SELECT blocker_id, target_user_id FROM block
+         WHERE blocker_id = $1 OR target_user_id = $1`,
+        [hostUserId],
+      );
+      for (const r of blockRows) {
+        exclude.add(
+          r.blocker_id === hostUserId ? r.target_user_id : r.blocker_id,
+        );
+      }
+    } catch {
+      // 차단 제외 생략
+    }
+
+    const place = room.regionDong || room.regionSigungu;
+    for (const u of nearby) {
+      if (exclude.has(u.id)) continue;
+      try {
+        await this.notificationService.create({
+          userId: u.id,
+          type: 'NEW_ROOM',
+          title: '우리 동네 새 모임',
+          body: `${place}에 새 모임이 열렸어요.`,
+          data: { roomId: room.id },
+        });
+      } catch {
+        // 개별 발송 실패 무시
+      }
+    }
   }
 
   async findAll(userId: string, query: RoomQueryDto) {
@@ -335,6 +404,20 @@ export class RoomService {
       throw new NotFoundException('방을 찾을 수 없습니다.');
     }
 
+    // 한부모 전용 방은 한부모 가정만 상세 조회 가능 — 목록/지도 필터와 동일 기준.
+    // (목록엔 안 떠도 roomId 직접 조회로 노출되던 갭 차단)
+    if (room.singleParentOnly === true) {
+      const viewer = userId
+        ? await this.userRepository.findOne({ where: { id: userId } })
+        : null;
+      if (viewer?.isSingleParent !== true) {
+        throw new ForbiddenException({
+          code: 'SINGLE_PARENT_REQUIRED',
+          message: '한부모 가정 전용 방입니다.',
+        });
+      }
+    }
+
     // Determine user's status in this room
     let myStatus = 'NONE';
     if (userId) {
@@ -376,6 +459,7 @@ export class RoomService {
       profileImageUrl: m.user?.profileImageUrl,
       parentGender: m.user?.parentGender,
       isSingleParent: m.user?.isSingleParent,
+      birthYear: m.user?.birthDate ? new Date(m.user.birthDate).getFullYear() : null,
       mannerScore: m.user?.mannerScore != null ? Number(m.user.mannerScore) : undefined,
       children: m.user?.children?.map((c) => ({
         id: c.id,
@@ -425,6 +509,9 @@ export class RoomService {
             regionSigungu: room.host.regionSigungu,
             parentGender: room.host.parentGender,
             isSingleParent: room.host.isSingleParent,
+            birthYear: room.host.birthDate
+              ? new Date(room.host.birthDate).getFullYear()
+              : null,
             mannerScore:
               room.host.mannerScore != null ? Number(room.host.mannerScore) : undefined,
           }

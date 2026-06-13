@@ -9,6 +9,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/validators.dart';
 import '../../../widgets/app_bar.dart';
+import '../../../widgets/address_search_sheet.dart';
 import '../../../widgets/common_button.dart';
 import '../../../widgets/common_input.dart';
 import '../providers/auth_provider.dart';
@@ -35,6 +36,11 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
 
   // 한부모 가정 여부. 가입 후 변경 불가.
   bool _isSingleParent = false;
+
+  // 동네(주소) — 선택. 설정하면 주변 새 모임 알림 대상이 된다. 상세 주소는 받지 않음.
+  String? _regionSido;
+  String? _regionSigungu;
+  String? _regionDong;
 
   // 육아 친화 단어 풀 — 따뜻하고 부드러운 톤
   static const _adjectives = [
@@ -204,6 +210,9 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
           profileImageUrl: imageUrl,
           parentGender: _parentGender,
           isSingleParent: _isSingleParent,
+          regionSido: _regionSido,
+          regionSigungu: _regionSigungu,
+          regionDong: _regionDong,
         );
 
     setState(() => _isLoading = false);
@@ -444,6 +453,67 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                 const SizedBox(height: 6),
                 Text(
                   '한부모 가정 전용 모임에 참여할 수 있어요. 가입 후 변경 불가.',
+                  style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                ),
+
+                const SizedBox(height: 24),
+
+                // 동네(주소) — 선택. 건너뛸 수 있고, 설정하면 주변 새 모임 알림 대상이 된다.
+                Text('우리 동네 (선택)', style: AppTextStyles.body2Bold),
+                const SizedBox(height: 8),
+                InkWell(
+                  onTap: () async {
+                    final result = await showAddressSearchSheet(context);
+                    if (result != null) {
+                      setState(() {
+                        _regionSido = result.sido;
+                        _regionSigungu = result.sigungu;
+                        _regionDong = result.dong;
+                      });
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.divider),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.location_on_outlined,
+                            size: 20, color: AppColors.primary),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _regionSido == null
+                                ? '동네 검색'
+                                : '$_regionSido $_regionSigungu $_regionDong',
+                            style: AppTextStyles.body1.copyWith(
+                              color: _regionSido == null
+                                  ? AppColors.textHint
+                                  : AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        if (_regionSido != null)
+                          GestureDetector(
+                            onTap: () => setState(() {
+                              _regionSido = null;
+                              _regionSigungu = null;
+                              _regionDong = null;
+                            }),
+                            child: const Icon(Icons.close_rounded,
+                                size: 18, color: AppColors.textHint),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '동네를 설정하면 주변에 새 모임이 생길 때 알림을 받을 수 있어요. 지금 건너뛰어도 돼요.',
                   style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
                 ),
 

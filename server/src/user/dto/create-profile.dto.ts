@@ -5,6 +5,7 @@ import {
   MaxLength,
   IsIn,
   IsBoolean,
+  IsNumber,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -29,6 +30,16 @@ export class CreateProfileDto {
   @IsString()
   @IsOptional()
   regionDong?: string;
+
+  @ApiProperty({ required: false })
+  @IsNumber()
+  @IsOptional()
+  latitude?: number;
+
+  @ApiProperty({ required: false })
+  @IsNumber()
+  @IsOptional()
+  longitude?: number;
 
   @ApiProperty({ required: false })
   @IsString()

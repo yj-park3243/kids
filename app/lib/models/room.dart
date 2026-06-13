@@ -168,6 +168,9 @@ class RoomMember {
   final bool isHost;
   // singleParentOnly === true 인 방에서만 서버가 내려줌. 기본 null.
   final bool? isSingleParent;
+  // 부모 성별('MOM'|'DAD')과 출생연도 — "아빠 (92년생)" 표시용.
+  final String? parentGender;
+  final int? birthYear;
 
   RoomMember({
     required this.id,
@@ -176,6 +179,8 @@ class RoomMember {
     this.children,
     this.isHost = false,
     this.isSingleParent,
+    this.parentGender,
+    this.birthYear,
   });
 
   factory RoomMember.fromJson(Map<String, dynamic> json) {
@@ -188,6 +193,8 @@ class RoomMember {
           : null,
       isHost: json['isHost'] ?? false,
       isSingleParent: json['isSingleParent'],
+      parentGender: json['parentGender'],
+      birthYear: json['birthYear'],
     );
   }
 }

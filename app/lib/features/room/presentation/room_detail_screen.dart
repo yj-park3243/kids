@@ -1133,6 +1133,15 @@ class _MembersSection extends ConsumerWidget {
                               ],
                             ],
                           ),
+                          // 부모 성별 + 출생연도 (예: 아빠 (92년생))
+                          if (member.parentGender != null)
+                            Text(
+                              '${member.parentGender == 'DAD' ? '아빠' : '엄마'}'
+                              '${member.birthYear != null ? ' (${(member.birthYear! % 100).toString().padLeft(2, '0')}년생)' : ''}',
+                              style: AppTextStyles.caption.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
                           if (member.children != null &&
                               member.children!.isNotEmpty)
                             Text(

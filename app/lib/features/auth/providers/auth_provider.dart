@@ -159,6 +159,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     String? profileImageUrl,
     String? parentGender,
     bool? isSingleParent,
+    String? regionSido,
+    String? regionSigungu,
+    String? regionDong,
   }) async {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
     try {
@@ -167,6 +170,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
         profileImageUrl: profileImageUrl,
         parentGender: parentGender,
         isSingleParent: isSingleParent,
+        regionSido: regionSido,
+        regionSigungu: regionSigungu,
+        regionDong: regionDong,
       );
       state = state.copyWith(status: AuthStatus.childSetup, user: user);
     } catch (e) {

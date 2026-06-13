@@ -54,6 +54,13 @@ export class User {
   @Column({ name: 'region_dong', type: 'varchar', length: 20, nullable: true })
   regionDong: string;
 
+  // 동네 기준 대략 좌표 (거리 기반 주변 모임/알림용). 지오코딩 실패 시 시군구/동 폴백.
+  @Column({ type: 'double precision', nullable: true })
+  latitude: number | null;
+
+  @Column({ type: 'double precision', nullable: true })
+  longitude: number | null;
+
   @Column({ name: 'is_profile_complete', type: 'boolean', default: false })
   isProfileComplete: boolean;
 

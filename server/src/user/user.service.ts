@@ -15,6 +15,7 @@ import { AppleService } from '../auth/social/apple.service';
 import { CreateProfileDto } from './dto/create-profile.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ProfanityFilterService } from '../common/services/profanity-filter.service';
+import { fallbackCoord } from '../common/services/region-coords';
 
 @Injectable()
 export class UserService {
@@ -70,6 +71,15 @@ export class UserService {
     if (dto.regionSido) user.regionSido = dto.regionSido;
     if (dto.regionSigungu) user.regionSigungu = dto.regionSigungu;
     if (dto.regionDong) user.regionDong = dto.regionDong;
+    // 좌표 — 클라가 보내면 우선, 없으면 입력한 동네 기준 대략 좌표(폴백)를 저장.
+    if (dto.latitude != null && dto.longitude != null) {
+      user.latitude = dto.latitude;
+      user.longitude = dto.longitude;
+    } else if (dto.regionSido && dto.regionSigungu) {
+      const fb = fallbackCoord(dto.regionSido, dto.regionSigungu, dto.regionDong);
+      user.latitude = fb.lat;
+      user.longitude = fb.lng;
+    }
     user.profileImageUrl = dto.profileImageUrl || user.profileImageUrl;
     user.introduction = dto.introduction || user.introduction;
     user.parentGender = dto.parentGender;
