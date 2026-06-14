@@ -7,6 +7,10 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // nginx 프록시 뒤 — req.ip 가 프록시(127.0.0.1)가 아니라 X-Forwarded-For 의
+  // 실제 클라이언트 IP를 가리키도록. 1 = nginx 한 단계만 신뢰(스푸핑 방어).
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+
   // Global prefix
   app.setGlobalPrefix('v1');
 
