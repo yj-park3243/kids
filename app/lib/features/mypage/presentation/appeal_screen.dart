@@ -1,3 +1,4 @@
+import '../../../widgets/top_toast.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -33,14 +34,7 @@ class _AppealScreenState extends ConsumerState<AppealScreen> {
   }
 
   void _toast(String msg, {bool error = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: error ? AppColors.error : AppColors.success,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
+    showTopToast(context, msg, backgroundColor: error ? AppColors.error : AppColors.success);
   }
 
   Future<void> _submit() async {

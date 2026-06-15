@@ -1,3 +1,4 @@
+import '../../../widgets/top_toast.dart';
 import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -87,29 +88,11 @@ class BlockedUsersScreen extends ConsumerWidget {
       await ref.read(blockRepositoryProvider).unblock(user.targetUserId);
       ref.invalidate(blockedUsersProvider);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${user.nickname}님의 차단이 해제되었습니다'),
-            backgroundColor: AppColors.success,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-          ),
-        );
+        showTopToast(context, '${user.nickname}님의 차단이 해제되었습니다', backgroundColor: AppColors.success);
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('차단 해제에 실패했습니다'),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-          ),
-        );
+        showTopToast(context, '차단 해제에 실패했습니다', backgroundColor: AppColors.error);
       }
     }
   }

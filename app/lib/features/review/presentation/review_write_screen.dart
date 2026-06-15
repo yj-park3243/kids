@@ -1,3 +1,4 @@
+import '../../../widgets/top_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -104,16 +105,7 @@ class ReviewWriteScreen extends ConsumerWidget {
   ) async {
     final ok = await notifier.submitAll();
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(ok ? '후기를 제출했어요' : '일부 후기 제출에 실패했어요'),
-        backgroundColor: ok ? AppColors.primary : AppColors.error,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
-      ),
-    );
+    showTopToast(context, ok ? '후기를 제출했어요' : '일부 후기 제출에 실패했어요', backgroundColor: ok ? AppColors.primary : AppColors.error);
     if (ok) {
       // 마이페이지 또는 홈으로 이동. router 미통합이라 단순 pop.
       Navigator.of(context).maybePop();

@@ -1,3 +1,4 @@
+import '../../../widgets/top_toast.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -33,13 +34,7 @@ class _ChildSetupScreenState extends ConsumerState<ChildSetupScreen> {
 
   void _addChild() {
     if (_children.length >= 5) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('아이는 최대 5명까지 등록할 수 있습니다'),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
+      showTopToast(context, '아이는 최대 5명까지 등록할 수 있습니다');
       return;
     }
     setState(() => _children.add(_ChildData()));
@@ -54,47 +49,19 @@ class _ChildSetupScreenState extends ConsumerState<ChildSetupScreen> {
     // Validate all children
     for (var i = 0; i < _children.length; i++) {
       if (_children[i].nicknameController.text.trim().isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${i + 1}번째 아이의 이름을 입력해 주세요'),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
+        showTopToast(context, '${i + 1}번째 아이의 이름을 입력해 주세요', backgroundColor: AppColors.error);
         return;
       }
       if (_children[i].birthYear == null || _children[i].birthMonth == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${i + 1}번째 아이의 생년월을 선택해 주세요'),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
+        showTopToast(context, '${i + 1}번째 아이의 생년월을 선택해 주세요', backgroundColor: AppColors.error);
         return;
       }
       if (_children[i].profilePhotoPath == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${i + 1}번째 아이의 프로필 사진을 등록해 주세요'),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
+        showTopToast(context, '${i + 1}번째 아이의 프로필 사진을 등록해 주세요', backgroundColor: AppColors.error);
         return;
       }
       if (_children[i].verificationPhotoPath == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${i + 1}번째 아이의 인증 사진을 등록해 주세요'),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
+        showTopToast(context, '${i + 1}번째 아이의 인증 사진을 등록해 주세요', backgroundColor: AppColors.error);
         return;
       }
     }
@@ -120,12 +87,7 @@ class _ChildSetupScreenState extends ConsumerState<ChildSetupScreen> {
       }
       if (widget.popOnDone) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('아이를 추가했습니다'),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          showTopToast(context, '아이를 추가했습니다');
           context.pop();
         }
       } else {
@@ -133,14 +95,7 @@ class _ChildSetupScreenState extends ConsumerState<ChildSetupScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('아이 정보 등록에 실패했습니다'),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
+        showTopToast(context, '아이 정보 등록에 실패했습니다', backgroundColor: AppColors.error);
       }
     }
 

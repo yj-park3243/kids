@@ -1,3 +1,4 @@
+import '../../../widgets/top_toast.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
@@ -288,9 +289,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                   ))
               .toList();
           if (targets.isEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('후기를 작성할 대상 멤버가 없어요')),
-            );
+            showTopToast(context, '후기를 작성할 대상 멤버가 없어요');
             return;
           }
           context.push('/reviews/write?roomId=${widget.roomId}',
@@ -310,40 +309,18 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
         final msg = status == 'ACCEPTED'
             ? '참여가 완료되었습니다!'
             : '참여 신청이 완료되었습니다. 방장의 수락을 기다려 주세요.';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(msg),
-            backgroundColor: AppColors.success,
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
+        showTopToast(context, msg, backgroundColor: AppColors.success);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('참여 신청에 실패했습니다'),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
+        showTopToast(context, '참여 신청에 실패했습니다', backgroundColor: AppColors.error);
       }
     }
   }
 
   void _shareRoom(Room room) {
     // TODO: KakaoShareService().shareRoom(room); — App-Features-B 통합
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('공유 기능 준비 중'),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
+    showTopToast(context, '공유 기능 준비 중');
   }
 
   Future<void> _cancelRoom(Room room) async {
@@ -374,15 +351,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('모임 취소에 실패했습니다'),
-              backgroundColor: AppColors.error,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-            ),
-          );
+          showTopToast(context, '모임 취소에 실패했습니다', backgroundColor: AppColors.error);
         }
       }
     }
@@ -414,27 +383,11 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
       await ref.read(roomRepositoryProvider).completeRoom(widget.roomId);
       if (mounted) {
         ref.read(roomDetailProvider(widget.roomId).notifier).loadRoom();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('모임이 종료되었습니다'),
-            backgroundColor: AppColors.success,
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
+        showTopToast(context, '모임이 종료되었습니다', backgroundColor: AppColors.success);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('모임 종료에 실패했습니다'),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
+        showTopToast(context, '모임 종료에 실패했습니다', backgroundColor: AppColors.error);
       }
     }
   }

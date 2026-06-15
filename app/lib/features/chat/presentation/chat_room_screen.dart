@@ -1,3 +1,4 @@
+import '../../../widgets/top_toast.dart';
 import 'dart:convert';
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -91,9 +92,7 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen>
           .sendMessage(widget.chatRoomId, content: content);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('메시지 전송 실패: $e')),
-      );
+      showTopToast(context, '메시지 전송 실패: $e');
     }
   }
 
@@ -107,9 +106,7 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen>
           );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('위치 전송 실패: $e')),
-      );
+      showTopToast(context, '위치 전송 실패: $e');
     }
   }
 
@@ -194,9 +191,7 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen>
       if (perm == LocationPermission.denied ||
           perm == LocationPermission.deniedForever) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('위치 권한이 필요합니다.')),
-        );
+        showTopToast(context, '위치 권한이 필요합니다.');
         return;
       }
       final pos = await Geolocator.getCurrentPosition(
@@ -209,9 +204,7 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen>
           lat: pos.latitude, lng: pos.longitude, label: '내 위치');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('현재 위치를 가져올 수 없어요: $e')),
-      );
+      showTopToast(context, '현재 위치를 가져올 수 없어요: $e');
     }
   }
 

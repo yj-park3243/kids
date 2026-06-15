@@ -1,3 +1,4 @@
+import '../../../widgets/top_toast.dart';
 import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -517,15 +518,7 @@ class MyPageScreen extends ConsumerWidget {
         if (context.mounted) context.go('/login');
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(_deleteErrorMessage(e)),
-              backgroundColor: AppColors.error,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14)),
-            ),
-          );
+          showTopToast(context, _deleteErrorMessage(e), backgroundColor: AppColors.error);
         }
       }
     }
@@ -534,7 +527,6 @@ class MyPageScreen extends ConsumerWidget {
   /// 등록된 아이의 프로필 사진을 갤러리에서 다시 골라 교체한다.
   void _editChildPhoto(
       BuildContext context, WidgetRef ref, Child child) async {
-    final messenger = ScaffoldMessenger.of(context);
     final img = await ImagePicker().pickImage(
       source: ImageSource.gallery,
       maxWidth: 1280,
@@ -549,22 +541,11 @@ class MyPageScreen extends ConsumerWidget {
             childId: child.id,
             photoUrl: photoUrl,
           );
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('아이 사진을 변경했습니다'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      if (!context.mounted) return;
+      showTopToast(context, '아이 사진을 변경했습니다');
     } catch (e) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: const Text('사진 변경에 실패했습니다'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        ),
-      );
+      if (!context.mounted) return;
+      showTopToast(context, '사진 변경에 실패했습니다', backgroundColor: AppColors.error);
     }
   }
 }
@@ -638,15 +619,7 @@ class _VersionFooterState extends State<_VersionFooter> {
     final remain = _unlockTapCount - _tapCount;
     // 후반부에만 카운트다운을 노출 — 호기심을 자극하되 평소엔 조용히.
     if (remain <= 5) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content: Text('$remain번 더'),
-            duration: const Duration(milliseconds: 600),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+      showTopToast(context, '$remain번 더');
     }
   }
 

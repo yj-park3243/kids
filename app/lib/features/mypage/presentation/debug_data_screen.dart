@@ -1,3 +1,4 @@
+import '../../../widgets/top_toast.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -342,13 +343,7 @@ class _DebugDataScreenState extends ConsumerState<DebugDataScreen> {
 
   void _copy(String value) {
     Clipboard.setData(ClipboardData(text: value));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('복사했습니다'),
-        behavior: SnackBarBehavior.floating,
-        duration: Duration(seconds: 1),
-      ),
-    );
+    showTopToast(context, '복사했습니다');
   }
 
   String _maskToken(String? t) {

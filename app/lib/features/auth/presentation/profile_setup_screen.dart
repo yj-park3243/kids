@@ -1,3 +1,4 @@
+import '../../../widgets/top_toast.dart';
 import 'dart:io';
 import 'dart:math';
 
@@ -224,14 +225,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
       if (next.status == AuthStatus.childSetup) {
         context.go('/child-setup');
       } else if (next.errorMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(next.errorMessage!),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
+        showTopToast(context, next.errorMessage!, backgroundColor: AppColors.error);
       }
     });
 

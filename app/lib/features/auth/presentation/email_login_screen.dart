@@ -1,3 +1,4 @@
+import '../../../widgets/top_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -51,14 +52,7 @@ class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
       } else if (next.status == AuthStatus.childSetup) {
         context.go('/child-setup');
       } else if (next.errorMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(next.errorMessage!),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
+        showTopToast(context, next.errorMessage!, backgroundColor: AppColors.error);
       }
     });
 

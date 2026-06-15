@@ -1,3 +1,4 @@
+import '../../../widgets/top_toast.dart';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -122,13 +123,7 @@ class _PhotoUploadScreenState extends ConsumerState<PhotoUploadScreen> {
     }
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$ok 장 업로드 완료${ok != _selected.length ? ' (${_selected.length - ok}장 실패)' : ''}'),
-        backgroundColor: AppColors.success,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    showTopToast(context, '$ok 장 업로드 완료${ok != _selected.length ? ' (${_selected.length - ok}장 실패)' : ''}', backgroundColor: AppColors.success);
     context.pop(true);
   }
 

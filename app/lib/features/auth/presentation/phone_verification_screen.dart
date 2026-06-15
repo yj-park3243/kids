@@ -1,3 +1,4 @@
+import '../../../widgets/top_toast.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -157,9 +158,7 @@ class _PhoneVerificationScreenState
       if (!mounted) return;
 
       if (merged || nextRoute == 'home') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('기존 계정으로 로그인되었습니다.')),
-        );
+        showTopToast(context, '기존 계정으로 로그인되었습니다.');
         context.go('/home');
       } else {
         context.go('/profile-setup');
@@ -184,9 +183,7 @@ class _PhoneVerificationScreenState
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('본인인증을 완료해야 이용 가능합니다.')),
-          );
+          showTopToast(context, '본인인증을 완료해야 이용 가능합니다.');
         }
       },
       child: Scaffold(

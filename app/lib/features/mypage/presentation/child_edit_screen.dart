@@ -1,3 +1,4 @@
+import '../../../widgets/top_toast.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -73,38 +74,16 @@ class _ChildEditScreenState extends ConsumerState<ChildEditScreen> {
   }
 
   Future<void> _save() async {
-    final messenger = ScaffoldMessenger.of(context);
     if (_nicknameController.text.trim().isEmpty) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: const Text('아이 이름을 입력해 주세요'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
+      showTopToast(context, '아이 이름을 입력해 주세요', backgroundColor: AppColors.error);
       return;
     }
     if (_birthYear == null || _birthMonth == null) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: const Text('생년월을 선택해 주세요'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
+      showTopToast(context, '생년월을 선택해 주세요', backgroundColor: AppColors.error);
       return;
     }
     if (_gender == null) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: const Text('성별을 선택해 주세요'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
+      showTopToast(context, '성별을 선택해 주세요', backgroundColor: AppColors.error);
       return;
     }
 
@@ -129,26 +108,12 @@ class _ChildEditScreenState extends ConsumerState<ChildEditScreen> {
             temperamentTags: _temperamentTags.toList(),
           );
       if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: const Text('아이 정보를 수정했습니다'),
-            backgroundColor: AppColors.success,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
+        showTopToast(context, '아이 정보를 수정했습니다', backgroundColor: AppColors.success);
         context.pop();
       }
     } catch (e) {
       if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: const Text('아이 정보 수정에 실패했습니다'),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
+        showTopToast(context, '아이 정보 수정에 실패했습니다', backgroundColor: AppColors.error);
       }
     }
     if (mounted) setState(() => _isLoading = false);

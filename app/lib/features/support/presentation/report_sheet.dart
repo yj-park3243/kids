@@ -1,3 +1,4 @@
+import '../../../widgets/top_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
@@ -81,9 +82,7 @@ class _ReportSheetState extends ConsumerState<_ReportSheet> {
 
   Future<void> _submit() async {
     if (_selected == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('신고 사유를 선택해주세요')),
-      );
+      showTopToast(context, '신고 사유를 선택해주세요');
       return;
     }
     setState(() => _submitting = true);
@@ -106,17 +105,10 @@ class _ReportSheetState extends ConsumerState<_ReportSheet> {
           );
       if (!mounted) return;
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('신고가 접수되었습니다.')),
-      );
+      showTopToast(context, '신고가 접수되었습니다.');
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('신고 전송에 실패했습니다. 잠시 후 다시 시도해주세요.'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      showTopToast(context, '신고 전송에 실패했습니다. 잠시 후 다시 시도해주세요.', backgroundColor: AppColors.error);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -138,17 +130,10 @@ class _ReportSheetState extends ConsumerState<_ReportSheet> {
       await ref.read(blockRepositoryProvider).block(userId);
       if (!mounted) return;
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('해당 사용자를 차단했습니다.')),
-      );
+      showTopToast(context, '해당 사용자를 차단했습니다.');
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('차단에 실패했습니다. 잠시 후 다시 시도해주세요.'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      showTopToast(context, '차단에 실패했습니다. 잠시 후 다시 시도해주세요.', backgroundColor: AppColors.error);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

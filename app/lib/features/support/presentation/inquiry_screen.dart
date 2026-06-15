@@ -1,3 +1,4 @@
+import '../../../widgets/top_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -37,18 +38,11 @@ class _InquiryScreenState extends ConsumerState<InquiryScreen> {
             message: _messageController.text.trim(),
           );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('문의가 접수되었습니다. 빠른 시일 내에 답변드리겠습니다.')),
-      );
+      showTopToast(context, '문의가 접수되었습니다. 빠른 시일 내에 답변드리겠습니다.');
       context.pop();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('문의 전송에 실패했습니다. 잠시 후 다시 시도해주세요.'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      showTopToast(context, '문의 전송에 실패했습니다. 잠시 후 다시 시도해주세요.', backgroundColor: AppColors.error);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

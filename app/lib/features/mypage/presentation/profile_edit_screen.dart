@@ -1,3 +1,4 @@
+import '../../../widgets/top_toast.dart';
 import 'dart:io';
 
 import 'package:awesome_dialog/awesome_dialog.dart';
@@ -73,26 +74,12 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
       // 갱신된 프로필을 로컬 상태에 반영.
       await ref.read(authProvider.notifier).checkAuth();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('프로필이 수정되었습니다'),
-            backgroundColor: AppColors.success,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
+        showTopToast(context, '프로필이 수정되었습니다', backgroundColor: AppColors.success);
         context.pop();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('프로필 수정에 실패했습니다'),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
+        showTopToast(context, '프로필 수정에 실패했습니다', backgroundColor: AppColors.error);
       }
     }
 

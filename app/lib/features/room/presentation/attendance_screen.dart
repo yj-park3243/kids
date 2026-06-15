@@ -1,3 +1,4 @@
+import '../../../widgets/top_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -64,14 +65,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
         .toList();
 
     if (records.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('출석 체크할 멤버가 없어요'),
-          backgroundColor: AppColors.warning,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
+      showTopToast(context, '출석 체크할 멤버가 없어요', backgroundColor: AppColors.warning);
       return;
     }
 
@@ -82,14 +76,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     if (!mounted) return;
 
     if (result == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('출석 저장에 실패했습니다'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
+      showTopToast(context, '출석 저장에 실패했습니다', backgroundColor: AppColors.error);
       return;
     }
 
@@ -97,15 +84,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     final msg = applied.isEmpty
         ? '출석이 저장되었습니다'
         : applied.map((n) => '$n님 노쇼 1회 적용됨').join('\n');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: AppColors.success,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 3),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
+    showTopToast(context, msg, backgroundColor: AppColors.success);
     context.pop();
   }
 

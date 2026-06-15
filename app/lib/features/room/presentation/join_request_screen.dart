@@ -1,3 +1,4 @@
+import '../../../widgets/top_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
@@ -60,26 +61,12 @@ class _JoinRequestScreenState extends ConsumerState<JoinRequestScreen> {
 
       final message = action == 'ACCEPT' ? '수락되었습니다' : '거절되었습니다';
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: action == 'ACCEPT' ? AppColors.success : AppColors.textSecondary,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
+        showTopToast(context, message, backgroundColor: action == 'ACCEPT' ? AppColors.success : AppColors.textSecondary);
       }
       _loadRequests();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('처리에 실패했습니다'),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
+        showTopToast(context, '처리에 실패했습니다', backgroundColor: AppColors.error);
       }
     }
   }
