@@ -83,6 +83,14 @@ export class RoomService {
       });
     }
 
+    // 부모 또래 전용 방은 방장 생년월일(만나이)이 있어야 생성 가능
+    if (dto.parentAgeMatch === true && !host.birthDate) {
+      throw new ForbiddenException({
+        code: 'PARENT_AGE_REQUIRES_BIRTHDATE',
+        message: '부모 또래 전용 방은 본인인증(생년월일)이 완료된 방장만 만들 수 있습니다.',
+      });
+    }
+
     // requiredItems 길이 검증 — DTO 에서 1차 검증되지만 방어적으로 한 번 더.
     if (dto.requiredItems && dto.requiredItems.length > 10) {
       throw new BadRequestException('준비물은 최대 10개까지 가능합니다.');
@@ -173,6 +181,34 @@ export class RoomService {
 
     // Fetch full room data
     return this.getDetail(savedRoom.id, userId);
+  }
+
+  /** 생년월일로 만 나이(년). null/미상이면 null. */
+  private parentAge(birthDate: Date | string | null | undefined): number | null {
+    if (!birthDate) return null;
+    const b = new Date(birthDate);
+    if (Number.isNaN(b.getTime())) return null;
+    const t = new Date();
+    let age = t.getFullYear() - b.getFullYear();
+    const m = t.getMonth() - b.getMonth();
+    if (m < 0 || (m === 0 && t.getDate() < b.getDate())) age--;
+    return age;
+  }
+
+  /** 또래 전용 방(parentAgeMatch)에 viewer 만나이 ±5 조건 적용.
+   *  host 는 'host' 별칭으로 join 돼 있어야 한다. viewerAge 가 null 이면 또래 전용 방을 전부 숨긴다. */
+  private applyParentAgeEligibility(
+    qb: SelectQueryBuilder<Room>,
+    viewerAge: number | null,
+  ) {
+    if (viewerAge == null) {
+      qb.andWhere('room.parentAgeMatch = false');
+    } else {
+      qb.andWhere(
+        `(room.parentAgeMatch = false OR (host.birth_date IS NOT NULL AND ABS(EXTRACT(YEAR FROM AGE(host.birth_date)) - :viewerAge) <= 5))`,
+        { viewerAge },
+      );
+    }
   }
 
   // 같은 동네(시군구) 사용자에게 NEW_ROOM 푸시.
@@ -292,6 +328,9 @@ export class RoomService {
     if (query.singleParentOnly !== undefined) {
       qb.andWhere('room.singleParentOnly = :spo', { spo: query.singleParentOnly });
     }
+    if (query.parentAgeMatch !== undefined) {
+      qb.andWhere('room.parentAgeMatch = :pam', { pam: query.parentAgeMatch });
+    }
     if (query.isFlashMeeting !== undefined) {
       qb.andWhere('room.isFlashMeeting = :flash', { flash: query.isFlashMeeting });
     }
@@ -306,6 +345,8 @@ export class RoomService {
       if (viewer.isSingleParent !== true) {
         qb.andWhere(`room.singleParentOnly = false`);
       }
+      // 또래 전용 방: viewer 만나이 ±5 밖이면 제외 (host 는 위에서 join 됨).
+      this.applyParentAgeEligibility(qb, this.parentAge(viewer.birthDate));
     }
 
     // Cursor-based pagination
@@ -361,6 +402,7 @@ export class RoomService {
         joinType: room.joinType,
         genderFilter: room.genderFilter,
         singleParentOnly: room.singleParentOnly,
+        parentAgeMatch: room.parentAgeMatch,
         isFlashMeeting: room.isFlashMeeting,
         cost: room.cost,
         tags: room.tags,
@@ -406,6 +448,21 @@ export class RoomService {
         throw new ForbiddenException({
           code: 'SINGLE_PARENT_REQUIRED',
           message: '한부모 가정 전용 방입니다.',
+        });
+      }
+    }
+
+    // 부모 또래 전용 방은 방장 만나이 ±5 안의 부모만 상세 조회 가능.
+    if (room.parentAgeMatch === true) {
+      const viewer = userId
+        ? await this.userRepository.findOne({ where: { id: userId } })
+        : null;
+      const vAge = this.parentAge(viewer?.birthDate);
+      const hAge = this.parentAge(room.host?.birthDate);
+      if (vAge == null || hAge == null || Math.abs(vAge - hAge) > 5) {
+        throw new ForbiddenException({
+          code: 'PARENT_AGE_REQUIRED',
+          message: '부모 또래(±5세) 전용 방입니다.',
         });
       }
     }
@@ -494,6 +551,7 @@ export class RoomService {
       joinType: room.joinType,
       genderFilter: room.genderFilter,
       singleParentOnly: room.singleParentOnly,
+      parentAgeMatch: room.parentAgeMatch,
       isFlashMeeting: room.isFlashMeeting,
       requiredItems: room.requiredItems,
       cost: room.cost,
@@ -691,7 +749,8 @@ export class RoomService {
 
   async getMapRooms(userId: string, query: MapQueryDto) {
     const viewer = await this.userRepository.findOne({ where: { id: userId } });
-    // 본인이 참여 자격이 없는 방(성별/한부모)은 지도에서도 보이지 않게 차단.
+    const viewerAge = this.parentAge(viewer?.birthDate);
+    // 본인이 참여 자격이 없는 방(성별/한부모/또래)은 지도에서도 보이지 않게 차단.
     const applyEligibility = (qb: SelectQueryBuilder<Room>) => {
       if (!viewer) return;
       if (viewer.parentGender === 'MOM') {
@@ -702,6 +761,9 @@ export class RoomService {
       if (viewer.isSingleParent !== true) {
         qb.andWhere(`room.singleParentOnly = false`);
       }
+      // 또래 전용 방: viewer 만나이 ±5 밖이면 제외.
+      qb.leftJoin('room.host', 'host');
+      this.applyParentAgeEligibility(qb, viewerAge);
     };
 
     // Apple Guideline 1.2: 양방향 차단 호스트의 방은 지도에서도 제외.
@@ -755,6 +817,11 @@ export class RoomService {
       if (query.singleParentOnly !== undefined) {
         qb.andWhere('room.singleParentOnly = :spo', {
           spo: query.singleParentOnly,
+        });
+      }
+      if (query.parentAgeMatch !== undefined) {
+        qb.andWhere('room.parentAgeMatch = :pam', {
+          pam: query.parentAgeMatch,
         });
       }
       if (query.isFlashMeeting !== undefined) {
@@ -867,6 +934,7 @@ export class RoomService {
             joinType: room.joinType,
             genderFilter: room.genderFilter,
             singleParentOnly: room.singleParentOnly,
+            parentAgeMatch: room.parentAgeMatch,
             isFlashMeeting: room.isFlashMeeting,
             regionDong: room.regionDong,
             joined,

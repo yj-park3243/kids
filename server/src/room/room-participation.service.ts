@@ -139,6 +139,30 @@ export class RoomParticipationService {
           message: '한부모 가정 전용 방입니다.',
         });
       }
+      // 2.5 parentAgeMatch — 방장 만나이 ±5 안의 부모만.
+      if (room.parentAgeMatch === true) {
+        const host = await this.userRepository.findOne({
+          where: { id: room.hostId },
+        });
+        const calcAge = (bd?: Date | string | null): number | null => {
+          if (!bd) return null;
+          const b = new Date(bd);
+          if (Number.isNaN(b.getTime())) return null;
+          const t = new Date();
+          let a = t.getFullYear() - b.getFullYear();
+          const md = t.getMonth() - b.getMonth();
+          if (md < 0 || (md === 0 && t.getDate() < b.getDate())) a--;
+          return a;
+        };
+        const vAge = calcAge(user.birthDate);
+        const hAge = calcAge(host?.birthDate);
+        if (vAge == null || hAge == null || Math.abs(vAge - hAge) > 5) {
+          throw new ForbiddenException({
+            code: 'PARENT_AGE_REQUIRED',
+            message: '부모 또래(±5세) 전용 방입니다.',
+          });
+        }
+      }
       // 3. 자녀 중 한 명 이상이 ageMonth 범위에 포함
       const myChildren = await this.childRepository.find({ where: { userId } });
       const now = new Date();

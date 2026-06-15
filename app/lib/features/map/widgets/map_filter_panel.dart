@@ -199,6 +199,8 @@ class _MapFilterPanelState extends State<MapFilterPanel> {
             children: [
               _toggle('무료만', _f.freeOnly,
                   () => _emit(_f.copyWith(freeOnly: !_f.freeOnly))),
+              _toggle('또래 부모(±5)', _f.parentAgeMatch,
+                  () => _emit(_f.copyWith(parentAgeMatch: !_f.parentAgeMatch))),
               if (widget.isSingleParent)
                 _toggle('한부모만', _f.singleParentOnly,
                     () => _emit(

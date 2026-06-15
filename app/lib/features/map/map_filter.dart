@@ -31,6 +31,7 @@ class MapFilter {
   final String? joinType; // null=전체, 'FREE' | 'APPROVAL'
   final bool freeOnly;
   final bool singleParentOnly;
+  final bool parentAgeMatch;
 
   const MapFilter({
     this.ageMonth,
@@ -40,6 +41,7 @@ class MapFilter {
     this.joinType,
     this.freeOnly = false,
     this.singleParentOnly = false,
+    this.parentAgeMatch = false,
   });
 
   /// 기본 필터 — 연령만 선택된 아이 개월수로 세팅, 나머지는 전체.
@@ -56,6 +58,7 @@ class MapFilter {
     Object? joinType = _keep,
     bool? freeOnly,
     bool? singleParentOnly,
+    bool? parentAgeMatch,
   }) {
     return MapFilter(
       ageMonth:
@@ -68,6 +71,7 @@ class MapFilter {
           identical(joinType, _keep) ? this.joinType : joinType as String?,
       freeOnly: freeOnly ?? this.freeOnly,
       singleParentOnly: singleParentOnly ?? this.singleParentOnly,
+      parentAgeMatch: parentAgeMatch ?? this.parentAgeMatch,
     );
   }
 
@@ -80,6 +84,7 @@ class MapFilter {
     if (joinType != null) n++;
     if (freeOnly) n++;
     if (singleParentOnly) n++;
+    if (parentAgeMatch) n++;
     return n;
   }
 
@@ -101,6 +106,7 @@ class MapFilter {
     if (joinType != null) q['joinType'] = joinType;
     if (freeOnly) q['costFree'] = true;
     if (singleParentOnly) q['singleParentOnly'] = true;
+    if (parentAgeMatch) q['parentAgeMatch'] = true;
     return q;
   }
 

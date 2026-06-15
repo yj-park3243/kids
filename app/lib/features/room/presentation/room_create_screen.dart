@@ -62,6 +62,7 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
   // 신규 카테고리/준비물
   String _genderFilter = 'ALL'; // 'ALL' | 'MOM_ONLY' | 'DAD_ONLY'
   bool _singleParentOnly = false;
+  bool _parentAgeMatch = false;
   final List<String> _requiredItems = [];
 
   @override
@@ -104,6 +105,7 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
     _costDescController.text = r.costDescription ?? '';
     _genderFilter = r.genderFilter;
     _singleParentOnly = r.singleParentOnly;
+    _parentAgeMatch = r.parentAgeMatch;
     _tags.addAll(r.tags);
     _requiredItems.addAll(r.requiredItems);
   }
@@ -369,6 +371,7 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
   Widget _buildCategorySection() {
     final me = ref.watch(authProvider).user;
     final canSingleParent = me?.isSingleParent == true;
+    final canParentAge = me?.isPhoneVerified == true;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -414,6 +417,22 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
                 value: _singleParentOnly,
                 activeTrackColor: AppColors.primary,
                 onChanged: (v) => setState(() => _singleParentOnly = v),
+              ),
+            ],
+          ),
+        ],
+        // 부모 또래 전용 방 옵션 — 본인인증(나이 정보)된 계정에만 노출.
+        if (canParentAge) ...[
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: Text('부모 또래만 참여 (±5세)', style: AppTextStyles.body2Bold),
+              ),
+              Switch(
+                value: _parentAgeMatch,
+                activeTrackColor: AppColors.primary,
+                onChanged: (v) => setState(() => _parentAgeMatch = v),
               ),
             ],
           ),
@@ -465,6 +484,7 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
         'tags': _tags,
         'genderFilter': _genderFilter,
         'singleParentOnly': _singleParentOnly,
+        'parentAgeMatch': _parentAgeMatch,
         'requiredItems': _requiredItems,
       };
 

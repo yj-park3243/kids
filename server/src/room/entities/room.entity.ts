@@ -104,6 +104,10 @@ export class Room {
   @Column({ name: 'single_parent_only', type: 'boolean', default: false })
   singleParentOnly: boolean;
 
+  // 부모 또래 전용 — 켜면 방장 만나이 ±5 안의 부모만 조회/입장 가능.
+  @Column({ name: 'parent_age_match', type: 'boolean', default: false })
+  parentAgeMatch: boolean;
+
   @Column({ name: 'is_flash_meeting', type: 'boolean', default: false })
   isFlashMeeting: boolean;
 

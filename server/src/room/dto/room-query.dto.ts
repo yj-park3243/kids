@@ -56,6 +56,11 @@ export class RoomQueryDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @Transform(({ value }) => value === 'true' || value === true)
+  parentAgeMatch?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
   isFlashMeeting?: boolean;
 
   @ApiProperty({ required: false })
@@ -147,6 +152,11 @@ export class MapQueryDto {
   @IsOptional()
   @Transform(({ value }) => value === 'true' || value === true)
   singleParentOnly?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  parentAgeMatch?: boolean;
 
   @ApiProperty({ required: false })
   @IsOptional()
