@@ -312,6 +312,20 @@ export default function UserDetailPage() {
               </Popconfirm>
             </Space>
           </Descriptions.Item>
+          <Descriptions.Item label="이름">{user.realName || '-'}</Descriptions.Item>
+          <Descriptions.Item label="생년월일">
+            {user.birthDate
+              ? `${dayjs(user.birthDate).format('YYYY.MM.DD')} (만 ${dayjs().diff(dayjs(user.birthDate), 'year')}세)`
+              : '-'}
+          </Descriptions.Item>
+          <Descriptions.Item label="성별">
+            {user.gender ? GENDER_MAP[user.gender] || user.gender : '-'}
+          </Descriptions.Item>
+          <Descriptions.Item label="전화번호">{user.phoneNumber || '-'}</Descriptions.Item>
+          <Descriptions.Item label="통신사">{user.carrier || '-'}</Descriptions.Item>
+          <Descriptions.Item label="최근 로그인">
+            {user.lastLoginAt ? dayjs(user.lastLoginAt).format('YYYY.MM.DD HH:mm') : '-'}
+          </Descriptions.Item>
           <Descriptions.Item label="자기소개" span={2}>
             {user.introduction || '-'}
           </Descriptions.Item>

@@ -145,11 +145,6 @@ export class CreateRoomDto {
   @IsOptional()
   singleParentOnly?: boolean;
 
-  @ApiProperty({ required: false, default: false })
-  @IsBoolean()
-  @IsOptional()
-  isFlashMeeting?: boolean;
-
   @ApiProperty({ required: false, example: ['기저귀', '물티슈'] })
   @IsArray()
   @IsOptional()

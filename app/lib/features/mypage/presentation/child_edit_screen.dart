@@ -96,6 +96,17 @@ class _ChildEditScreenState extends ConsumerState<ChildEditScreen> {
       );
       return;
     }
+    if (_gender == null) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: const Text('성별을 선택해 주세요'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
     try {
@@ -262,8 +273,7 @@ class _ChildEditScreenState extends ConsumerState<ChildEditScreen> {
                           emoji: '👦',
                           accent: AppColors.accentSky,
                           isSelected: _gender == 'MALE',
-                          onTap: () => setState(() =>
-                              _gender = _gender == 'MALE' ? null : 'MALE'),
+                          onTap: () => setState(() => _gender = 'MALE'),
                         ),
                         const SizedBox(width: 8),
                         _GenderChip(
@@ -271,8 +281,7 @@ class _ChildEditScreenState extends ConsumerState<ChildEditScreen> {
                           emoji: '👧',
                           accent: AppColors.primary,
                           isSelected: _gender == 'FEMALE',
-                          onTap: () => setState(() =>
-                              _gender = _gender == 'FEMALE' ? null : 'FEMALE'),
+                          onTap: () => setState(() => _gender = 'FEMALE'),
                         ),
                       ],
                     ),

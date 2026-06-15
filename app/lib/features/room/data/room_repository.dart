@@ -19,6 +19,14 @@ class RoomRepository {
     return Room.fromJson(data);
   }
 
+  /// 방 수정 (방장). 서버 UpdateRoomDto 가 허용하는 필드만 전송한다.
+  Future<Room> updateRoom(String roomId, Map<String, dynamic> data) async {
+    final response =
+        await _dio.patch('${ApiConstants.rooms}/$roomId', data: data);
+    final d = response.data['data'] ?? response.data;
+    return Room.fromJson(d);
+  }
+
   Future<Map<String, dynamic>> joinRoom(String roomId) async {
     final response = await _dio.post('${ApiConstants.rooms}/$roomId/join');
     return response.data['data'] ?? response.data;

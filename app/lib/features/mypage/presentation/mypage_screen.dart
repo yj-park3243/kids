@@ -20,6 +20,22 @@ import '../../../widgets/design/accent_blobs.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../review/presentation/widgets/growth_grade.dart';
 
+/// 기질 태그 카테고리별 색 — child_traits_selector 와 동일 팔레트.
+Color _traitColor(TraitCategory c) {
+  switch (c) {
+    case TraitCategory.energetic:
+      return AppColors.accentCoral;
+    case TraitCategory.composed:
+      return AppColors.accentLavender;
+    case TraitCategory.warm:
+      return AppColors.primary;
+    case TraitCategory.hobby:
+      return AppColors.accentLime;
+    case TraitCategory.assertive:
+      return AppColors.accentYellow;
+  }
+}
+
 class MyPageScreen extends ConsumerWidget {
   const MyPageScreen({super.key});
 
@@ -169,12 +185,13 @@ class MyPageScreen extends ConsumerWidget {
                               AppDateUtils.calculateAgeMonths(
                                   child.birthYear, child.birthMonth);
                           final napLabel = napTimeLabel(child.napTime);
-                          final tagLabels = child.temperamentTags
-                              .map(temperamentTagLabel)
-                              .whereType<String>()
-                              .toList();
+                          final tags = <TemperamentTag>[
+                            for (final k in child.temperamentTags)
+                              for (final t in temperamentTags)
+                                if (t.key == k) t,
+                          ];
                           final hasTraits =
-                              napLabel != null || tagLabels.isNotEmpty;
+                              napLabel != null || tags.isNotEmpty;
                           return Padding(
                             padding: EdgeInsets.only(
                               top: idx == 0 ? 0 : 14,
@@ -294,11 +311,31 @@ class MyPageScreen extends ConsumerWidget {
                                             tone: ChipTone.outline,
                                             height: 22,
                                           ),
-                                        for (final t in tagLabels)
-                                          DesignChip(
-                                            label: t,
-                                            tone: ChipTone.primaryGhost,
-                                            height: 22,
+                                        for (final tag in tags)
+                                          Container(
+                                            padding:
+                                                const EdgeInsets.symmetric(
+                                                    horizontal: 10,
+                                                    vertical: 3),
+                                            decoration: BoxDecoration(
+                                              color: _traitColor(tag.category)
+                                                  .withValues(alpha: 0.13),
+                                              borderRadius:
+                                                  BorderRadius.circular(11),
+                                              border: Border.all(
+                                                color: _traitColor(
+                                                        tag.category)
+                                                    .withValues(alpha: 0.4),
+                                              ),
+                                            ),
+                                            child: Text(
+                                              '${tag.emoji} ${tag.label}',
+                                              style: AppTextStyles.caption
+                                                  .copyWith(
+                                                color: AppColors.textPrimary,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
                                           ),
                                       ],
                                     ),

@@ -6,6 +6,7 @@ import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/network/api_client.dart';
 import '../../../widgets/app_bar.dart';
+import '../../../widgets/top_toast.dart';
 
 /// 푸시 알림 토글 페이지. 서버(GET/PATCH /notifications/settings)에 저장되며,
 /// 서버 sendPush 가 카테고리별로 발송을 게이팅한다.
@@ -17,9 +18,8 @@ class NotificationSettingsScreen extends StatefulWidget {
 }
 
 class _NotificationSettingsScreenState extends State<NotificationSettingsScreen> {
-  bool _all = true;
-  bool _room = true;
-  bool _chat = true;
+  // 광고·이벤트 알림 수신(notifyAll 에 저장). 모임/채팅 알림은 항상 켜짐.
+  bool _ads = true;
   bool _loading = true;
 
   @override
@@ -34,9 +34,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
       final data = (res.data as Map?) ?? const {};
       if (!mounted) return;
       setState(() {
-        _all = data['notifyAll'] != false;
-        _room = data['notifyRoom'] != false;
-        _chat = data['notifyChat'] != false;
+        _ads = data['notifyAll'] != false;
         _loading = false;
       });
     } catch (_) {
@@ -60,9 +58,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
     } catch (_) {
       if (!mounted) return;
       setState(() => apply(previous));
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('설정 변경에 실패했어요. 다시 시도해주세요.')),
-      );
+      showTopToast(context, '설정 변경에 실패했어요. 다시 시도해주세요.');
     }
   }
 
@@ -78,28 +74,19 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                 padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
                 children: [
                   _tile(
-                    title: '앱 알림 받기',
-                    subtitle: '꺼두면 아래 알림이 모두 비활성화돼요',
-                    value: _all,
-                    onChanged: (v) =>
-                        _patch('notifyAll', v, (x) => _all = x, _all),
+                    title: '모임·채팅 알림',
+                    subtitle: '참여 신청·수락·메시지 등 — 서비스 필수 알림이라 끌 수 없어요',
+                    value: true,
+                    enabled: false,
+                    onChanged: (_) {},
                   ),
                   const Divider(height: 1, color: AppColors.divider),
                   _tile(
-                    title: '모임 알림',
-                    subtitle: '참여 신청, 수락, 일정 변경 등',
-                    value: _room,
-                    enabled: _all,
+                    title: '광고·이벤트 알림',
+                    subtitle: '새 기능, 이벤트, 혜택 소식',
+                    value: _ads,
                     onChanged: (v) =>
-                        _patch('notifyRoom', v, (x) => _room = x, _room),
-                  ),
-                  _tile(
-                    title: '채팅 알림',
-                    subtitle: '새 메시지 도착 알림',
-                    value: _chat,
-                    enabled: _all,
-                    onChanged: (v) =>
-                        _patch('notifyChat', v, (x) => _chat = x, _chat),
+                        _patch('notifyAll', v, (x) => _ads = x, _ads),
                   ),
                 ],
               ),
@@ -128,7 +115,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
           style: AppTextStyles.caption
               .copyWith(color: AppColors.textSecondary, height: 1.5),
         ),
-        value: enabled ? value : false,
+        value: value,
         activeThumbColor: AppColors.primary,
         onChanged: enabled ? onChanged : null,
       ),

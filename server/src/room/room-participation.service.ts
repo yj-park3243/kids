@@ -79,6 +79,15 @@ export class RoomParticipationService {
         });
       }
 
+      // 모임 종료 시각까지만 입장 가능 (종료시간 없으면 당일 자정까지).
+      const endAt = new Date(`${room.date}T${room.endTime ?? '23:59'}`);
+      if (!Number.isNaN(endAt.getTime()) && Date.now() > endAt.getTime()) {
+        throw new ForbiddenException({
+          code: 'ROOM_ENDED',
+          message: '이미 종료된 모임입니다.',
+        });
+      }
+
       if (room.currentMembers >= room.maxMembers) {
         throw new ConflictException({
           code: 'ROOM_FULL',

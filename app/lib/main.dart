@@ -144,8 +144,13 @@ class KidsApp extends StatelessWidget {
       // iOS 26 네이티브 탭바(PlatformView)의 탭이 씹힌다(드래그만 먹힘).
       // 키보드 닫기는 스크롤 시작 시점에만 처리한다.
       builder: (context, child) => NotificationListener<ScrollStartNotification>(
-        onNotification: (_) {
-          FocusManager.instance.primaryFocus?.unfocus();
+        onNotification: (n) {
+          // 사용자가 직접 드래그해 스크롤할 때만 키보드를 닫는다.
+          // 입력 필드 포커스 시 자동 스크롤(ensureVisible)은 dragDetails==null 이라
+          // 무시 → 하단 입력(태그/준비물 등)이 한 글자 입력에 닫히던 문제 방지.
+          if (n.dragDetails != null) {
+            FocusManager.instance.primaryFocus?.unfocus();
+          }
           return false;
         },
         child: _AppBootstrap(child: child ?? const SizedBox.shrink()),

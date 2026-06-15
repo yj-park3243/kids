@@ -203,8 +203,6 @@ class _MapFilterPanelState extends State<MapFilterPanel> {
                 _toggle('한부모만', _f.singleParentOnly,
                     () => _emit(
                         _f.copyWith(singleParentOnly: !_f.singleParentOnly))),
-              _toggle('번개모임만', _f.flashOnly,
-                  () => _emit(_f.copyWith(flashOnly: !_f.flashOnly))),
             ],
           ),
         ],

@@ -103,12 +103,6 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
             tooltip: '공유',
             onPressed: () => _shareRoom(room),
           ),
-          IconButton(
-            icon: const Icon(Icons.photo_library_outlined,
-                color: AppColors.textPrimary),
-            tooltip: '사진첩',
-            onPressed: () => context.push('/rooms/${widget.roomId}/photos'),
-          ),
           PullDownButton(
             itemBuilder: (context) => [
               if (isHost && room.isApprovalRequired)
@@ -117,6 +111,17 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                   icon: Icons.group_rounded,
                   onTap: () =>
                       context.push('/rooms/${widget.roomId}/requests'),
+                ),
+              if (isHost &&
+                  room.status != 'COMPLETED' &&
+                  room.status != 'CANCELLED')
+                PullDownMenuItem(
+                  title: '모임 수정',
+                  icon: Icons.edit_outlined,
+                  onTap: () => context.push(
+                    '/rooms/${widget.roomId}/edit',
+                    extra: room,
+                  ),
                 ),
               if (isHost && room.status != 'COMPLETED')
                 PullDownMenuItem(
@@ -450,7 +455,7 @@ class _RoomHero extends StatelessWidget {
             : '');
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.fromLTRB(24, topPad + 4, 24, 28),
+      padding: EdgeInsets.fromLTRB(20, topPad, 20, 16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -464,28 +469,27 @@ class _RoomHero extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 칩 묶음 — 번개 / 장소 / 연령 / 모집중.
+          // 칩 묶음 — 장소 / 연령 / 모집중.
           Wrap(
             spacing: 6,
             runSpacing: 6,
             children: [
-              if (room.isFlashMeeting) _heroChip('⚡ 번개', highlighted: true),
               _heroChip(AppConstants.placeTypes[room.placeType] ?? '기타'),
               _heroChip('${room.ageMonthMin}~${room.ageMonthMax}개월'),
               if (room.status == 'RECRUITING') _heroChip('모집중'),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           // 큰 제목 — 첫 화면 시선 잡이.
           Text(
             room.title,
             style: AppTextStyles.heading1.copyWith(
               color: Colors.white,
-              fontSize: 24,
-              height: 1.25,
+              fontSize: 20,
+              height: 1.2,
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           // 일시 — 날짜 + 시간 한 줄.
           _heroInfoRow(
             Icons.event_rounded,
@@ -1200,16 +1204,18 @@ class _BottomBar extends StatelessWidget {
           ),
         ],
       ),
-      child: _buildButton(),
+      child: _buildButton(context),
     );
   }
 
-  Widget _buildButton() {
+  Widget _buildButton(BuildContext context) {
     if (isHost || isAccepted) {
-      // 모임 종료 후 — 채팅 + 후기 작성 두 버튼 노출.
+      // 모임 종료 후 — 사진첩 + 채팅 + 후기.
       if (room.status == 'COMPLETED') {
         return Row(
           children: [
+            _photoButton(context),
+            const SizedBox(width: 8),
             Expanded(
               child: SecondaryButton(
                 key: const Key('btn-room-detail-chat'),
@@ -1222,7 +1228,7 @@ class _BottomBar extends StatelessWidget {
             Expanded(
               child: PrimaryButton(
                 key: const Key('btn-room-detail-review'),
-                text: '후기 작성',
+                text: '후기',
                 icon: Icons.rate_review_rounded,
                 onPressed: onReview,
               ),
@@ -1230,11 +1236,20 @@ class _BottomBar extends StatelessWidget {
           ],
         );
       }
-      return PrimaryButton(
-        key: const Key('btn-room-detail-chat'),
-        text: '채팅방 입장',
-        icon: Icons.chat_bubble_rounded,
-        onPressed: onChat,
+      // 진행 중 — 사진첩 + 채팅방 입장.
+      return Row(
+        children: [
+          _photoButton(context),
+          const SizedBox(width: 8),
+          Expanded(
+            child: PrimaryButton(
+              key: const Key('btn-room-detail-chat'),
+              text: '채팅방 입장',
+              icon: Icons.chat_bubble_rounded,
+              onPressed: onChat,
+            ),
+          ),
+        ],
       );
     }
 
@@ -1274,6 +1289,19 @@ class _BottomBar extends StatelessWidget {
       text: room.isApprovalRequired ? '참여 신청' : '참여하기',
       isLoading: isJoining,
       onPressed: onJoin,
+    );
+  }
+
+  // 사진첩 — 채팅방 입장 버튼 왼쪽에 두는 아이콘 버튼.
+  Widget _photoButton(BuildContext context) {
+    return OutlinedButton(
+      onPressed: () => context.push('/rooms/${room.id}/photos'),
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        side: BorderSide(color: AppColors.primary.withValues(alpha: 0.4)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      child: const Icon(Icons.photo_library_outlined, color: AppColors.primary),
     );
   }
 }

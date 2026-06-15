@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../models/room.dart';
 import '../../features/auth/presentation/child_setup_screen.dart';
 import '../../features/auth/presentation/email_login_screen.dart';
 import '../../features/auth/presentation/email_register_screen.dart';
@@ -137,6 +138,12 @@ final appRouter = GoRouter(
       path: '/rooms/create',
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) => const RoomCreateScreen(),
+    ),
+    GoRoute(
+      path: '/rooms/:roomId/edit',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) =>
+          RoomCreateScreen(editRoom: state.extra as Room?),
     ),
     GoRoute(
       path: '/rooms/:roomId',

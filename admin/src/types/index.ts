@@ -28,6 +28,13 @@ export interface User {
   regionDong: string | null;
   isProfileComplete: boolean;
   isPhoneVerified: boolean;
+  // 본인인증으로 채워지는 개인정보 (관리자 조회용)
+  realName?: string | null;
+  phoneNumber?: string | null;
+  birthDate?: string | null;
+  gender?: 'MALE' | 'FEMALE' | null;
+  carrier?: string | null;
+  lastLoginAt?: string | null;
   isAdmin: boolean;
   status: 'ACTIVE' | 'WITHDRAWN' | 'BANNED' | 'SUSPENDED';
   parentGender?: 'MOM' | 'DAD' | null;

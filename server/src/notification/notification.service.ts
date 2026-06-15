@@ -250,24 +250,8 @@ export class NotificationService {
         return;
       }
 
-      // 사용자 알림 설정 게이팅 — 인앱 알림 목록(DB)은 이미 저장됐고 푸시만 차단.
-      const settings = await this.userRepository.findOne({
-        where: { id: userId },
-        select: ['id', 'notifyAll', 'notifyRoom', 'notifyChat'],
-      });
-      if (settings) {
-        let skipReason: string | null = null;
-        if (!settings.notifyAll) skipReason = 'user_disabled_all';
-        else if (ROOM_TYPES.has(type) && !settings.notifyRoom)
-          skipReason = 'user_disabled_room';
-        else if (CHAT_TYPES.has(type) && !settings.notifyChat)
-          skipReason = 'user_disabled_chat';
-        if (skipReason) {
-          log.skipReason = skipReason;
-          await this.pushLogRepository.save(log);
-          return;
-        }
-      }
+      // 모임·채팅 등 서비스 알림은 사용자가 끌 수 없다(항상 발송).
+      // 광고/마케팅 알림 타입이 생기면 그때 notifyAll(광고 수신 동의)로만 게이팅한다.
 
       const tokens = await this.deviceTokenRepository.find({
         where: { userId },

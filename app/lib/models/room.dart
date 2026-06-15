@@ -33,7 +33,6 @@ class Room {
   final String? createdAt;
   final String genderFilter; // 'ALL' | 'MOM_ONLY' | 'DAD_ONLY' 등
   final bool singleParentOnly;
-  final bool isFlashMeeting;
   final List<String> requiredItems;
   final DateTime? completedAt;
   // 방 목록 응답 전용 — 내가 방장이거나 참여 중. 거리 표시 생략 판정.
@@ -72,7 +71,6 @@ class Room {
     this.createdAt,
     this.genderFilter = 'ALL',
     this.singleParentOnly = false,
-    this.isFlashMeeting = false,
     this.requiredItems = const [],
     this.completedAt,
     this.joined = false,
@@ -124,7 +122,6 @@ class Room {
       createdAt: json['createdAt'],
       genderFilter: json['genderFilter'] ?? 'ALL',
       singleParentOnly: json['singleParentOnly'] ?? false,
-      isFlashMeeting: json['isFlashMeeting'] ?? false,
       requiredItems: (json['requiredItems'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
@@ -260,7 +257,6 @@ class MapPin {
   final String joinType;
   final String genderFilter;
   final bool singleParentOnly;
-  final bool isFlashMeeting;
   final String regionDong;
   // 내가 방장이거나 참여 중인 방 — 거리 표시를 생략한다.
   final bool joined;
@@ -280,7 +276,6 @@ class MapPin {
     this.joinType = 'FREE',
     this.genderFilter = 'ALL',
     this.singleParentOnly = false,
-    this.isFlashMeeting = false,
     this.regionDong = '',
     this.joined = false,
   });
@@ -303,7 +298,6 @@ class MapPin {
       joinType: json['joinType'] ?? 'FREE',
       genderFilter: json['genderFilter'] ?? 'ALL',
       singleParentOnly: json['singleParentOnly'] ?? false,
-      isFlashMeeting: json['isFlashMeeting'] ?? false,
       regionDong: json['regionDong'] ?? '',
       joined: json['joined'] ?? false,
     );

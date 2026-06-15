@@ -8,6 +8,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../core/utils/validators.dart';
+import '../../../models/room.dart';
 import '../../../models/user.dart';
 import '../../../providers/selected_child_provider.dart';
 import '../../../widgets/app_bar.dart';
@@ -16,13 +17,16 @@ import '../../../widgets/common_input.dart';
 import '../../../widgets/address_search_sheet.dart';
 import '../../../widgets/cupertino_picker_sheet.dart';
 import '../../../widgets/location_picker_sheet.dart';
+import '../../../widgets/top_toast.dart';
 import '../../../widgets/design/accent_blobs.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/room_detail_provider.dart';
 import 'widgets/required_items_picker.dart';
 
 class RoomCreateScreen extends ConsumerStatefulWidget {
-  const RoomCreateScreen({super.key});
+  /// 값이 있으면 수정 모드 — 기존 방 값을 채우고 저장 시 PATCH.
+  final Room? editRoom;
+  const RoomCreateScreen({super.key, this.editRoom});
 
   @override
   ConsumerState<RoomCreateScreen> createState() => _RoomCreateScreenState();
@@ -55,15 +59,19 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
   bool _isLoading = false;
   Child? _selectedChild;
 
-  // 신규 카테고리/번개/준비물
+  // 신규 카테고리/준비물
   String _genderFilter = 'ALL'; // 'ALL' | 'MOM_ONLY' | 'DAD_ONLY'
   bool _singleParentOnly = false;
-  bool _isFlashMeeting = false;
   final List<String> _requiredItems = [];
 
   @override
   void initState() {
     super.initState();
+    final r = widget.editRoom;
+    if (r != null) {
+      _prefillFromRoom(r);
+      return;
+    }
     // 글로벌 선택된 아이로 초기화
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final child = ref.read(selectedChildProvider);
@@ -71,6 +79,42 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
         _applyChildAgeRange(child);
       }
     });
+  }
+
+  /// 수정 모드 — 기존 방 값으로 폼을 채운다.
+  void _prefillFromRoom(Room r) {
+    _titleController.text = r.title;
+    _descriptionController.text = r.description ?? '';
+    _selectedDate = DateTime.tryParse(r.date);
+    _startTime = _parseTime(r.startTime);
+    _endTime = r.endTime != null ? _parseTime(r.endTime!) : null;
+    _regionSido = r.regionSido;
+    _regionSigungu = r.regionSigungu;
+    _regionDong = r.regionDong;
+    _fullAddress = r.placeAddress;
+    _latitude = r.latitude;
+    _longitude = r.longitude;
+    _placeType = r.placeType;
+    _ageMin = r.ageMonthMin;
+    _ageMax = r.ageMonthMax;
+    _maxMembers = r.maxMembers;
+    _joinType = r.joinType;
+    _isFree = r.cost == 0;
+    if (r.cost > 0) _costController.text = r.cost.toString();
+    _costDescController.text = r.costDescription ?? '';
+    _genderFilter = r.genderFilter;
+    _singleParentOnly = r.singleParentOnly;
+    _tags.addAll(r.tags);
+    _requiredItems.addAll(r.requiredItems);
+  }
+
+  static TimeOfDay? _parseTime(String s) {
+    final parts = s.split(':');
+    if (parts.length < 2) return null;
+    final h = int.tryParse(parts[0]);
+    final m = int.tryParse(parts[1]);
+    if (h == null || m == null) return null;
+    return TimeOfDay(hour: h, minute: m);
   }
 
   /// 선택된 아이의 개월수 기준으로 범위 자동 설정 (±6개월)
@@ -94,17 +138,6 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
   }
 
   Future<void> _selectDate() async {
-    if (_isFlashMeeting) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('번개 모임은 오늘 날짜로 고정돼요'),
-          backgroundColor: AppColors.warning,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
-      return;
-    }
     final now = DateTime.now();
     final date = await showCupertinoDateSheet(
       context,
@@ -112,48 +145,32 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
       first: DateTime(now.year, now.month, now.day),
       last: now.add(const Duration(days: 60)),
     );
-    if (date != null) setState(() => _selectedDate = date);
-  }
-
-  /// 번개 모임 토글. ON 시 날짜는 오늘, 시작시간은 현재+1h로 자동.
-  void _toggleFlashMeeting(bool value) {
-    setState(() {
-      _isFlashMeeting = value;
-      if (value) {
-        final now = DateTime.now();
-        _selectedDate = DateTime(now.year, now.month, now.day);
-        final flashStart = now.add(const Duration(hours: 1));
-        _startTime = TimeOfDay(hour: flashStart.hour, minute: flashStart.minute);
-        // 종료시간이 시작 이전이면 초기화
-        if (_endTime != null &&
-            _toMinutes(_endTime!) <= _toMinutes(_startTime!)) {
+    if (date != null) {
+      setState(() {
+        _selectedDate = date;
+        // 오늘로 바뀌었는데 이미 고른 시작시간이 과거면 초기화 — 다시 고르게.
+        if (_startTime != null && _isToday(date) && _isPastTime(_startTime!)) {
+          _startTime = null;
           _endTime = null;
         }
-      }
-    });
+      });
+    }
   }
 
   Future<void> _selectTime(bool isStart) async {
     if (!isStart && _startTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('시작 시간을 먼저 선택해 주세요'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
+      showTopToast(context, '시작 시간을 먼저 선택해 주세요');
       return;
     }
     final initial = isStart
         ? (_startTime ?? const TimeOfDay(hour: 14, minute: 0))
         : (_endTime ?? _addHour(_startTime!));
 
-    // 번개 모임 시작시간 최소값: 현재 + 1h
+    // 오늘 모임이면 시작 시간은 현재 시각 이후만 선택 가능.
     TimeOfDay? minStart;
-    if (_isFlashMeeting && isStart) {
-      final earliest = DateTime.now().add(const Duration(hours: 1));
-      minStart = TimeOfDay(hour: earliest.hour, minute: earliest.minute);
+    if (isStart && _selectedDate != null && _isToday(_selectedDate!)) {
+      final now = DateTime.now();
+      minStart = TimeOfDay(hour: now.hour, minute: now.minute);
     }
 
     final time = await showCupertinoTimeSheet(
@@ -163,19 +180,12 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
       minimum: isStart ? minStart : _startTime,
     );
     if (time != null) {
-      // 번개 모임 가드 (피커가 minimum을 무시할 가능성 대비)
-      if (_isFlashMeeting && isStart && minStart != null &&
+      // 피커가 minimum 을 무시할 가능성 대비 — 오늘 과거시간이면 거부.
+      if (isStart &&
+          minStart != null &&
           _toMinutes(time) < _toMinutes(minStart)) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('번개 모임은 1시간 이후부터 시작할 수 있어요'),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
+        showTopToast(context, '지난 시간은 선택할 수 없어요');
         return;
       }
       setState(() {
@@ -190,6 +200,16 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
         }
       });
     }
+  }
+
+  static bool _isToday(DateTime d) {
+    final n = DateTime.now();
+    return d.year == n.year && d.month == n.month && d.day == n.day;
+  }
+
+  bool _isPastTime(TimeOfDay t) {
+    final n = DateTime.now();
+    return _toMinutes(t) < n.hour * 60 + n.minute;
   }
 
   static TimeOfDay _addHour(TimeOfDay t) {
@@ -402,57 +422,16 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
     );
   }
 
-  Widget _buildFlashMeetingToggle() {
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('⚡ 번개 모임 (24시간 이내)',
-                  style: AppTextStyles.body2Bold),
-              const SizedBox(height: 2),
-              Text(
-                '오늘 모일 사람을 빠르게 찾고 싶을 때',
-                style:
-                    AppTextStyles.caption.copyWith(color: AppColors.textHint),
-              ),
-            ],
-          ),
-        ),
-        Switch(
-          value: _isFlashMeeting,
-          activeTrackColor: AppColors.primary,
-          onChanged: _toggleFlashMeeting,
-        ),
-      ],
-    );
-  }
-
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
     if (_selectedDate == null || _startTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('날짜와 시작 시간을 선택해 주세요'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
+      showTopToast(context, '날짜와 시작 시간을 선택해 주세요');
       return;
     }
 
     if (_regionSido == null || _regionSigungu == null || _regionDong == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('지역을 선택해 주세요'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
+      showTopToast(context, '지역을 선택해 주세요');
       return;
     }
 
@@ -486,25 +465,40 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
         'tags': _tags,
         'genderFilter': _genderFilter,
         'singleParentOnly': _singleParentOnly,
-        'isFlashMeeting': _isFlashMeeting,
         'requiredItems': _requiredItems,
       };
 
-      final room = await ref.read(roomRepositoryProvider).createRoom(roomData);
-      if (mounted) {
-        context.pop();
-        context.push('/rooms/${room.id}');
+      final editRoom = widget.editRoom;
+      if (editRoom != null) {
+        // 수정 — 서버 UpdateRoomDto 허용 필드만 전송.
+        await ref.read(roomRepositoryProvider).updateRoom(editRoom.id, {
+          'title': roomData['title'],
+          'description': roomData['description'],
+          'startTime': roomData['startTime'],
+          if (roomData['endTime'] != null) 'endTime': roomData['endTime'],
+          if (roomData['placeAddress'] != null)
+            'placeAddress': roomData['placeAddress'],
+          'maxMembers': roomData['maxMembers'],
+          'cost': roomData['cost'],
+          'costDescription': roomData['costDescription'],
+          'tags': roomData['tags'],
+        });
+        if (mounted) {
+          ref.invalidate(roomDetailProvider(editRoom.id));
+          context.pop();
+        }
+      } else {
+        final room =
+            await ref.read(roomRepositoryProvider).createRoom(roomData);
+        if (mounted) {
+          context.pop();
+          context.push('/rooms/${room.id}');
+        }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('방 생성에 실패했습니다'),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
+        showTopToast(context,
+            widget.editRoom != null ? '수정에 실패했습니다' : '방 생성에 실패했습니다');
       }
     }
 
@@ -515,7 +509,8 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: const CustomAppBar(title: '모임 만들기'),
+      appBar: CustomAppBar(
+          title: widget.editRoom != null ? '모임 수정' : '모임 만들기'),
       extendBodyBehindAppBar: true,
       body: AccentBlobsBackground(
         child: SafeArea(
@@ -553,10 +548,6 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
                 maxLines: 4,
                 maxLength: 500,
               ),
-              const SizedBox(height: 20),
-
-              // Flash meeting
-              _buildFlashMeetingToggle(),
               const SizedBox(height: 20),
 
               // Date
@@ -903,7 +894,7 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
 
               PrimaryButton(
                 key: const Key('btn-room-create-submit'),
-                text: '모임 만들기',
+                text: widget.editRoom != null ? '수정 완료' : '모임 만들기',
                 isLoading: _isLoading,
                 icon: Icons.celebration_rounded,
                 onPressed: _submit,
@@ -931,9 +922,17 @@ class _PlaceTypeChip extends StatelessWidget {
     required this.onTap,
   });
 
+  static const Map<String, IconData> _icons = {
+    'PLAYGROUND': Icons.park_rounded,
+    'KIDS_CAFE': Icons.local_cafe_rounded,
+    'PARTY_ROOM': Icons.celebration_rounded,
+    'PARK': Icons.nature_people_rounded,
+    'OTHER': Icons.place_rounded,
+  };
+
   @override
   Widget build(BuildContext context) {
-    final iconCode = AppConstants.placeTypeIcons[type] ?? 0xe55f;
+    final icon = _icons[type] ?? Icons.place_rounded;
 
     return GestureDetector(
       onTap: onTap,
@@ -953,7 +952,7 @@ class _PlaceTypeChip extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              IconData(iconCode, fontFamily: 'MaterialIcons'),
+              icon,
               size: 18,
               color: isSelected ? AppColors.primary : AppColors.textSecondary,
             ),

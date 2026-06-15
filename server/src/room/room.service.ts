@@ -64,21 +64,13 @@ export class RoomService {
       });
     }
 
-    // 번개 모임 검증: 오늘 + 현재 +1h 이후
-    if (dto.isFlashMeeting === true) {
-      const today = new Date().toISOString().slice(0, 10);
-      if (dto.date !== today) {
+    // 시작 시각이 이미 지났으면 거부 (당일 과거 시간 방지).
+    {
+      const startAt = new Date(`${dto.date}T${dto.startTime}`);
+      if (!Number.isNaN(startAt.getTime()) && startAt.getTime() < Date.now()) {
         throw new BadRequestException({
-          code: 'FLASH_DATE_INVALID',
-          message: '번개 모임은 오늘 날짜만 가능합니다.',
-        });
-      }
-      const start = new Date(`${dto.date}T${dto.startTime}`);
-      const minStart = new Date(Date.now() + 60 * 60 * 1000);
-      if (start.getTime() < minStart.getTime()) {
-        throw new BadRequestException({
-          code: 'FLASH_START_INVALID',
-          message: '번개 모임은 현재 시각 +1시간 이후로만 설정 가능합니다.',
+          code: 'START_TIME_PAST',
+          message: '시작 시간이 이미 지났습니다.',
         });
       }
     }
@@ -450,6 +442,13 @@ export class RoomService {
     } else if (room.currentMembers >= room.maxMembers) {
       canJoin = false;
       canJoinReason = '인원이 가득 찼습니다.';
+    } else {
+      // 모임 종료 시각까지만 입장 가능 (종료시간 없으면 당일 자정까지).
+      const endAt = new Date(`${room.date}T${room.endTime ?? '23:59'}`);
+      if (!Number.isNaN(endAt.getTime()) && Date.now() > endAt.getTime()) {
+        canJoin = false;
+        canJoinReason = '이미 종료된 모임입니다.';
+      }
     }
 
     const now = new Date();

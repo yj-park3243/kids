@@ -391,11 +391,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             ),
 
           // 방 만들기 — 우하단 떠 있는 버튼. 바텀시트가 떠 있으면 위로 비켜준다.
+          // 바텀네비(약 74px)에 가리지 않도록 기본 bottom 을 넉넉히 둔다.
           Positioned(
             right: 16,
             bottom: (_selectedPin != null || _selectedGroup != null)
                 ? 360
-                : 20,
+                : 100,
             child: FloatingActionButton.extended(
               heroTag: 'map-create-room',
               backgroundColor: AppColors.primary,
@@ -810,7 +811,7 @@ class _PinBottomSheet extends StatelessWidget {
                 ),
                 const SizedBox(height: 14),
 
-                // 칩 묶음 — 장소 / 연령 / 모집 상태 / 입장 방식 / 번개 / 한부모
+                // 칩 묶음 — 장소 / 연령 / 모집 상태 / 입장 방식 / 한부모
                 Wrap(
                   spacing: 6,
                   runSpacing: 6,
@@ -839,13 +840,6 @@ class _PinBottomSheet extends StatelessWidget {
                       label: pin.joinType == 'APPROVAL' ? '승인 필요' : '자유 입장',
                       color: AppColors.textSecondary,
                     ),
-                    if (pin.isFlashMeeting)
-                      const _Chip(
-                        icon: Icons.flash_on_rounded,
-                        label: '번개',
-                        color: AppColors.accentCoral,
-                        filled: true,
-                      ),
                     if (pin.singleParentOnly)
                       const _Chip(
                         icon: Icons.favorite_rounded,
