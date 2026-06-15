@@ -26,6 +26,23 @@ platform :android do
     UI.success("Play Internal 업로드 완료!")
   end
 
+  desc "Google Play 프로덕션 심사 제출 (정식 출시)"
+  lane :production do
+    build
+    upload_to_play_store(
+      track: 'production',
+      aab: File.join(APP_DIR, 'build/app/outputs/bundle/release/app-release.aab'),
+      mapping: File.join(APP_DIR, 'build/app/outputs/mapping/release/mapping.txt'),
+      json_key: JSON_KEY,
+      package_name: 'kr.kids.app',
+      release_status: 'completed',
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true,
+    )
+    UI.success("Play 프로덕션 심사 제출 완료!")
+  end
+
   desc "내부 테스트에 올라간 빌드를 비공개 테스트(Closed)로 승격 — 재빌드/재업로드 없음"
   lane :promote_to_closed do
     upload_to_play_store(
