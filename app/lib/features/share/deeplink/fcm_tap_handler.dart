@@ -85,7 +85,6 @@ class FcmTapHandler {
       case 'ROOM_CANCELLED':
       case 'ROOM_COMPLETED':
       case 'NEW_ROOM':
-      case 'NEW_FLASH':
       case 'FOLLOW_NEW_ROOM':
         return roomId != null ? '/rooms/$roomId' : null;
       case 'NEW_CHAT':
