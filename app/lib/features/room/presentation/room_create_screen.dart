@@ -387,22 +387,27 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
                 onTap: () => setState(() => _genderFilter = 'ALL'),
               ),
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _GenderChip(
-                label: '👩 엄마만',
-                isSelected: _genderFilter == 'MOM_ONLY',
-                onTap: () => setState(() => _genderFilter = 'MOM_ONLY'),
+            // 본인 성별과 반대 옵션은 숨김 — 아빠는 '엄마만', 엄마는 '아빠만' 선택 불가.
+            if (me?.parentGender != 'DAD') ...[
+              const SizedBox(width: 8),
+              Expanded(
+                child: _GenderChip(
+                  label: '👩 엄마만',
+                  isSelected: _genderFilter == 'MOM_ONLY',
+                  onTap: () => setState(() => _genderFilter = 'MOM_ONLY'),
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _GenderChip(
-                label: '👨 아빠만',
-                isSelected: _genderFilter == 'DAD_ONLY',
-                onTap: () => setState(() => _genderFilter = 'DAD_ONLY'),
+            ],
+            if (me?.parentGender != 'MOM') ...[
+              const SizedBox(width: 8),
+              Expanded(
+                child: _GenderChip(
+                  label: '👨 아빠만',
+                  isSelected: _genderFilter == 'DAD_ONLY',
+                  onTap: () => setState(() => _genderFilter = 'DAD_ONLY'),
+                ),
               ),
-            ),
+            ],
           ],
         ),
         // 한부모 전용 방 옵션 — 한부모 가정 계정에만 노출.

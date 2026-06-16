@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../models/room.dart';
+import '../../room/providers/room_detail_provider.dart';
 import '../data/dashboard_repository.dart';
 import '../data/dashboard_summary.dart';
 
@@ -50,4 +52,13 @@ class DashboardNotifier extends StateNotifier<DashboardState> {
 final dashboardProvider =
     StateNotifierProvider<DashboardNotifier, DashboardState>((ref) {
   return DashboardNotifier(ref.read(dashboardRepositoryProvider));
+});
+
+// 참여/호스팅 중인 다가오는 모임. 방 상세에 들어갈 때 invalidate 되어
+// 새로고침 없이 홈이 자동으로 최신 목록을 받는다.
+final joinedRoomsProvider = FutureProvider<List<Room>>((ref) async {
+  return ref.watch(roomRepositoryProvider).getMyRooms(
+        type: 'ALL',
+        status: 'UPCOMING',
+      );
 });

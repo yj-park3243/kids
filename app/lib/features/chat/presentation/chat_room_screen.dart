@@ -750,26 +750,6 @@ class _LocationBubble extends StatelessWidget {
                   ),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-                child: Row(
-                  children: [
-                    const Icon(Icons.place_rounded,
-                        size: 16, color: AppColors.primary),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        loc.label.isNotEmpty
-                            ? loc.label
-                            : '${loc.lat.toStringAsFixed(5)}, ${loc.lng.toStringAsFixed(5)}',
-                        style: AppTextStyles.body2Bold,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
         ),

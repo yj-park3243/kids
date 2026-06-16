@@ -22,6 +22,7 @@ import '../../../widgets/loading.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../mypage/providers/block_provider.dart';
 import '../../review/presentation/review_write_screen.dart' show ReviewMember;
+import '../../home/providers/dashboard_provider.dart';
 import '../providers/room_detail_provider.dart';
 import 'widgets/category_badge.dart';
 // TODO: KakaoShareService 통합 (App-Features-B 담당)
@@ -48,6 +49,8 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(roomDetailProvider(widget.roomId).notifier).loadRoom();
+      // 방에 들어오면 홈의 참여 모임 목록을 다시 받아오도록 트리거.
+      ref.invalidate(joinedRoomsProvider);
     });
   }
 
@@ -95,7 +98,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
       backgroundColor: Colors.transparent,
       extendBodyBehindAppBar: true,
       appBar: CustomAppBar(
-        title: room.title,
+        title: '',
         showBack: widget.showBack,
         actions: [
           IconButton(
@@ -311,6 +314,8 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
             : '참여 신청이 완료되었습니다. 방장의 수락을 기다려 주세요.';
         showTopToast(context, msg, backgroundColor: AppColors.success);
       }
+      // 참여 후 홈의 참여 모임 목록 갱신.
+      ref.invalidate(joinedRoomsProvider);
     } catch (e) {
       if (mounted) {
         showTopToast(context, '참여 신청에 실패했습니다', backgroundColor: AppColors.error);
@@ -401,7 +406,7 @@ class _RoomHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final topPad = MediaQuery.of(context).padding.top + kToolbarHeight;
+    final topPad = MediaQuery.of(context).padding.top + kToolbarHeight - 24;
     final timeText = AppDateUtils.formatTime(room.startTime) +
         (room.endTime != null
             ? ' ~ ${AppDateUtils.formatTime(room.endTime!)}'

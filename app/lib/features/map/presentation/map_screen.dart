@@ -32,15 +32,23 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   // platform view 위에서 showModalBottomSheet 을 호출할 때 가끔 modal 라우트가
   // 전혀 push 되지 않는 케이스가 있어 state 기반으로 통일.
   List<MapPin>? _selectedGroup;
-  // _selectedPin 이 스택(묶음) 선택 모달을 거쳐 골라졌는지 — 방 상세로 넘어갈 때
-  // 뒤로가기 버튼을 표시할지 결정한다. 단일 핀 직접 탭은 false.
-  bool _selectedFromStack = false;
   List<MapCluster> _clusters = [];
   List<MapPin> _pins = [];
   bool _isLoading = false;
   String _mode = 'CLUSTER';
   MapFilter _filter = const MapFilter();
   bool _filterInitialized = false;
+
+  // 줌이 클러스터(≤11)/핀(≥12) 경계를 넘으면 자동 재조회 — 확대 시 클러스터가 풀리도록.
+  Future<void> _onCameraIdle() async {
+    final controller = _controller;
+    if (controller == null || _isLoading) return;
+    final zoom = (await controller.getCameraPosition()).zoom.round();
+    final shouldBeCluster = zoom <= 11;
+    if (shouldBeCluster != (_mode == 'CLUSTER')) {
+      await _loadMapDataForCurrentRegion();
+    }
+  }
 
   Future<void> _loadMapDataForCurrentRegion() async {
     final controller = _controller;
@@ -103,10 +111,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           anchor: const NPoint(0.5, 0.5),
         );
         // 클러스터 탭 → 줌인해서 개별 핀이 보이도록.
-        marker.setOnTapListener((NMarker overlay) {
-          controller.updateCamera(
+        marker.setOnTapListener((NMarker overlay) async {
+          await controller.updateCamera(
             NCameraUpdate.withParams(target: clusterPos, zoom: 15),
           );
+          // 줌인 후 핀 모드로 다시 받아온다 — 안 하면 클러스터가 안 풀린다.
+          await _loadMapDataForCurrentRegion();
         });
         await controller.addOverlay(marker);
       }
@@ -143,13 +153,11 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             setState(() {
               _selectedGroup = group;
               _selectedPin = null;
-              _selectedFromStack = false;
             });
           } else {
             setState(() {
               _selectedPin = head;
               _selectedGroup = null;
-              _selectedFromStack = false;
             });
           }
         });
@@ -174,8 +182,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     setState(() {
       _selectedGroup = null;
       _selectedPin = pin;
-      // 스택 모달을 거쳐 선택된 핀 — 상세 진입 시 뒤로가기 버튼을 표시한다.
-      _selectedFromStack = true;
     });
   }
 
@@ -248,8 +254,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
               }
               await _loadMapDataForCurrentRegion();
             },
-            // 카메라 이동/줌마다 API 호출하지 않는다 — 첫 진입, 필터 변경,
-            // 우상단 새로고침 버튼 탭 시에만 재조회한다.
+            // 클러스터/핀 경계(줌 11↔12)를 넘을 때만 자동 재조회 — 확대하면 클러스터가 풀린다.
+            // 그 외 이동/줌은 재조회하지 않는다(필터 변경·새로고침 버튼은 즉시 재조회).
+            onCameraIdle: () => _onCameraIdle(),
             onMapTapped: (_, __) {
               if (_selectedPin != null || _selectedGroup != null) {
                 setState(() {
@@ -368,12 +375,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 distanceText: selectedDistance,
                 onClose: () => setState(() => _selectedPin = null),
                 onOpenDetail: () {
-                  // 단일 핀 → 상세는 뒤로가기 버튼을 숨긴다 — 바텀시트 닫고 지도로
-                  // 돌아가는 자연스러운 흐름이라 굳이 필요 없다.
-                  // 스택 모달을 거쳐 들어온 경우엔 기본대로 뒤로가기를 표시한다.
-                  final path = '/rooms/${_selectedPin!.id}'
-                      '${_selectedFromStack ? '' : '?noBack=1'}';
-                  context.push(path);
+                  // 지도 핀에서 들어가도 방 상세는 항상 뒤로가기를 표시한다.
+                  context.push('/rooms/${_selectedPin!.id}');
                 },
               ),
             ),
@@ -733,7 +736,8 @@ class _PinBottomSheet extends StatelessWidget {
         child: SafeArea(
           top: false,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+            // 하단 바텀바(네이티브 탭바)에 내용이 가리지 않도록 여유를 둔다.
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 80),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -998,7 +1002,8 @@ class _StackedPinSheet extends StatelessWidget {
                 maxHeight: MediaQuery.of(context).size.height * 0.55,
               ),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
+                // 하단 바텀바(네이티브 탭바)에 내용이 가리지 않도록 여유를 둔다.
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 72),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,

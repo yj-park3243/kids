@@ -14,7 +14,6 @@ import '../../../widgets/design/primary_button.dart';
 import '../../../widgets/loading.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../notice/presentation/widgets/pinned_notice_banner.dart';
-import '../../room/providers/room_detail_provider.dart';
 import '../data/dashboard_summary.dart';
 import '../providers/dashboard_provider.dart';
 import '../providers/home_provider.dart';
@@ -34,8 +33,6 @@ class HomeDashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
-  List<Room>? _joinedRooms;
-
   @override
   void initState() {
     super.initState();
@@ -47,27 +44,14 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
       // 빈 상태 분기에 쓰는 unread 카운트 + 풀 상태에 쓰는 활동 일지.
       ref.read(homeProvider.notifier).loadUnreadCount();
       ref.read(dashboardProvider.notifier).load();
-      _loadJoinedRooms();
     });
   }
 
-  Future<void> _loadJoinedRooms() async {
-    try {
-      final rooms = await ref
-          .read(roomRepositoryProvider)
-          .getMyRooms(type: 'ALL', status: 'UPCOMING');
-      if (!mounted) return;
-      setState(() => _joinedRooms = rooms);
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _joinedRooms = const []);
-    }
-  }
-
   Future<void> _refresh() async {
+    ref.invalidate(joinedRoomsProvider);
     await Future.wait([
       ref.read(dashboardProvider.notifier).load(silent: true),
-      _loadJoinedRooms(),
+      ref.read(joinedRoomsProvider.future),
     ]);
   }
 
@@ -80,7 +64,8 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
     // 아이 칩이 선택돼 있지 않으면 첫째를 인사말 기준으로 쓴다.
     final child = selectedChild ?? (children.isNotEmpty ? children.first : null);
 
-    final joined = _joinedRooms;
+    // 방 상세에 들어가면 invalidate 되어 자동 재조회된다(새로고침 불필요).
+    final joined = ref.watch(joinedRoomsProvider).valueOrNull;
     // 첫 로딩 중 — 풀스크린 시머.
     if (joined == null) {
       return Scaffold(

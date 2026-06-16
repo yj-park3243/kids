@@ -138,6 +138,7 @@ class _PhotoPageState extends ConsumerState<_PhotoPage> {
   }
 
   Future<void> _addComment() async {
+    FocusScope.of(context).unfocus();
     final text = _commentController.text.trim();
     if (text.isEmpty || _sending) return;
     setState(() => _sending = true);
@@ -290,7 +291,7 @@ class _PhotoPageState extends ConsumerState<_PhotoPage> {
   }
 }
 
-/// 펼침/접힘 영속. 선택된 칩이 앞쪽으로 정렬.
+/// 펼침/접힘 영속. 진입 시 태그된 아이를 앞으로 정렬(이후 선택해도 순서 고정).
 class _ChildTagsEditor extends StatefulWidget {
   const _ChildTagsEditor({
     required this.children,
@@ -310,11 +311,18 @@ class _ChildTagsEditorState extends State<_ChildTagsEditor> {
   static const _storage = FlutterSecureStorage();
   static const _key = 'photo_tags_expanded';
   bool _expanded = false;
+  // 진입 시점 기준 정렬(태그된 아이 우선). 선택 토글해도 재정렬하지 않는다.
+  late final List<Child> _ordered;
 
   @override
   void initState() {
     super.initState();
     _load();
+    final selectedSet = widget.selected.toSet();
+    _ordered = [
+      ...widget.children.where((c) => selectedSet.contains(c.id)),
+      ...widget.children.where((c) => !selectedSet.contains(c.id)),
+    ];
   }
 
   Future<void> _load() async {
@@ -331,10 +339,7 @@ class _ChildTagsEditorState extends State<_ChildTagsEditor> {
   @override
   Widget build(BuildContext context) {
     final selectedSet = widget.selected.toSet();
-    final sorted = [
-      ...widget.children.where((c) => selectedSet.contains(c.id)),
-      ...widget.children.where((c) => !selectedSet.contains(c.id)),
-    ];
+    final sorted = _ordered;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(

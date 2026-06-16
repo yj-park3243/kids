@@ -28,7 +28,7 @@ class UserProfileScreen extends ConsumerWidget {
     final userAsync = ref.watch(userProfileProvider(userId));
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppColors.background,
       appBar: const CustomAppBar(title: '프로필'),
       body: AccentBlobsBackground(
         child: SafeArea(
