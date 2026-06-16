@@ -7,7 +7,6 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
-import '../../../core/constants/child_traits.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../widgets/app_bar.dart';
 import '../../../widgets/child_traits_selector.dart';
@@ -29,49 +28,28 @@ class ChildSetupScreen extends ConsumerStatefulWidget {
 }
 
 class _ChildSetupScreenState extends ConsumerState<ChildSetupScreen> {
-  final List<_ChildData> _children = [_ChildData()];
+  // 이번에 추가한(아직 서버 미등록) 아이들. 빈 상태로 시작하고
+  // '아이 추가' 멀티스텝을 마칠 때마다 한 명씩 채워진다.
+  final List<_ChildData> _children = [];
   bool _isLoading = false;
 
-  void _addChild() {
-    if (_children.length >= 5) {
-      showTopToast(context, '아이는 최대 5명까지 등록할 수 있습니다');
-      return;
-    }
-    setState(() => _children.add(_ChildData()));
+  /// '아이 추가' → 3단계 플로우(기본정보 → 낮잠 → 인증)를 풀스크린으로 띄우고,
+  /// 완료되면 결과를 목록에 추가한다.
+  Future<void> _openAddFlow() async {
+    final result = await Navigator.of(context).push<_ChildData>(
+      MaterialPageRoute(builder: (_) => const _ChildAddFlow()),
+    );
+    if (result != null) setState(() => _children.add(result));
   }
 
-  void _removeChild(int index) {
-    if (_children.length <= 1) return;
-    setState(() => _children.removeAt(index));
-  }
+  void _removeChild(int index) => setState(() => _children.removeAt(index));
 
   Future<void> _submit() async {
-    // Validate all children
-    for (var i = 0; i < _children.length; i++) {
-      if (_children[i].nicknameController.text.trim().isEmpty) {
-        showTopToast(context, '${i + 1}번째 아이의 이름을 입력해 주세요', backgroundColor: AppColors.error);
-        return;
-      }
-      if (_children[i].birthYear == null || _children[i].birthMonth == null) {
-        showTopToast(context, '${i + 1}번째 아이의 생년월을 선택해 주세요', backgroundColor: AppColors.error);
-        return;
-      }
-      if (_children[i].profilePhotoPath == null) {
-        showTopToast(context, '${i + 1}번째 아이의 프로필 사진을 등록해 주세요', backgroundColor: AppColors.error);
-        return;
-      }
-      if (_children[i].verificationPhotoPath == null) {
-        showTopToast(context, '${i + 1}번째 아이의 인증 사진을 등록해 주세요', backgroundColor: AppColors.error);
-        return;
-      }
-    }
-
+    if (_children.isEmpty) return; // 버튼 비활성 상태라 보통 도달 안 함
     setState(() => _isLoading = true);
-
     try {
       for (final child in _children) {
         final repo = ref.read(authRepositoryProvider);
-        final profileUrl = await repo.uploadImage(child.profilePhotoPath!);
         final verificationUrl =
             await repo.uploadImage(child.verificationPhotoPath!);
         await ref.read(authProvider.notifier).addChild(
@@ -79,10 +57,10 @@ class _ChildSetupScreenState extends ConsumerState<ChildSetupScreen> {
               birthYear: child.birthYear!,
               birthMonth: child.birthMonth!,
               gender: child.gender,
-              photoUrl: profileUrl,
+              photoUrl: null, // 아이 프로필 사진은 사용하지 않음
               verificationPhotoUrl: verificationUrl,
               napTime: child.napTime,
-              temperamentTags: child.temperamentTags.toList(),
+              temperamentTags: const [], // 기질은 등록 후 마이페이지에서 추가
             );
       }
       if (widget.popOnDone) {
@@ -95,11 +73,11 @@ class _ChildSetupScreenState extends ConsumerState<ChildSetupScreen> {
       }
     } catch (e) {
       if (mounted) {
-        showTopToast(context, '아이 정보 등록에 실패했습니다', backgroundColor: AppColors.error);
+        showTopToast(context, '아이 정보 등록에 실패했습니다',
+            backgroundColor: AppColors.error);
       }
     }
-
-    setState(() => _isLoading = false);
+    if (mounted) setState(() => _isLoading = false);
   }
 
   @override
@@ -111,6 +89,11 @@ class _ChildSetupScreenState extends ConsumerState<ChildSetupScreen> {
         }
       });
     }
+
+    final existing = widget.popOnDone
+        ? (ref.watch(authProvider).user?.children ?? const [])
+        : const [];
+    final canSubmit = _children.isNotEmpty || existing.isNotEmpty;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -127,57 +110,41 @@ class _ChildSetupScreenState extends ConsumerState<ChildSetupScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (widget.popOnDone) ...[
-                      // 이미 등록된 아이들 — 컨텍스트로만 표시 (read-only).
-                      Builder(builder: (_) {
-                        final existing =
-                            ref.watch(authProvider).user?.children ?? [];
-                        if (existing.isEmpty) return const SizedBox.shrink();
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('이미 등록된 아이', style: AppTextStyles.heading2),
-                            const SizedBox(height: 8),
-                            Text(
-                              '아래에 추가할 아이 정보를 입력해 주세요',
-                              style: AppTextStyles.body2.copyWith(
-                                  color: AppColors.textSecondary),
-                            ),
-                            const SizedBox(height: 16),
-                            ...existing.map((c) => _ExistingChildTile(child: c)),
-                            const SizedBox(height: 24),
-                            Text('추가할 아이', style: AppTextStyles.heading2),
-                            const SizedBox(height: 16),
-                          ],
-                        );
-                      }),
-                    ] else ...[
+                    if (!widget.popOnDone) ...[
                       Text('아이 정보를 알려주세요', style: AppTextStyles.heading2),
                       const SizedBox(height: 8),
                       Text(
                         '또래 친구를 찾기 위해 필요해요',
-                        style: AppTextStyles.body2.copyWith(color: AppColors.textSecondary),
+                        style: AppTextStyles.body2
+                            .copyWith(color: AppColors.textSecondary),
                       ),
                       const SizedBox(height: 24),
                     ],
 
-                    ..._children.asMap().entries.map((entry) {
-                      final index = entry.key;
-                      final child = entry.value;
-                      return _ChildCard(
-                        key: ValueKey(child),
-                        index: index,
-                        data: child,
-                        canRemove: _children.length > 1,
-                        onRemove: () => _removeChild(index),
-                      );
-                    }),
+                    // 이미 서버에 등록된 아이 (마이페이지에서 추가 진입 시)
+                    if (existing.isNotEmpty) ...[
+                      Text('이미 등록된 아이', style: AppTextStyles.heading2),
+                      const SizedBox(height: 12),
+                      ...existing.map((c) => _ExistingChildTile(child: c)),
+                      const SizedBox(height: 24),
+                    ],
 
-                    const SizedBox(height: 16),
+                    // 이번에 추가한 아이 (간단 카드)
+                    if (_children.isNotEmpty) ...[
+                      Text('추가한 아이', style: AppTextStyles.heading2),
+                      const SizedBox(height: 12),
+                      ..._children.asMap().entries.map(
+                            (e) => _AddedChildTile(
+                              data: e.value,
+                              onRemove: () => _removeChild(e.key),
+                            ),
+                          ),
+                      const SizedBox(height: 12),
+                    ],
 
-                    // Add child button
+                    // + 아이 추가 (멀티스텝)
                     GestureDetector(
-                      onTap: _addChild,
+                      onTap: _openAddFlow,
                       child: Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(20),
@@ -186,7 +153,6 @@ class _ChildSetupScreenState extends ConsumerState<ChildSetupScreen> {
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
                             color: AppColors.primary.withValues(alpha: 0.3),
-                            style: BorderStyle.solid,
                           ),
                         ),
                         child: Row(
@@ -210,13 +176,13 @@ class _ChildSetupScreenState extends ConsumerState<ChildSetupScreen> {
               ),
             ),
 
-            // Submit button
+            // 하단 — 아이가 한 명 이상일 때만 활성화.
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
               child: PrimaryButton(
-                text: '완료',
+                text: widget.popOnDone ? '완료' : '다음',
                 isLoading: _isLoading,
-                onPressed: _submit,
+                onPressed: canSubmit ? _submit : null,
               ),
             ),
           ],
@@ -226,281 +192,330 @@ class _ChildSetupScreenState extends ConsumerState<ChildSetupScreen> {
   }
 }
 
+/// 추가할 아이 한 명의 입력 데이터(서버 등록 전 임시 보관).
 class _ChildData {
   final TextEditingController nicknameController = TextEditingController();
   int? birthYear;
   int? birthMonth;
   String? gender;
-  String? profilePhotoPath; // 프로필 사진 — 공개 노출용 로컬 경로
-  String? verificationPhotoPath; // 인증 사진 — 출생증명서/키즈노트 캡쳐 등, 어드민 검수용
-  String? napTime; // child_traits.dart NapTimeOption.key
-  final Set<String> temperamentTags = <String>{}; // TemperamentTag.key, 최대 5
+  String? napTime; // child_traits_selector NapTimeSelector key
+  String? verificationPhotoPath; // 인증 사진(출생증명서/키즈노트 등), 어드민 검수용
 }
 
-class _ChildCard extends StatefulWidget {
-  final int index;
+/// 추가 완료된 아이를 메인 목록에 보여주는 간단 카드.
+class _AddedChildTile extends StatelessWidget {
   final _ChildData data;
-  final bool canRemove;
   final VoidCallback onRemove;
-
-  const _ChildCard({
-    super.key,
-    required this.index,
-    required this.data,
-    required this.canRemove,
-    required this.onRemove,
-  });
+  const _AddedChildTile({required this.data, required this.onRemove});
 
   @override
-  State<_ChildCard> createState() => _ChildCardState();
+  Widget build(BuildContext context) {
+    final name = data.nicknameController.text.trim();
+    final age = (data.birthYear != null && data.birthMonth != null)
+        ? AppDateUtils.formatAgeMonths(
+            AppDateUtils.calculateAgeMonths(data.birthYear!, data.birthMonth!))
+        : '';
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        children: [
+          InitialAvatar(
+            label: name.isNotEmpty ? name.substring(0, 1) : '아',
+            size: 36,
+            tone:
+                data.gender == 'MALE' ? AvatarTone.lilac : AvatarTone.primary,
+          ),
+          const SizedBox(width: 12),
+          Text(name.isEmpty ? '아이' : name, style: AppTextStyles.body1Bold),
+          if (age.isNotEmpty) ...[
+            const SizedBox(width: 8),
+            Text(age,
+                style: AppTextStyles.caption
+                    .copyWith(color: AppColors.primary700)),
+          ],
+          const Spacer(),
+          IconButton(
+            icon: const Icon(Icons.close_rounded, size: 20),
+            color: AppColors.textHint,
+            onPressed: onRemove,
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-class _ChildCardState extends State<_ChildCard> {
-  Future<String?> _pickImage() async {
+/// 아이 추가 멀티스텝 — 1) 기본정보 2) 낮잠 3) 인증사진. 완료 시 _ChildData 반환.
+class _ChildAddFlow extends StatefulWidget {
+  const _ChildAddFlow();
+
+  @override
+  State<_ChildAddFlow> createState() => _ChildAddFlowState();
+}
+
+class _ChildAddFlowState extends State<_ChildAddFlow> {
+  final _data = _ChildData();
+  int _step = 0; // 0: 기본정보, 1: 낮잠, 2: 인증
+
+  Future<void> _pickVerification() async {
     final img = await ImagePicker().pickImage(
       source: ImageSource.gallery,
       maxWidth: 1280,
       imageQuality: 85,
     );
-    return img?.path;
+    if (img != null) setState(() => _data.verificationPhotoPath = img.path);
   }
 
-  Future<void> _pickProfilePhoto() async {
-    final path = await _pickImage();
-    if (path != null) {
-      setState(() => widget.data.profilePhotoPath = path);
+  void _onNext() {
+    if (_step == 0) {
+      if (_data.nicknameController.text.trim().isEmpty) {
+        showTopToast(context, '아이 이름을 입력해 주세요',
+            backgroundColor: AppColors.error);
+        return;
+      }
+      if (_data.birthYear == null || _data.birthMonth == null) {
+        showTopToast(context, '생년월을 선택해 주세요', backgroundColor: AppColors.error);
+        return;
+      }
+      if (_data.gender == null) {
+        showTopToast(context, '성별을 선택해 주세요', backgroundColor: AppColors.error);
+        return;
+      }
+      setState(() => _step = 1);
+    } else if (_step == 1) {
+      // 낮잠은 선택사항 — 검증 없이 다음.
+      setState(() => _step = 2);
+    } else {
+      if (_data.verificationPhotoPath == null) {
+        showTopToast(context, '인증 사진을 등록해 주세요',
+            backgroundColor: AppColors.error);
+        return;
+      }
+      Navigator.of(context).pop(_data);
     }
   }
 
-  Future<void> _pickVerificationPhoto() async {
-    final path = await _pickImage();
-    if (path != null) {
-      setState(() => widget.data.verificationPhotoPath = path);
+  void _onBack() {
+    if (_step > 0) {
+      setState(() => _step -= 1);
+    } else {
+      Navigator.of(context).maybePop();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final data = widget.data;
-    final index = widget.index;
-    final canRemove = widget.canRemove;
-    final onRemove = widget.onRemove;
-    void onChanged() => setState(() {});
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: CustomAppBar(
+        title: '아이 추가 (${_step + 1}/3)',
+        onBack: _onBack,
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: switch (_step) {
+                  0 => _StepBasic(data: _data, onChanged: () => setState(() {})),
+                  1 => _StepNap(data: _data, onChanged: () => setState(() {})),
+                  _ => _StepVerification(
+                      data: _data, onPick: _pickVerification),
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+              child: PrimaryButton(
+                text: _step < 2 ? '다음' : '완료',
+                onPressed: _onNext,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
+/// 1단계 — 이름 / 성별 / 생년월.
+class _StepBasic extends StatelessWidget {
+  final _ChildData data;
+  final VoidCallback onChanged;
+  const _StepBasic({required this.data, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
     final currentYear = DateTime.now().year;
-    final ageMonths = data.birthYear != null && data.birthMonth != null
-        ? AppDateUtils.calculateAgeMonths(data.birthYear!, data.birthMonth!)
-        : null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('아이의 기본 정보', style: AppTextStyles.heading2),
+        const SizedBox(height: 6),
+        Text('이름·성별·생년월을 알려주세요',
+            style: AppTextStyles.body2.copyWith(color: AppColors.textSecondary)),
+        const SizedBox(height: 24),
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Row(
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: Text(
-                    '${index + 1}',
-                    style: AppTextStyles.body2Bold.copyWith(color: AppColors.primary),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text('아이 ${index + 1}', style: AppTextStyles.body1Bold),
-              if (ageMonths != null) ...[
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppColors.secondary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    AppDateUtils.formatAgeMonths(ageMonths),
-                    style: AppTextStyles.caption.copyWith(color: AppColors.secondary),
-                  ),
-                ),
-              ],
-              const Spacer(),
-              if (canRemove)
-                IconButton(
-                  icon: const Icon(Icons.close_rounded, size: 20),
-                  color: AppColors.textHint,
-                  onPressed: onRemove,
-                ),
-            ],
-          ),
-          const SizedBox(height: 16),
+        CommonInput(
+          label: '아이 이름',
+          hint: '아이 이름',
+          controller: data.nicknameController,
+          maxLength: 10,
+        ),
+        const SizedBox(height: 16),
 
-          // 프로필 사진 — 공개 노출 (마이페이지/방 등).
-          Text('프로필 사진', style: AppTextStyles.body2Bold),
-          const SizedBox(height: 6),
-          Text(
-            '마이페이지·방에서 다른 부모에게 보이는 사진이에요.',
-            style: AppTextStyles.caption.copyWith(color: AppColors.textHint),
-          ),
-          const SizedBox(height: 8),
-          _PhotoSlot(
-            path: data.profilePhotoPath,
-            onTap: _pickProfilePhoto,
-            placeholderIcon: Icons.add_a_photo_rounded,
-            placeholderLabel: '프로필 사진 등록',
-          ),
-          const SizedBox(height: 16),
+        Text('성별', style: AppTextStyles.body2Bold),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            _GenderChip(
+              label: '남아',
+              emoji: '👦',
+              accent: AppColors.accentSky,
+              isSelected: data.gender == 'MALE',
+              onTap: () {
+                data.gender = data.gender == 'MALE' ? null : 'MALE';
+                onChanged();
+              },
+            ),
+            const SizedBox(width: 8),
+            _GenderChip(
+              label: '여아',
+              emoji: '👧',
+              accent: AppColors.primary,
+              isSelected: data.gender == 'FEMALE',
+              onTap: () {
+                data.gender = data.gender == 'FEMALE' ? null : 'FEMALE';
+                onChanged();
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
 
-          // 인증 사진 — 어드민 검수용, 비공개.
-          Text('인증 사진', style: AppTextStyles.body2Bold),
-          const SizedBox(height: 6),
-          Text(
-            '운영자만 확인합니다. 아래 중 하나를 올려주세요.\n'
-            '• 출생증명서\n'
-            '• 키즈노트 아이 정보 화면 캡쳐 (아이 이름·생년월 + 사진)\n'
-            '• 기타 자녀임을 확인할 수 있는 공식 서류',
-            style: AppTextStyles.caption.copyWith(color: AppColors.textHint),
-          ),
-          const SizedBox(height: 8),
-          _PhotoSlot(
-            path: data.verificationPhotoPath,
-            onTap: _pickVerificationPhoto,
-            placeholderIcon: Icons.verified_user_outlined,
-            placeholderLabel: '인증 사진 등록',
-          ),
-          const SizedBox(height: 16),
-
-          // Nickname
-          CommonInput(
-            label: '아이 이름',
-            hint: '아이 이름',
-            controller: data.nicknameController,
-            maxLength: 10,
-          ),
-          const SizedBox(height: 16),
-
-          // Birth Year & Month — 휠 시트.
-          Text('생년월', style: AppTextStyles.body2Bold),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: PickerField(
-                  label: '연도',
-                  value: data.birthYear != null ? '${data.birthYear}년' : null,
-                  hint: '연도 선택',
-                  onTap: () async {
-                    final years = List.generate(8, (i) => currentYear - i);
-                    final v = await showWheelSheet<int>(
-                      context,
-                      title: '연도 선택',
-                      options: years,
-                      initial: data.birthYear ?? years.first,
-                      format: (y) => '$y년',
-                    );
-                    if (v == null) return;
-                    data.birthYear = v;
-                    onChanged();
-                  },
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: PickerField(
-                  label: '월',
-                  value: data.birthMonth != null ? '${data.birthMonth}월' : null,
-                  hint: '월 선택',
-                  onTap: () async {
-                    final months = List.generate(12, (i) => i + 1);
-                    final v = await showWheelSheet<int>(
-                      context,
-                      title: '월 선택',
-                      options: months,
-                      initial: data.birthMonth ?? 1,
-                      format: (m) => '$m월',
-                    );
-                    if (v == null) return;
-                    data.birthMonth = v;
-                    onChanged();
-                  },
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Gender
-          Text('성별', style: AppTextStyles.body2Bold),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              _GenderChip(
-                label: '남아',
-                emoji: '👦',
-                accent: AppColors.accentSky,
-                isSelected: data.gender == 'MALE',
-                onTap: () {
-                  data.gender = data.gender == 'MALE' ? null : 'MALE';
+        Text('생년월', style: AppTextStyles.body2Bold),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: PickerField(
+                label: '연도',
+                value: data.birthYear != null ? '${data.birthYear}년' : null,
+                hint: '연도 선택',
+                onTap: () async {
+                  final years = List.generate(8, (i) => currentYear - i);
+                  final v = await showWheelSheet<int>(
+                    context,
+                    title: '연도 선택',
+                    options: years,
+                    initial: data.birthYear ?? years.first,
+                    format: (y) => '$y년',
+                  );
+                  if (v == null) return;
+                  data.birthYear = v;
                   onChanged();
                 },
               ),
-              const SizedBox(width: 8),
-              _GenderChip(
-                label: '여아',
-                emoji: '👧',
-                accent: AppColors.primary,
-                isSelected: data.gender == 'FEMALE',
-                onTap: () {
-                  data.gender = data.gender == 'FEMALE' ? null : 'FEMALE';
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: PickerField(
+                label: '월',
+                value: data.birthMonth != null ? '${data.birthMonth}월' : null,
+                hint: '월 선택',
+                onTap: () async {
+                  final months = List.generate(12, (i) => i + 1);
+                  final v = await showWheelSheet<int>(
+                    context,
+                    title: '월 선택',
+                    options: months,
+                    initial: data.birthMonth ?? 1,
+                    format: (m) => '$m월',
+                  );
+                  if (v == null) return;
+                  data.birthMonth = v;
                   onChanged();
                 },
               ),
-            ],
-          ),
-          const SizedBox(height: 16),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
 
-          // 낮잠 시간대 (선택)
-          NapTimeSelector(
-            selectedKey: data.napTime,
-            onChanged: (key) {
-              data.napTime = key;
-              onChanged();
-            },
-          ),
-          const SizedBox(height: 16),
+/// 2단계 — 낮잠 성향(선택).
+class _StepNap extends StatelessWidget {
+  final _ChildData data;
+  final VoidCallback onChanged;
+  const _StepNap({required this.data, required this.onChanged});
 
-          // 기질 태그 (선택, 최대 5)
-          TemperamentTagSelector(
-            selectedKeys: data.temperamentTags,
-            onToggle: (key) {
-              if (data.temperamentTags.contains(key)) {
-                data.temperamentTags.remove(key);
-              } else if (data.temperamentTags.length < maxTemperamentTags) {
-                data.temperamentTags.add(key);
-              }
-              onChanged();
-            },
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('낮잠 성향', style: AppTextStyles.heading2),
+        const SizedBox(height: 6),
+        Text('비슷한 생활 패턴의 또래를 찾는 데 써요 (선택)',
+            style: AppTextStyles.body2.copyWith(color: AppColors.textSecondary)),
+        const SizedBox(height: 24),
+        NapTimeSelector(
+          selectedKey: data.napTime,
+          onChanged: (key) {
+            data.napTime = key;
+            onChanged();
+          },
+        ),
+      ],
+    );
+  }
+}
+
+/// 3단계 — 인증 사진(어드민 검수용, 비공개).
+class _StepVerification extends StatelessWidget {
+  final _ChildData data;
+  final VoidCallback onPick;
+  const _StepVerification({required this.data, required this.onPick});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('인증 사진', style: AppTextStyles.heading2),
+        const SizedBox(height: 6),
+        Text(
+          '운영자만 확인합니다. 아래 중 하나를 올려주세요.\n'
+          '• 출생증명서\n'
+          '• 키즈노트 아이 정보 화면 캡쳐 (아이 이름·생년월 + 사진)\n'
+          '• 기타 자녀임을 확인할 수 있는 공식 서류',
+          style: AppTextStyles.caption.copyWith(color: AppColors.textHint),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '🔒 다른 사용자에게는 절대 노출되지 않아요.',
+          style: AppTextStyles.caption.copyWith(
+            color: AppColors.error,
+            fontWeight: FontWeight.w700,
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 16),
+        _PhotoSlot(
+          path: data.verificationPhotoPath,
+          onTap: onPick,
+          placeholderIcon: Icons.verified_user_outlined,
+          placeholderLabel: '인증 사진 등록',
+        ),
+      ],
     );
   }
 }
@@ -541,8 +556,7 @@ class _PhotoSlot extends StatelessWidget {
             : Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(placeholderIcon,
-                      color: AppColors.textHint, size: 28),
+                  Icon(placeholderIcon, color: AppColors.textHint, size: 28),
                   const SizedBox(height: 6),
                   Text(placeholderLabel,
                       style: AppTextStyles.caption
@@ -554,7 +568,7 @@ class _PhotoSlot extends StatelessWidget {
   }
 }
 
-/// 이미 등록된 아이를 read-only로 보여주는 작은 타일 — popOnDone 모드 컨텍스트용.
+/// 이미 등록된 아이를 보여주는 작은 타일 — 탭/톱니바퀴로 수정 화면 진입.
 class _ExistingChildTile extends StatelessWidget {
   final dynamic child; // models/user.dart의 Child — import 순환 피하려 동적 처리.
   const _ExistingChildTile({required this.child});
@@ -626,9 +640,7 @@ class _GenderChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected
-              ? accent.withValues(alpha: 0.12)
-              : AppColors.surface,
+          color: isSelected ? accent.withValues(alpha: 0.12) : AppColors.surface,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: isSelected ? accent : AppColors.divider,
@@ -646,8 +658,7 @@ class _GenderChip extends StatelessWidget {
               label,
               style: AppTextStyles.body2.copyWith(
                 color: isSelected ? accent : AppColors.textSecondary,
-                fontWeight:
-                    isSelected ? FontWeight.w600 : FontWeight.w400,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
               ),
             ),
           ],

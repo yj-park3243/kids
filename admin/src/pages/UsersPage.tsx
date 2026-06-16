@@ -72,6 +72,20 @@ export default function UsersPage() {
       render: (email: string | null) => email || '-',
     },
     {
+      title: '전화번호',
+      dataIndex: 'phoneNumber',
+      key: 'phoneNumber',
+      width: 130,
+      render: (p: string | null) => p || '-',
+    },
+    {
+      title: '생년월일',
+      dataIndex: 'birthDate',
+      key: 'birthDate',
+      width: 110,
+      render: (d: string | null) => (d ? dayjs(d).format('YYYY.MM.DD') : '-'),
+    },
+    {
       title: '지역',
       key: 'region',
       render: (_: unknown, record: User) =>

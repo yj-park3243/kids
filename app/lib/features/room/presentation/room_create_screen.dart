@@ -20,6 +20,7 @@ import '../../../widgets/location_picker_sheet.dart';
 import '../../../widgets/top_toast.dart';
 import '../../../widgets/design/accent_blobs.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../home/providers/dashboard_provider.dart';
 import '../providers/room_detail_provider.dart';
 import 'widgets/required_items_picker.dart';
 
@@ -510,11 +511,14 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
         });
         if (mounted) {
           ref.invalidate(roomDetailProvider(editRoom.id));
+          ref.invalidate(joinedRoomsProvider);
           context.pop();
         }
       } else {
         final room =
             await ref.read(roomRepositoryProvider).createRoom(roomData);
+        // 새 방 생성 즉시 홈의 참여 모임 목록을 갱신(빈 상태 → 내 방 표시).
+        ref.invalidate(joinedRoomsProvider);
         if (mounted) {
           context.pop();
           context.push('/rooms/${room.id}');
@@ -805,31 +809,33 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Join type
-              Text('입장 방식', style: AppTextStyles.body2Bold),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: _OptionChip(
-                      label: '자유 입장',
-                      subtitle: '누구나 바로 참여',
-                      isSelected: _joinType == 'FREE',
-                      onTap: () => setState(() => _joinType = 'FREE'),
+              // Join type — 생성 시에만 선택. 수정 시엔 변경 불가라 숨긴다.
+              if (widget.editRoom == null) ...[
+                Text('입장 방식', style: AppTextStyles.body2Bold),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _OptionChip(
+                        label: '자유 입장',
+                        subtitle: '누구나 바로 참여',
+                        isSelected: _joinType == 'FREE',
+                        onTap: () => setState(() => _joinType = 'FREE'),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _OptionChip(
-                      label: '승인 필요',
-                      subtitle: '방장 수락 후 참여',
-                      isSelected: _joinType == 'APPROVAL',
-                      onTap: () => setState(() => _joinType = 'APPROVAL'),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _OptionChip(
+                        label: '승인 필요',
+                        subtitle: '방장 수락 후 참여',
+                        isSelected: _joinType == 'APPROVAL',
+                        onTap: () => setState(() => _joinType = 'APPROVAL'),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
+                  ],
+                ),
+                const SizedBox(height: 20),
+              ],
 
               // Cost
               Row(

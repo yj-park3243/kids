@@ -82,3 +82,10 @@ final roomDetailProvider = StateNotifierProvider.family<RoomDetailNotifier,
   final repository = ref.watch(roomRepositoryProvider);
   return RoomDetailNotifier(repository, roomId);
 });
+
+/// 방의 대기 중(PENDING) 참여 신청 — 방장이 방 상세에서 인라인으로 관리.
+final joinRequestsProvider =
+    FutureProvider.family<List<JoinRequest>, String>((ref, roomId) async {
+  final all = await ref.watch(roomRepositoryProvider).getJoinRequests(roomId);
+  return all.where((r) => r.status == 'PENDING').toList();
+});

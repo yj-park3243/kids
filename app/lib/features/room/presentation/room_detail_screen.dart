@@ -109,13 +109,6 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
           ),
           PullDownButton(
             itemBuilder: (context) => [
-              if (isHost && room.isApprovalRequired)
-                PullDownMenuItem(
-                  title: '참여 관리',
-                  icon: Icons.group_rounded,
-                  onTap: () =>
-                      context.push('/rooms/${widget.roomId}/requests'),
-                ),
               if (isHost &&
                   room.status != 'COMPLETED' &&
                   room.status != 'CANCELLED')
@@ -966,6 +959,138 @@ class _FullscreenMap extends StatelessWidget {
   }
 }
 
+/// 방장 전용 — 방 상세 참여자 섹션 위에 대기 중인 참여 신청을 인라인으로 보여주고
+/// 바로 수락/거절한다. 신청이 없으면 아무것도 그리지 않는다.
+class _JoinRequestsInline extends ConsumerWidget {
+  final String roomId;
+  const _JoinRequestsInline({required this.roomId});
+
+  Future<void> _handle(
+    BuildContext context,
+    WidgetRef ref,
+    String requestId,
+    String action,
+  ) async {
+    try {
+      await ref
+          .read(roomRepositoryProvider)
+          .handleJoinRequest(roomId, requestId, action);
+      ref.invalidate(joinRequestsProvider(roomId));
+      ref.read(roomDetailProvider(roomId).notifier).loadRoom();
+      if (context.mounted) {
+        showTopToast(
+          context,
+          action == 'ACCEPT' ? '수락되었습니다' : '거절되었습니다',
+          backgroundColor: action == 'ACCEPT'
+              ? AppColors.success
+              : AppColors.textSecondary,
+        );
+      }
+    } catch (_) {
+      if (context.mounted) {
+        showTopToast(context, '처리에 실패했습니다', backgroundColor: AppColors.error);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final requests =
+        ref.watch(joinRequestsProvider(roomId)).valueOrNull ?? const [];
+    if (requests.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('참여 신청 (${requests.length})', style: AppTextStyles.body1Bold),
+        const SizedBox(height: 12),
+        ...requests.map((r) {
+          final user = r.user;
+          final childLine = (user.children != null && user.children!.isNotEmpty)
+              ? user.children!
+                  .map((c) =>
+                      '${c.nickname} (${AppDateUtils.formatAgeMonths(c.ageMonths ?? 0)})')
+                  .join(', ')
+              : null;
+          return Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: AppColors.surfaceVariant,
+                  backgroundImage: user.profileImageUrl != null
+                      ? NetworkImage(user.profileImageUrl!)
+                      : null,
+                  child: user.profileImageUrl == null
+                      ? const Icon(Icons.person_rounded,
+                          color: AppColors.textHint, size: 18)
+                      : null,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(user.nickname, style: AppTextStyles.body2Bold),
+                      if (childLine != null)
+                        Text(childLine,
+                            style: AppTextStyles.caption,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                InkWell(
+                  onTap: () => _handle(context, ref, r.id, 'REJECT'),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.divider),
+                    ),
+                    child: Text('거절',
+                        style: AppTextStyles.caption
+                            .copyWith(color: AppColors.textSecondary)),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                InkWell(
+                  onTap: () => _handle(context, ref, r.id, 'ACCEPT'),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text('수락',
+                        style: AppTextStyles.caption.copyWith(
+                            color: Colors.white, fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+        const SizedBox(height: 20),
+        const Divider(height: 1, color: AppColors.divider),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+}
+
 class _MembersSection extends ConsumerWidget {
   final Room room;
 
@@ -987,6 +1112,9 @@ class _MembersSection extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 방장 + 승인 필요 방이면 참여 신청 목록을 참여자 위에 인라인으로 노출.
+          if (room.host.id == myId && room.isApprovalRequired)
+            _JoinRequestsInline(roomId: room.id),
           Text(
             '참여자 (${room.currentMembers}/${room.maxMembers})',
             style: AppTextStyles.body1Bold,
