@@ -9,7 +9,6 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/validators.dart';
-import '../../../widgets/app_bar.dart';
 import '../../../widgets/address_search_sheet.dart';
 import '../../../widgets/common_button.dart';
 import '../../../widgets/common_input.dart';
@@ -231,7 +230,6 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: const CustomAppBar(title: '프로필 설정', showBack: false),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),

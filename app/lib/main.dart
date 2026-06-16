@@ -155,6 +155,9 @@ class KidsApp extends StatelessWidget {
         },
         child: _AppBootstrap(child: child ?? const SizedBox.shrink()),
       ),
+      // 시스템 다크모드를 따라가지 않고 항상 라이트로 고정 — 다크 시 키보드
+      // 뒤 배경이 검게 비치던 문제 방지.
+      themeMode: ThemeMode.light,
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(

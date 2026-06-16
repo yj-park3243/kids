@@ -59,6 +59,10 @@ export class KcpController {
       );
       const result = await this.kcpService.verifyCert(userId, kcpData);
       const appUrl = this.kcpService.buildSuccessRedirect(result);
+      // [진단] 토큰 발급/딥링크 전달 상태 — 본인인증 후 401(토큰 유실) 원인 추적용.
+      this.logger.log(
+        `[KCP Callback] redirect urlLen=${appUrl.length} atLen=${result.accessToken?.length ?? 0} rtLen=${result.refreshToken?.length ?? 0} merged=${result.merged === true} next=${result.nextRoute} userId=${result.user?.id}`,
+      );
 
       const html = `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><title>인증 완료</title></head>

@@ -5,22 +5,22 @@
     
     
       
-      <testcase classname="fastlane.lanes" name="0: default_platform" time="0.000292">
+      <testcase classname="fastlane.lanes" name="0: default_platform" time="0.000298">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="1: Switch to android build lane" time="0.000159">
+      <testcase classname="fastlane.lanes" name="1: Switch to android build lane" time="0.00039">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="2: zsh -lc cd\ \&apos;/Users/yongju/WebProject2/kids/app\&apos;\ \&amp;\&amp;\ flutter\ build\ appbundle\ --release\ --no-tree-shake-icons\ --dart-define\=ENVIRONMENT\=production" time="226.194277">
+      <testcase classname="fastlane.lanes" name="2: zsh -lc cd\ \&apos;/Users/yongju/WebProject2/kids/app\&apos;\ \&amp;\&amp;\ flutter\ build\ appbundle\ --release\ --no-tree-shake-icons\ --dart-define\=ENVIRONMENT\=production" time="176.10443">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="3: upload_to_play_store" time="183.310316">
+      <testcase classname="fastlane.lanes" name="3: upload_to_play_store" time="86.004666">
         
       </testcase>
     

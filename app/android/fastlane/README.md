@@ -31,6 +31,14 @@ Flutter AAB 빌드
 
 Google Play Internal Testing 배포
 
+### android production
+
+```sh
+[bundle exec] fastlane android production
+```
+
+Google Play 프로덕션 심사 제출 (정식 출시)
+
 ### android promote_to_closed
 
 ```sh

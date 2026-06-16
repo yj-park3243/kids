@@ -74,14 +74,6 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                 padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
                 children: [
                   _tile(
-                    title: '모임·채팅 알림',
-                    subtitle: '참여 신청·수락·메시지 등 — 서비스 필수 알림이라 끌 수 없어요',
-                    value: true,
-                    enabled: false,
-                    onChanged: (_) {},
-                  ),
-                  const Divider(height: 1, color: AppColors.divider),
-                  _tile(
                     title: '광고·이벤트 알림',
                     subtitle: '새 기능, 이벤트, 혜택 소식',
                     value: _ads,

@@ -406,7 +406,7 @@ class _RoomHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final topPad = MediaQuery.of(context).padding.top + kToolbarHeight - 24;
+    final topPad = MediaQuery.of(context).padding.top + kToolbarHeight - 48;
     final timeText = AppDateUtils.formatTime(room.startTime) +
         (room.endTime != null
             ? ' ~ ${AppDateUtils.formatTime(room.endTime!)}'

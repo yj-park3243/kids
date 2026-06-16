@@ -564,31 +564,40 @@ class _ExistingChildTile extends StatelessWidget {
     final age = (child.ageMonths as int?) ??
         AppDateUtils.calculateAgeMonths(
             child.birthYear as int, child.birthMonth as int);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceVariant,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          InitialAvatar(
-            label: (child.nickname as String).isNotEmpty
-                ? (child.nickname as String).substring(0, 1)
-                : '아',
-            size: 36,
-            tone: child.gender == 'MALE' ? AvatarTone.lilac : AvatarTone.primary,
-            imageUrl: child.photoUrl as String?,
-          ),
-          const SizedBox(width: 12),
-          Text(child.nickname as String, style: AppTextStyles.body1Bold),
-          const SizedBox(width: 8),
-          Text(
-            AppDateUtils.formatAgeMonths(age),
-            style: AppTextStyles.caption.copyWith(color: AppColors.primary700),
-          ),
-        ],
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => context.push('/children/${child.id}/edit'),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceVariant,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            InitialAvatar(
+              label: (child.nickname as String).isNotEmpty
+                  ? (child.nickname as String).substring(0, 1)
+                  : '아',
+              size: 36,
+              tone:
+                  child.gender == 'MALE' ? AvatarTone.lilac : AvatarTone.primary,
+              imageUrl: child.photoUrl as String?,
+            ),
+            const SizedBox(width: 12),
+            Text(child.nickname as String, style: AppTextStyles.body1Bold),
+            const SizedBox(width: 8),
+            Text(
+              AppDateUtils.formatAgeMonths(age),
+              style: AppTextStyles.caption.copyWith(color: AppColors.primary700),
+            ),
+            const Spacer(),
+            // 톱니바퀴 — 탭하면 아이 정보 수정 화면으로.
+            const Icon(Icons.settings_rounded,
+                size: 20, color: AppColors.textSecondary),
+          ],
+        ),
       ),
     );
   }
