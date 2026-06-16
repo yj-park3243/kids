@@ -55,6 +55,7 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
   int _ageMax = 36;
   int _maxMembers = 5;
   String _joinType = 'FREE';
+  int _step = 0; // 멀티스텝 현재 단계 (0~3)
   bool _isFree = true;
   final List<String> _tags = [];
   bool _isLoading = false;
@@ -447,6 +448,31 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
     );
   }
 
+  /// 다음 단계로 — 단계별 필수 입력을 검증한 뒤 넘어간다.
+  void _onNext() {
+    if (_step == 0) {
+      if (_titleController.text.trim().isEmpty) {
+        showTopToast(context, '제목을 입력해 주세요', backgroundColor: AppColors.error);
+        return;
+      }
+    } else if (_step == 1) {
+      if (_selectedDate == null) {
+        showTopToast(context, '날짜를 선택해 주세요', backgroundColor: AppColors.error);
+        return;
+      }
+      if (_startTime == null) {
+        showTopToast(context, '시작 시간을 선택해 주세요',
+            backgroundColor: AppColors.error);
+        return;
+      }
+      if (_regionSido == null) {
+        showTopToast(context, '장소를 선택해 주세요', backgroundColor: AppColors.error);
+        return;
+      }
+    }
+    setState(() => _step++);
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -536,18 +562,28 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isLast = _step == 3;
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: CustomAppBar(
-          title: widget.editRoom != null ? '모임 수정' : '모임 만들기'),
+          title: widget.editRoom != null
+              ? '모임 수정'
+              : '모임 만들기 (${_step + 1}/4)'),
       extendBodyBehindAppBar: true,
       body: AccentBlobsBackground(
         child: SafeArea(
         child: Form(
           key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.all(20),
+          child: Column(
             children: [
+              Expanded(
+                child: IndexedStack(
+                  index: _step,
+                  children: [
+                    // ── 1단계: 기본 정보 ──
+                    ListView(
+                      padding: const EdgeInsets.all(20),
+                      children: [
               // 아이 선택
               _buildChildSelector(),
               const SizedBox(height: 20),
@@ -577,8 +613,12 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
                 maxLines: 4,
                 maxLength: 500,
               ),
-              const SizedBox(height: 20),
-
+                      ],
+                    ),
+                    // ── 2단계: 일시·장소 ──
+                    ListView(
+                      padding: const EdgeInsets.all(20),
+                      children: [
               // Date
               Text('날짜', style: AppTextStyles.body2Bold),
               const SizedBox(height: 8),
@@ -709,8 +749,12 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
                         ))
                     .toList(),
               ),
-              const SizedBox(height: 20),
-
+                      ],
+                    ),
+                    // ── 3단계: 모집 조건 ──
+                    ListView(
+                      padding: const EdgeInsets.all(20),
+                      children: [
               // Age range
               Row(
                 children: [
@@ -836,7 +880,12 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
                 ),
                 const SizedBox(height: 20),
               ],
-
+                      ],
+                    ),
+                    // ── 4단계: 추가 정보 ──
+                    ListView(
+                      padding: const EdgeInsets.all(20),
+                      children: [
               // Cost
               Row(
                 children: [
@@ -920,17 +969,48 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
                       .toList(),
                 ),
               ],
-
-              const SizedBox(height: 40),
-
-              PrimaryButton(
-                key: const Key('btn-room-create-submit'),
-                text: widget.editRoom != null ? '수정 완료' : '모임 만들기',
-                isLoading: _isLoading,
-                icon: Icons.celebration_rounded,
-                onPressed: _submit,
+                      ],
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 20),
+              // 하단 — 이전 / 다음 / 완료
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                child: Row(
+                  children: [
+                    if (_step > 0) ...[
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => setState(() => _step--),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            side: const BorderSide(color: AppColors.divider),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text('이전'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                    ],
+                    Expanded(
+                      child: PrimaryButton(
+                        key: const Key('btn-room-create-submit'),
+                        text: isLast
+                            ? (widget.editRoom != null ? '수정 완료' : '모임 만들기')
+                            : '다음',
+                        isLoading: _isLoading,
+                        icon: isLast
+                            ? Icons.celebration_rounded
+                            : Icons.arrow_forward_rounded,
+                        onPressed: isLast ? _submit : _onNext,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),

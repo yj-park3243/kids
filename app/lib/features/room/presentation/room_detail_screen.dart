@@ -95,12 +95,29 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
     final isParticipant = isHost || isAccepted;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      extendBodyBehindAppBar: true,
-      appBar: CustomAppBar(
-        title: '',
-        showBack: widget.showBack,
-        actions: [
+      backgroundColor: AppColors.background,
+      body: AccentBlobsBackground(
+        child: CustomScrollView(
+          slivers: [
+            SliverAppBar(
+              pinned: true,
+              expandedHeight: 290,
+              backgroundColor: roomHeroColors(room.ageMonthMin).last,
+              surfaceTintColor: Colors.transparent,
+              elevation: 0,
+              automaticallyImplyLeading: false,
+              leading: widget.showBack
+                  ? IconButton(
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                          size: 20, color: AppColors.textPrimary),
+                      onPressed: () => Navigator.of(context).maybePop(),
+                    )
+                  : null,
+              flexibleSpace: FlexibleSpaceBar(
+                background: _RoomHero(room: room),
+                collapseMode: CollapseMode.pin,
+              ),
+              actions: [
           IconButton(
             icon:
                 const Icon(Icons.share_rounded, color: AppColors.textPrimary),
@@ -163,16 +180,12 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                   color: AppColors.textPrimary),
             ),
           ),
-        ],
-      ),
-      body: AccentBlobsBackground(
-        child: SingleChildScrollView(
-        padding: const EdgeInsets.only(bottom: 120),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 풀폭 그라데이션 히어로 — 칩 + 큰 제목 + 일시·동을 한눈에.
-            _RoomHero(room: room),
+              ],
+            ),
+            SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
 
             // 카테고리 배지(엄마만/아빠만/한부모) — 히어로 칩과 색상 의미가
             // 다르니 본문 위쪽에 별도로 노출.
@@ -257,9 +270,12 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                 ),
               ),
             ],
+                const SizedBox(height: 120),
+              ],
+            ),
+            ),
           ],
         ),
-      ),
       ),
       bottomNavigationBar: _BottomBar(
         room: room,
@@ -411,7 +427,7 @@ class _RoomHero extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: _heroColors(room.ageMonthMin),
+          colors: roomHeroColors(room.ageMonthMin),
         ),
         borderRadius: const BorderRadius.vertical(
           bottom: Radius.circular(28),
@@ -503,14 +519,15 @@ class _RoomHero extends StatelessWidget {
     );
   }
 
-  // 카드와 같은 나이 → 색 매핑. 톤은 카드보다 약간 진하게.
-  List<Color> _heroColors(int age) {
-    if (age < 6) return const [Color(0xFFF26E96), Color(0xFFD14B73)];
-    if (age < 12) return const [Color(0xFFD14B73), Color(0xFFA63A5C)];
-    if (age < 24) return const [Color(0xFFB89BE8), Color(0xFF9176CC)];
-    if (age < 36) return const [Color(0xFF9176CC), Color(0xFF7E3FA0)];
-    return const [Color(0xFFFF9476), Color(0xFFE07560)];
-  }
+}
+
+// 카드와 같은 나이 → 색 매핑. 톤은 카드보다 약간 진하게. (SliverAppBar/_RoomHero 공유)
+List<Color> roomHeroColors(int age) {
+  if (age < 6) return const [Color(0xFFF26E96), Color(0xFFD14B73)];
+  if (age < 12) return const [Color(0xFFD14B73), Color(0xFFA63A5C)];
+  if (age < 24) return const [Color(0xFFB89BE8), Color(0xFF9176CC)];
+  if (age < 36) return const [Color(0xFF9176CC), Color(0xFF7E3FA0)];
+  return const [Color(0xFFFF9476), Color(0xFFE07560)];
 }
 
 /// 1) 장소 카드 — 참여자 전용. 이름/주소 강조 + 길찾기 버튼.
