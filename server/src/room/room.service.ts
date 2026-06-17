@@ -79,7 +79,7 @@ export class RoomService {
     if (dto.singleParentOnly === true && host.isSingleParent !== true) {
       throw new ForbiddenException({
         code: 'SINGLE_PARENT_ONLY_REQUIRES_SINGLE_PARENT_HOST',
-        message: '한부모 전용 방은 한부모 가정 방장만 생성할 수 있습니다.',
+        message: '싱글맘·싱글대디 전용 방은 싱글맘·싱글대디 회원만 만들 수 있습니다.',
       });
     }
 
@@ -447,7 +447,7 @@ export class RoomService {
       if (viewer?.isSingleParent !== true) {
         throw new ForbiddenException({
           code: 'SINGLE_PARENT_REQUIRED',
-          message: '한부모 가정 전용 방입니다.',
+          message: '싱글맘·싱글대디 전용 방입니다.',
         });
       }
     }

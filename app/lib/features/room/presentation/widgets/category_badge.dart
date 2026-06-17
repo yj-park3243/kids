@@ -18,9 +18,9 @@ class CategoryBadge extends StatelessWidget {
     if (genderFilter == 'ALL' && !singleParentOnly) return null;
     if (genderFilter == 'MOM_ONLY' && !singleParentOnly) return '👩 엄마만';
     if (genderFilter == 'DAD_ONLY' && !singleParentOnly) return '👨 아빠만';
-    if (genderFilter == 'ALL' && singleParentOnly) return '🤍 한부모';
-    if (genderFilter == 'MOM_ONLY' && singleParentOnly) return '👩🤍 엄마 한부모';
-    if (genderFilter == 'DAD_ONLY' && singleParentOnly) return '👨🤍 아빠 한부모';
+    if (genderFilter == 'ALL' && singleParentOnly) return '🤍 싱글맘·싱글대디';
+    if (genderFilter == 'MOM_ONLY' && singleParentOnly) return '👩 싱글맘';
+    if (genderFilter == 'DAD_ONLY' && singleParentOnly) return '👨 싱글대디';
     return null;
   }
 

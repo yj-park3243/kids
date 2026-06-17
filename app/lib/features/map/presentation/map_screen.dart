@@ -11,6 +11,7 @@ import '../../../models/room.dart';
 import '../../../models/user.dart';
 import '../../../providers/selected_child_provider.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../room/presentation/widgets/category_badge.dart';
 import '../../room/providers/room_detail_provider.dart';
 import '../map_filter.dart';
 import '../widgets/map_filter_panel.dart';
@@ -844,11 +845,10 @@ class _PinBottomSheet extends StatelessWidget {
                       label: pin.joinType == 'APPROVAL' ? '승인 필요' : '자유 입장',
                       color: AppColors.textSecondary,
                     ),
-                    if (pin.singleParentOnly)
-                      const _Chip(
-                        icon: Icons.favorite_rounded,
-                        label: '한부모 전용',
-                        color: AppColors.primary,
+                    if (pin.singleParentOnly || pin.genderFilter != 'ALL')
+                      CategoryBadge(
+                        genderFilter: pin.genderFilter,
+                        singleParentOnly: pin.singleParentOnly,
                       ),
                   ],
                 ),

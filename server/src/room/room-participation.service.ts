@@ -136,7 +136,7 @@ export class RoomParticipationService {
       if (room.singleParentOnly === true && user.isSingleParent !== true) {
         throw new ForbiddenException({
           code: 'SINGLE_PARENT_REQUIRED',
-          message: '한부모 가정 전용 방입니다.',
+          message: '싱글맘·싱글대디 전용 방입니다.',
         });
       }
       // 2.5 parentAgeMatch — 방장 만나이 ±5 안의 부모만.

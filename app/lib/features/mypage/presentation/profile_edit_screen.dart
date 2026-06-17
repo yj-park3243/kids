@@ -157,7 +157,11 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
                 if (user?.isSingleParent ?? false) ...[
                   const SizedBox(height: 20),
                   _LockedField(
-                    label: '한부모 가정',
+                    label: user?.parentGender == 'DAD'
+                        ? '싱글대디'
+                        : user?.parentGender == 'MOM'
+                            ? '싱글맘'
+                            : '싱글맘·싱글대디',
                     value: '예',
                     onInfoTap: () => _showLockedInfoDialog(context),
                   ),

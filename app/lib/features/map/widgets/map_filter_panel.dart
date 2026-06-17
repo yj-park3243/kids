@@ -202,7 +202,7 @@ class _MapFilterPanelState extends State<MapFilterPanel> {
               _toggle('또래 부모(±5)', _f.parentAgeMatch,
                   () => _emit(_f.copyWith(parentAgeMatch: !_f.parentAgeMatch))),
               if (widget.isSingleParent)
-                _toggle('한부모만', _f.singleParentOnly,
+                _toggle('싱글맘·싱글대디', _f.singleParentOnly,
                     () => _emit(
                         _f.copyWith(singleParentOnly: !_f.singleParentOnly))),
             ],

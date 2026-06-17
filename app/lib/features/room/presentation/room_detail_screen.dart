@@ -44,14 +44,33 @@ class RoomDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
+  final _scroll = ScrollController();
+  bool _collapsed = false;
+
   @override
   void initState() {
     super.initState();
+    _scroll.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(roomDetailProvider(widget.roomId).notifier).loadRoom();
       // 방에 들어오면 홈의 참여 모임 목록을 다시 받아오도록 트리거.
       ref.invalidate(joinedRoomsProvider);
     });
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  // 히어로가 거의 다 접히면(앱바 높이 근처) 앱바 가운데에 방 이름을 보여준다.
+  void _onScroll() {
+    if (!mounted) return;
+    final top = MediaQuery.of(context).padding.top;
+    final threshold = top + 160 - kToolbarHeight - 12;
+    final c = _scroll.offset > threshold;
+    if (c != _collapsed) setState(() => _collapsed = c);
   }
 
   @override
@@ -98,10 +117,22 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
       backgroundColor: AppColors.background,
       body: AccentBlobsBackground(
         child: CustomScrollView(
+          controller: _scroll,
           slivers: [
             SliverAppBar(
               pinned: true,
-              expandedHeight: 290,
+              centerTitle: true,
+              title: AnimatedOpacity(
+                opacity: _collapsed ? 1 : 0,
+                duration: const Duration(milliseconds: 150),
+                child: Text(
+                  room.title,
+                  style: AppTextStyles.body1Bold.copyWith(color: Colors.white),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              expandedHeight: MediaQuery.of(context).padding.top + 160,
               backgroundColor: roomHeroColors(room.ageMonthMin).last,
               surfaceTintColor: Colors.transparent,
               elevation: 0,
@@ -415,7 +446,7 @@ class _RoomHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final topPad = MediaQuery.of(context).padding.top + kToolbarHeight - 48;
+    final topPad = MediaQuery.of(context).padding.top + kToolbarHeight + 8;
     final timeText = AppDateUtils.formatTime(room.startTime) +
         (room.endTime != null
             ? ' ~ ${AppDateUtils.formatTime(room.endTime!)}'
@@ -428,9 +459,6 @@ class _RoomHero extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: roomHeroColors(room.ageMonthMin),
-        ),
-        borderRadius: const BorderRadius.vertical(
-          bottom: Radius.circular(28),
         ),
       ),
       child: Column(
@@ -1210,29 +1238,6 @@ class _MembersSection extends ConsumerWidget {
                                     style: AppTextStyles.caption.copyWith(
                                       fontSize: 9,
                                       color: AppColors.accentDark,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                              // 한부모 배지는 singleParentOnly 방에서만, 그리고
-                              // 멤버의 isSingleParent 응답이 true일 때만 표시.
-                              if (room.singleParentOnly &&
-                                  member.isSingleParent == true) ...[
-                                const SizedBox(width: 4),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 4, vertical: 1),
-                                  decoration: BoxDecoration(
-                                    color:
-                                        AppColors.lilac.withValues(alpha: 0.5),
-                                    borderRadius: BorderRadius.circular(3),
-                                  ),
-                                  child: Text(
-                                    '🤍 한부모',
-                                    style: AppTextStyles.caption.copyWith(
-                                      fontSize: 9,
-                                      color: AppColors.secondaryDark,
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),

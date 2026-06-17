@@ -332,7 +332,7 @@ export default function UserDetailPage() {
           <Descriptions.Item label="부모 정체성">
             {user.parentGender ? PARENT_GENDER_LABEL[user.parentGender] || user.parentGender : '-'}
           </Descriptions.Item>
-          <Descriptions.Item label="한부모 가정">
+          <Descriptions.Item label="싱글맘·싱글대디">
             {user.isSingleParent ? '예' : '아니오'}
           </Descriptions.Item>
           <Descriptions.Item label="매너 온도">
@@ -399,7 +399,7 @@ export default function UserDetailPage() {
           />
         </div>
         <div>
-          <div style={{ marginBottom: 8 }}>한부모 가정</div>
+          <div style={{ marginBottom: 8 }}>싱글맘·싱글대디</div>
           <Switch checked={correctSingle} onChange={setCorrectSingle} />
         </div>
       </Modal>

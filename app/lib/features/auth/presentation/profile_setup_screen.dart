@@ -432,7 +432,14 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                   child: Row(
                     children: [
                       Expanded(
-                        child: Text('한부모 가정', style: AppTextStyles.body1Bold),
+                        child: Text(
+                          _parentGender == 'DAD'
+                              ? '싱글대디'
+                              : _parentGender == 'MOM'
+                                  ? '싱글맘'
+                                  : '싱글맘·싱글대디',
+                          style: AppTextStyles.body1Bold,
+                        ),
                       ),
                       Switch.adaptive(
                         value: _isSingleParent,
@@ -444,7 +451,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '한부모 가정 전용 모임에 참여할 수 있어요. 가입 후 변경 불가.',
+                  '싱글맘·싱글대디 전용 모임에 참여할 수 있어요. 가입 후 변경 불가.',
                   style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
                 ),
 

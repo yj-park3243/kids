@@ -418,7 +418,14 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
           Row(
             children: [
               Expanded(
-                child: Text('한부모 가정만 참여', style: AppTextStyles.body2Bold),
+                child: Text(
+                  me?.parentGender == 'DAD'
+                      ? '싱글대디만 참여'
+                      : me?.parentGender == 'MOM'
+                          ? '싱글맘만 참여'
+                          : '싱글맘·싱글대디만 참여',
+                  style: AppTextStyles.body2Bold,
+                ),
               ),
               Switch(
                 value: _singleParentOnly,
