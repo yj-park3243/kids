@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -67,14 +69,17 @@ class LoginScreen extends ConsumerWidget {
                   style: AppTextStyles.body1.copyWith(color: AppColors.ink500),
                 ),
                 const Spacer(flex: 3),
-                SocialLoginButton(
-                  text: 'Apple로 시작하기',
-                  backgroundColor: AppColors.apple,
-                  textColor: Colors.white,
-                  icon: Icons.apple,
-                  onPressed: () => _signInWithApple(context, ref),
-                ),
-                const SizedBox(height: 10),
+                // Apple 로그인은 iOS 에서만 노출(Apple 정책상 안드로이드엔 불필요).
+                if (Platform.isIOS) ...[
+                  SocialLoginButton(
+                    text: 'Apple로 시작하기',
+                    backgroundColor: AppColors.apple,
+                    textColor: Colors.white,
+                    icon: Icons.apple,
+                    onPressed: () => _signInWithApple(context, ref),
+                  ),
+                  const SizedBox(height: 10),
+                ],
                 SocialLoginButton(
                   text: 'Google로 시작하기',
                   backgroundColor: AppColors.google,

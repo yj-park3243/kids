@@ -30,7 +30,9 @@ const ROOM_TYPES = new Set([
   'NEW_FLASH',
   'REVIEW_REQUEST',
   'FOLLOW_NEW_ROOM',
-  'NEW_ROOM',
+  'NEW_PHOTO',
+  'PHOTO_COMMENT',
+  'PHOTO_TAG',
 ]);
 const CHAT_TYPES = new Set(['NEW_CHAT']);
 

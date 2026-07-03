@@ -46,6 +46,8 @@ class RoomDetailScreen extends ConsumerStatefulWidget {
 class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
   final _scroll = ScrollController();
   bool _collapsed = false;
+  // 히어로(앱바 펼침) 높이 — build 에서 본문 실측값으로 채운다.
+  double _heroExtent = 0;
 
   @override
   void initState() {
@@ -66,9 +68,8 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
 
   // 히어로가 거의 다 접히면(앱바 높이 근처) 앱바 가운데에 방 이름을 보여준다.
   void _onScroll() {
-    if (!mounted) return;
-    final top = MediaQuery.of(context).padding.top;
-    final threshold = top + 160 - kToolbarHeight - 12;
+    if (!mounted || _heroExtent == 0) return;
+    final threshold = _heroExtent - kToolbarHeight - 12;
     final c = _scroll.offset > threshold;
     if (c != _collapsed) setState(() => _collapsed = c);
   }
@@ -113,6 +114,9 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
     final isPending = room.myStatus == 'PENDING';
     final isParticipant = isHost || isAccepted;
 
+    // 히어로 본문 높이를 플랫폼 폰트로 실측해 앱바 펼침 높이를 잡는다.
+    _heroExtent = _heroExpandedHeight(context, room);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: AccentBlobsBackground(
@@ -132,7 +136,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              expandedHeight: MediaQuery.of(context).padding.top + 160,
+              expandedHeight: _heroExtent,
               backgroundColor: roomHeroColors(room.ageMonthMin).last,
               surfaceTintColor: Colors.transparent,
               elevation: 0,
@@ -438,6 +442,47 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
   }
 }
 
+/// 히어로 본문(칩/제목/일시/지역)을 플랫폼 폰트로 실측해 앱바 펼침 높이를 정한다.
+/// iOS/Android 의 한글 줄높이 차이 때문에 고정 높이(top+160)가 안드로이드에서
+/// 모자라 지역 줄이 잘리고 본문 시트가 겹쳐 보이던 문제를 막는다.
+/// _RoomHero 의 레이아웃(상단 패딩·칩·간격·제목·일시/지역·하단 16)과 일치해야 한다.
+double _heroExpandedHeight(BuildContext context, Room room) {
+  final mq = MediaQuery.of(context);
+  final maxWidth = mq.size.width - 40; // 좌우 패딩 20씩
+  final scaler = mq.textScaler;
+
+  double measure(String text, TextStyle style, {int maxLines = 1}) {
+    final tp = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: TextDirection.ltr,
+      textScaler: scaler,
+      maxLines: maxLines,
+      ellipsis: '…',
+    )..layout(maxWidth: maxWidth);
+    return tp.height;
+  }
+
+  // 칩 묶음 — 텍스트(11pt) + 상하 패딩 5*2.
+  final chipH =
+      measure('모집중', const TextStyle(fontSize: 11, fontWeight: FontWeight.w800)) +
+          10;
+  // 제목 — heading1 20pt, 최대 2줄(렌더와 동일).
+  final titleH = measure(
+    room.title,
+    AppTextStyles.heading1.copyWith(fontSize: 20, height: 1.2),
+    maxLines: 2,
+  );
+  // 일시/지역 행 — 14pt 텍스트와 아이콘(16) 중 큰 값.
+  final infoH = measure('가', const TextStyle(fontSize: 14, fontWeight: FontWeight.w600));
+  final rowH = infoH < 16 ? 16.0 : infoH;
+  final hasRegion = room.regionDong.trim().isNotEmpty;
+
+  // _RoomHero: 상단패딩(top + kToolbarHeight + 8) + 칩 + 10 + 제목 + 10 + 일시
+  //            + (지역이 있으면 6 + 지역) + 하단 16
+  final body = chipH + 10 + titleH + 10 + rowH + (hasRegion ? 6 + rowH : 0) + 16;
+  return mq.padding.top + kToolbarHeight + 8 + body;
+}
+
 /// 상단 풀폭 히어로 — 그라데이션 배경에 칩 묶음 + 큰 제목 + 일시/지역.
 /// 일시 정보가 여기 들어가서 별도 일시 카드는 제거됐다.
 class _RoomHero extends StatelessWidget {
@@ -478,6 +523,8 @@ class _RoomHero extends StatelessWidget {
           // 큰 제목 — 첫 화면 시선 잡이.
           Text(
             room.title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: AppTextStyles.heading1.copyWith(
               color: Colors.white,
               fontSize: 20,

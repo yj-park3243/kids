@@ -1,7 +1,7 @@
 name: app
 description: "같이크자 - 우리 아이 또래 친구를 동네에서 쉽게 만나는 육아 모임 플랫폼"
 publish_to: 'none'
-version: 1.0.6+67
+version: 1.0.7+70
 
 environment:
   sdk: ^3.9.2

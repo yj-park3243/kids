@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { Child } from '../child/entities/child.entity';
+import { NotificationModule } from '../notification/notification.module';
+import { Room } from '../room/entities/room.entity';
 import { RoomMember } from '../room/entities/room-member.entity';
 import { UploadModule } from '../upload/upload.module';
 import { User } from '../user/entities/user.entity';
@@ -18,8 +21,11 @@ import { RoomPhotoService } from './room-photo.service';
       RoomPhotoComment,
       RoomMember,
       User,
+      Room,
+      Child,
     ]),
     UploadModule,
+    NotificationModule,
   ],
   controllers: [RoomPhotoController],
   providers: [RoomPhotoService],

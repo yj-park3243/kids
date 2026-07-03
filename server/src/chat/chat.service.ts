@@ -45,8 +45,9 @@ export class ChatService {
 
   /**
    * Confirm the user has access to the chat room (host or active member).
+   * Public — ChatGateway 도 소켓 join 시 같은 검증을 사용한다.
    */
-  private async ensureMembership(roomId: string, userId: string): Promise<Room> {
+  async ensureMembership(roomId: string, userId: string): Promise<Room> {
     const room = await this.roomRepository.findOne({ where: { id: roomId } });
     if (!room) {
       throw new NotFoundException('채팅방이 존재하지 않습니다.');

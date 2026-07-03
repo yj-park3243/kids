@@ -157,6 +157,14 @@ class ChatRepository {
     });
   }
 
+  /// 앱이 백그라운드로 갈 때 소켓을 즉시 끊는다 — 소켓이 살아있으면 서버가
+  /// 이 유저를 "방을 보고 있음"으로 판정해 푸시를 스킵하기 때문
+  /// (ping timeout 감지까지 최대 ~45초간 푸시 누락).
+  void pauseSocket() => _socket?.disconnect();
+
+  /// 포어그라운드 복귀 시 재연결 — onConnect 핸들러가 join 을 다시 emit 한다.
+  void resumeSocket() => _socket?.connect();
+
   void dispose() {
     _socket?.dispose();
     _socket = null;

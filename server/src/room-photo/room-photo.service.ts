@@ -4,8 +4,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, MoreThan, Not, Repository } from 'typeorm';
 
+import { Child } from '../child/entities/child.entity';
+import { NotificationService } from '../notification/notification.service';
+import { Room } from '../room/entities/room.entity';
 import { RoomMember } from '../room/entities/room-member.entity';
 import { User } from '../user/entities/user.entity';
 import { UploadService } from '../upload/upload.service';
@@ -31,7 +34,12 @@ export class RoomPhotoService {
     private readonly memberRepo: Repository<RoomMember>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    @InjectRepository(Room)
+    private readonly roomRepo: Repository<Room>,
+    @InjectRepository(Child)
+    private readonly childRepo: Repository<Child>,
     private readonly uploadService: UploadService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   // 권한: 방 멤버여야 함.
@@ -54,6 +62,8 @@ export class RoomPhotoService {
         url,
       }),
     );
+    // 푸시 — 업로더 제외 방 멤버에게. 실패해도 업로드 흐름은 막지 않는다.
+    void this.pushNewPhoto(saved);
     return this._serialize(saved, [], 0);
   }
 
@@ -150,6 +160,10 @@ export class RoomPhotoService {
     if (!photo) throw new NotFoundException('사진을 찾을 수 없습니다.');
     await this.assertMember(photo.roomId, userId);
 
+    // 새로 추가된 태그만 알림 대상 — 교체 전 기존 태그를 기억해 둔다.
+    const oldTags = await this.tagRepo.find({ where: { photoId } });
+    const oldIds = new Set(oldTags.map((t) => t.childId));
+
     // 기존 태그 삭제 후 전부 새로 (UI 가 전체 리스트를 보내는 단순한 contract)
     await this.tagRepo.delete({ photoId });
     if (dto.childIds.length > 0) {
@@ -158,6 +172,8 @@ export class RoomPhotoService {
       await this.tagRepo.save(
         unique.map((childId) => this.tagRepo.create({ photoId, childId })),
       );
+      const added = unique.filter((id) => !oldIds.has(id));
+      if (added.length > 0) void this.pushPhotoTagged(photo, userId, added);
     }
     return { success: true, childIds: dto.childIds };
   }
@@ -198,6 +214,8 @@ export class RoomPhotoService {
         content: dto.content,
       }),
     );
+    // 사진 업로더에게 댓글 알림 (본인 댓글 제외).
+    this.pushPhotoComment(photo, userId, saved.userNickname, saved.content);
     return {
       id: saved.id,
       userId: saved.userId,
@@ -205,6 +223,96 @@ export class RoomPhotoService {
       content: saved.content,
       createdAt: saved.createdAt,
     };
+  }
+
+  // ─── 푸시 ────────────────────────────────────────────────────────
+
+  /**
+   * 새 사진 알림 — 업로더 제외 방 멤버 전원.
+   * 여러 장 연속 업로드 스팸 방지: 같은 업로더가 10분 내 올린 직전 사진이
+   * 있으면 이번 건은 생략 (배치의 첫 장만 알림).
+   */
+  private async pushNewPhoto(photo: RoomPhoto): Promise<void> {
+    if (!photo.uploaderId) return; // 업로더 탈퇴 등 — 알림 기준점 없음
+    try {
+      const cutoff = new Date(Date.now() - 10 * 60 * 1000);
+      const recent = await this.photoRepo.findOne({
+        where: {
+          roomId: photo.roomId,
+          uploaderId: photo.uploaderId,
+          id: Not(photo.id),
+          createdAt: MoreThan(cutoff),
+        },
+      });
+      if (recent) return;
+
+      const room = await this.roomRepo.findOne({
+        where: { id: photo.roomId },
+      });
+      const members = await this.memberRepo.find({
+        where: { roomId: photo.roomId },
+      });
+      for (const m of members) {
+        if (m.userId === photo.uploaderId) continue;
+        void this.notificationService
+          .create({
+            userId: m.userId,
+            type: 'NEW_PHOTO',
+            title: room?.title ?? '모임 사진',
+            body: `${photo.uploaderNickname}님이 사진을 올렸어요.`,
+            data: { roomId: photo.roomId, photoId: photo.id },
+          })
+          .catch(() => undefined);
+      }
+    } catch {
+      // 푸시 실패는 업로드 흐름을 막지 않는다.
+    }
+  }
+
+  /** 댓글 알림 — 사진 업로더에게 (본인 댓글이면 생략). */
+  private pushPhotoComment(
+    photo: RoomPhoto,
+    commenterId: string,
+    commenterNickname: string,
+    content: string,
+  ): void {
+    if (!photo.uploaderId || photo.uploaderId === commenterId) return;
+    void this.notificationService
+      .create({
+        userId: photo.uploaderId,
+        type: 'PHOTO_COMMENT',
+        title: '사진 댓글',
+        body: `${commenterNickname}: ${content.slice(0, 80)}`,
+        data: { roomId: photo.roomId, photoId: photo.id },
+      })
+      .catch(() => undefined);
+  }
+
+  /** 태그 알림 — 새로 태그된 아이의 부모에게 (태그한 본인 아이는 생략). */
+  private async pushPhotoTagged(
+    photo: RoomPhoto,
+    taggerId: string,
+    childIds: string[],
+  ): Promise<void> {
+    try {
+      const children = await this.childRepo.find({
+        where: { id: In(childIds) },
+      });
+      for (const child of children) {
+        if (child.userId === taggerId) continue;
+        void this.notificationService
+          .create({
+            userId: child.userId,
+            type: 'PHOTO_TAG',
+            title: '사진 태그',
+            body: `${child.nickname}(이)가 모임 사진에 태그됐어요.`,
+            data: { roomId: photo.roomId, photoId: photo.id },
+          })
+          .catch(() => undefined);
+      }
+    } catch {
+      // 푸시 실패는 태그 저장 흐름을 막지 않는다.
+    }
   }
 
   // ─── helpers ─────────────────────────────────────────────────────

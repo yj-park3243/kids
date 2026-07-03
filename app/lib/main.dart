@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:ui';
 import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -20,6 +21,7 @@ import 'core/push/push_token_service.dart';
 import 'core/router/app_router.dart';
 import 'core/scroll/app_scroll_behavior.dart';
 import 'core/version/version_check_service.dart';
+import 'features/chat/providers/chat_provider.dart';
 import 'features/share/deeplink/deeplink_handler.dart';
 import 'features/share/deeplink/fcm_tap_handler.dart';
 import 'firebase_options.dart';
@@ -252,25 +254,51 @@ class KidsApp extends StatelessWidget {
   }
 }
 
-class _AppBootstrap extends StatefulWidget {
+class _AppBootstrap extends ConsumerStatefulWidget {
   const _AppBootstrap({required this.child});
 
   final Widget child;
 
   @override
-  State<_AppBootstrap> createState() => _AppBootstrapState();
+  ConsumerState<_AppBootstrap> createState() => _AppBootstrapState();
 }
 
-class _AppBootstrapState extends State<_AppBootstrap> {
+class _AppBootstrapState extends ConsumerState<_AppBootstrap>
+    with WidgetsBindingObserver {
+  StreamSubscription<RemoteMessage>? _fcmChatSub;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       // 앱 부트스트랩 — 버전 체크(+위치/플랫폼 전송)와 FCM 토큰 등록.
       VersionCheckService.check(context);
       unawaited(PushTokenService.instance.init());
     });
+    // 새 채팅 푸시가 포어그라운드로 오면 안 읽음 배지를 즉시 갱신한다.
+    // (알림 표시/탭 라우팅은 FcmTapHandler 가 별도로 처리)
+    _fcmChatSub = FirebaseMessaging.onMessage.listen((msg) {
+      if ((msg.data['type'] ?? '').toString() == 'NEW_CHAT') {
+        ref.invalidate(chatRoomsProvider);
+      }
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 백그라운드에서 받은 채팅을 복귀 시 배지에 반영.
+    if (state == AppLifecycleState.resumed) {
+      ref.invalidate(chatRoomsProvider);
+    }
+  }
+
+  @override
+  void dispose() {
+    _fcmChatSub?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   @override

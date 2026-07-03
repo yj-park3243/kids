@@ -63,11 +63,18 @@ export class ChatGateway
   }
 
   @SubscribeMessage('join')
-  handleJoin(
+  async handleJoin(
     @ConnectedSocket() client: SocketWithUser,
     @MessageBody() data: { roomId: string },
   ) {
     if (!client.userId || !data?.roomId) return { ok: false };
+    try {
+      // REST 와 동일한 멤버십 검증 — 멤버가 아니면 실시간 스트림 구독 불가.
+      await this.chatService.ensureMembership(data.roomId, client.userId);
+    } catch {
+      this.logger.warn(`join denied room=${data.roomId} user=${client.userId}`);
+      return { ok: false };
+    }
     client.join(`room:${data.roomId}`);
     return { ok: true };
   }

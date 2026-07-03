@@ -68,13 +68,21 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen>
     WidgetsBinding.instance.removeObserver(this);
     _messageController.dispose();
     _scrollController.dispose();
+    // 이 방을 읽음 처리한 결과를 목록/하단 탭 배지에 반영.
+    ref.invalidate(chatRoomsProvider);
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _markReadIfAny();
+    if (state == AppLifecycleState.paused) {
+      // 백그라운드: 소켓을 즉시 끊어 서버가 이 유저를 "보고 있음"으로
+      // 오판해 채팅 푸시를 스킵하는 일이 없도록 한다.
+      ref.read(chatRepositoryProvider).pauseSocket();
+    } else if (state == AppLifecycleState.resumed) {
+      ref.read(chatRepositoryProvider).resumeSocket();
+      // 끊겨 있던 동안 놓친 메시지 보충 + 읽음 처리(_loadHistory 말미에 수행).
+      _loadHistory();
     }
   }
 

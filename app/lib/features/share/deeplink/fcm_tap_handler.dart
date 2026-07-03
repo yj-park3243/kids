@@ -76,6 +76,7 @@ class FcmTapHandler {
     final type = (data['type'] ?? '').toString();
     final roomId = data['roomId']?.toString();
     final chatRoomId = data['chatRoomId']?.toString();
+    final photoId = data['photoId']?.toString();
 
     switch (type) {
       case 'JOIN_REQUEST':
@@ -90,7 +91,16 @@ class FcmTapHandler {
       case 'NEW_CHAT':
         return chatRoomId != null ? '/chat/$chatRoomId' : null;
       case 'REVIEW_REQUEST':
-        return roomId != null ? '/reviews/write?roomId=$roomId' : null;
+        // /reviews/write 는 멤버 목록(extra)이 필요해 직행하면 빈 화면이 된다.
+        // 방 상세로 보내면 '후기' 버튼이 멤버 목록과 함께 열어준다.
+        return roomId != null ? '/rooms/$roomId' : null;
+      case 'NEW_PHOTO':
+      case 'PHOTO_COMMENT':
+      case 'PHOTO_TAG':
+        if (roomId == null) return null;
+        return photoId != null
+            ? '/rooms/$roomId/photos/$photoId'
+            : '/rooms/$roomId/photos';
       case 'NOSHOW_WARNING':
       case 'REPORT_RESOLVED':
         return '/notifications';
