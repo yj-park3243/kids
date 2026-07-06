@@ -83,6 +83,23 @@
 					<string>com.googleusercontent.apps.1078367126693-gbngn7b8mjuu29rtdd279vhsrie7rkuh</string>
 				</array>
 			</dict>
+			<dict>
+				<key>CFBundleTypeRole</key>
+				<string>Editor</string>
+				<key>CFBundleURLName</key>
+				<string>kr.kids.app.kakao</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>kakao20bd69be9a7bda2de8aa17e5244a1aec</string>
+				</array>
+			</dict>
+		</array>
+		<key>LSApplicationQueriesSchemes</key>
+		<array>
+			<!-- 카카오 로그인 (카카오톡 앱 호출) -->
+			<string>kakaokompassauth</string>
+			<!-- 카카오톡 공유 -->
+			<string>kakaolink</string>
 		</array>
 		<key>UIStatusBarHidden</key>
 		<false/>

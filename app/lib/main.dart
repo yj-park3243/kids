@@ -12,7 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:kakao_flutter_sdk_common/kakao_flutter_sdk_common.dart';
+import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'core/constants/app_colors.dart';
 import 'core/constants/app_constants.dart';
 import 'core/constants/app_text_styles.dart';
@@ -57,10 +57,17 @@ void main() async {
 
       await initializeDateFormatting('ko');
 
-      // Noto Sans KR 폰트 미리 로드 — 첫 화면 레이아웃이 폰트
-      // 로딩으로 흔들리는(칩이 늦게 자리 잡는) 것을 방지.
+      // 폰트는 번들 에셋(google_fonts/)에서만 로드 — 런타임 다운로드를
+      // 금지해 오프라인/불안정 네트워크에서 로드 실패 에러가 나지 않도록.
+      GoogleFonts.config.allowRuntimeFetching = false;
+
+      // 실사용 폰트(Gowun Dodum·Do Hyeon) 미리 로드 — 첫 화면 레이아웃이
+      // 폰트 로딩으로 흔들리는(칩이 늦게 자리 잡는) 것을 방지.
       try {
-        await GoogleFonts.pendingFonts([GoogleFonts.notoSansKr()]);
+        await GoogleFonts.pendingFonts([
+          GoogleFonts.gowunDodum(),
+          GoogleFonts.doHyeon(),
+        ]);
       } catch (_) {}
 
       SystemChrome.setSystemUIOverlayStyle(
@@ -95,7 +102,7 @@ void main() async {
       // AdMob — 광고 SDK는 백그라운드로 초기화 (UI 부트를 막지 않도록).
       unawaited(MobileAds.instance.initialize());
 
-      // Kakao SDK — 공유 기능에 필요. TODO: 실제 네이티브 앱 키 주입.
+      // Kakao SDK — 카카오 로그인·공유에 사용.
       KakaoSdk.init(
         nativeAppKey: AppConstants.kakaoNativeAppKey,
       );

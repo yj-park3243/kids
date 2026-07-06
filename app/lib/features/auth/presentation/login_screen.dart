@@ -2,9 +2,11 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
@@ -69,6 +71,18 @@ class LoginScreen extends ConsumerWidget {
                   style: AppTextStyles.body1.copyWith(color: AppColors.ink500),
                 ),
                 const Spacer(flex: 3),
+                SocialLoginButton(
+                  text: '카카오로 시작하기',
+                  backgroundColor: AppColors.kakao,
+                  textColor: AppColors.kakaoText,
+                  iconWidget: const Icon(
+                    Icons.chat_bubble,
+                    size: 18,
+                    color: AppColors.kakaoText,
+                  ),
+                  onPressed: () => _signInWithKakao(context, ref),
+                ),
+                const SizedBox(height: 10),
                 // Apple 로그인은 iOS 에서만 노출(Apple 정책상 안드로이드엔 불필요).
                 if (Platform.isIOS) ...[
                   SocialLoginButton(
@@ -173,6 +187,39 @@ class LoginScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _signInWithKakao(BuildContext context, WidgetRef ref) async {
+    try {
+      OAuthToken token;
+      if (await isKakaoTalkInstalled()) {
+        try {
+          token = await UserApi.instance.loginWithKakaoTalk();
+        } on PlatformException catch (e) {
+          if (e.code == 'CANCELED') return; // 사용자 취소
+          // 카카오톡은 있지만 로그인 불가(미연동 계정 등) → 계정 로그인 폴백
+          token = await UserApi.instance.loginWithKakaoAccount();
+        }
+      } else {
+        token = await UserApi.instance.loginWithKakaoAccount();
+      }
+      if (!context.mounted) return;
+      await ref.read(authProvider.notifier).socialLogin(
+            provider: 'KAKAO',
+            accessToken: token.accessToken,
+          );
+    } on KakaoAuthException catch (e) {
+      if (e.error == AuthErrorCause.accessDenied) return; // 동의 화면 취소
+      if (!context.mounted) return;
+      _showError(context, '카카오 로그인에 실패했습니다.');
+    } on PlatformException catch (e) {
+      if (e.code == 'CANCELED') return;
+      if (!context.mounted) return;
+      _showError(context, '카카오 로그인 중 오류가 발생했습니다.');
+    } catch (_) {
+      if (!context.mounted) return;
+      _showError(context, '카카오 로그인 중 오류가 발생했습니다.');
+    }
   }
 
   Future<void> _signInWithApple(BuildContext context, WidgetRef ref) async {

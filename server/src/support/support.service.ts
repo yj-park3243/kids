@@ -30,6 +30,9 @@ const TELEGRAM_NOISE_PATTERNS: RegExp[] = [
   /Failed host lookup/i,
   /CERTIFICATE_VERIFY_FAILED/i,
   /User (canceled|cancelled)/i,
+  // google_fonts 런타임 다운로드 실패 — 유저 네트워크 문제이며 앱은 시스템
+  // 폰트로 폴백해 정상 동작. 1.0.8부터는 폰트를 번들해 발생 자체가 없어짐.
+  /Failed to load font/i,
 ];
 
 function isNoise(message: string): boolean {

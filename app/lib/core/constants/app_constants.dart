@@ -22,11 +22,11 @@ class AppConstants {
 
   static const String naverMapClientId = 'vwcyomo2zx';
 
-  // TODO: 카카오 디벨로퍼 콘솔에서 발급받은 네이티브 앱 키로 교체.
-  // dart-define 로 주입하는 것을 권장: --dart-define=KAKAO_NATIVE_APP_KEY=xxx
+  // 카카오 네이티브 앱 키 (같이크자, 앱 ID 1464783). 네이티브 설정
+  // (Info.plist·AndroidManifest 의 kakao{키} 스킴)과 반드시 일치해야 한다.
   static const String kakaoNativeAppKey = String.fromEnvironment(
     'KAKAO_NATIVE_APP_KEY',
-    defaultValue: 'TODO_KAKAO_NATIVE_APP_KEY',
+    defaultValue: '20bd69be9a7bda2de8aa17e5244a1aec',
   );
 
   // AdMob 네이티브 광고 단위 ID — 플랫폼별로 분리.

@@ -37,6 +37,17 @@
                 <data android:scheme="kids" android:host="kcp-cert"/>
             </intent-filter>
         </activity>
+        <!-- 카카오 로그인 OAuth 리다이렉트 (kakao{네이티브앱키}://oauth) -->
+        <activity
+            android:name="com.kakao.sdk.flutter.AuthCodeCustomTabsActivity"
+            android:exported="true">
+            <intent-filter android:label="flutter_web_auth">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="kakao20bd69be9a7bda2de8aa17e5244a1aec" android:host="oauth" />
+            </intent-filter>
+        </activity>
         <!-- Naver Map SDK -->
         <meta-data
             android:name="com.naver.maps.map.CLIENT_ID"
@@ -61,5 +72,7 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- 카카오톡 설치 여부 확인 (isKakaoTalkInstalled, Android 11+ 패키지 가시성) -->
+        <package android:name="com.kakao.talk" />
     </queries>
 </manifest>
