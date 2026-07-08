@@ -126,7 +126,10 @@ export class ChatService {
       .select('m.roomId', 'roomId')
       .addSelect('COUNT(*)', 'count')
       .where('m.roomId IN (:...roomIds)', { roomIds })
-      .andWhere('m.senderId <> :userId OR m.senderId IS NULL', { userId })
+      // 괄호 필수 — TypeORM andWhere 는 조건을 괄호로 감싸지 않아서,
+      // 괄호 없이 OR 를 쓰면 (roomId IN ... AND sender<>me) OR (sender IS NULL
+      // AND lastReadAt ...) 로 파싱돼 타인 메시지 전부가 영구 unread 가 된다.
+      .andWhere('(m.senderId <> :userId OR m.senderId IS NULL)', { userId })
       .andWhere(
         // 멤버가 있고 lastReadAt이 있으면 그 시점 이후만, 없으면 전체.
         `(

@@ -15,6 +15,7 @@ class RoomCard extends ConsumerWidget {
   final VoidCallback? onTap;
   final VoidCallback? onOpenDetail;
   final VoidCallback? onOpenChat;
+  final int unreadCount;
 
   const RoomCard({
     super.key,
@@ -22,6 +23,7 @@ class RoomCard extends ConsumerWidget {
     this.onTap,
     this.onOpenDetail,
     this.onOpenChat,
+    this.unreadCount = 0,
   });
 
   bool get _hasActions => onOpenDetail != null || onOpenChat != null;
@@ -296,6 +298,7 @@ class RoomCard extends ConsumerWidget {
                           _CardActions(
                             onOpenDetail: onOpenDetail,
                             onOpenChat: onOpenChat,
+                            unreadCount: unreadCount,
                           ),
                         ],
                       ],
@@ -550,8 +553,13 @@ class _TagChip extends StatelessWidget {
 class _CardActions extends StatelessWidget {
   final VoidCallback? onOpenDetail;
   final VoidCallback? onOpenChat;
+  final int unreadCount;
 
-  const _CardActions({this.onOpenDetail, this.onOpenChat});
+  const _CardActions({
+    this.onOpenDetail,
+    this.onOpenChat,
+    this.unreadCount = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -568,11 +576,16 @@ class _CardActions extends StatelessWidget {
         if (onOpenDetail != null && onOpenChat != null)
           const SizedBox(height: 8),
         if (onOpenChat != null)
-          _ActionIcon(
-            icon: Icons.chat_bubble_rounded,
-            tooltip: '채팅',
-            color: AppColors.secondary,
-            onTap: onOpenChat!,
+          Badge(
+            isLabelVisible: unreadCount > 0,
+            label: Text(unreadCount > 99 ? '99+' : '$unreadCount'),
+            backgroundColor: AppColors.error,
+            child: _ActionIcon(
+              icon: Icons.chat_bubble_rounded,
+              tooltip: '채팅',
+              color: AppColors.secondary,
+              onTap: onOpenChat!,
+            ),
           ),
       ],
     );

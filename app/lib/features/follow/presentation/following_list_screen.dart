@@ -24,9 +24,9 @@ class FollowingListScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: const CustomAppBar(title: '단골 부모'),
+      extendBodyBehindAppBar: true,
       body: AccentBlobsBackground(
         child: SafeArea(
-          top: false,
           child: _buildBody(context, ref, state),
         ),
       ),

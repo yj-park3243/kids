@@ -157,6 +157,13 @@ class _PhoneVerificationScreenState
 
       if (!mounted) return;
 
+      // 프로필 조회 실패(토큰 무효 등) 상태로 홈에 진입하면 모든 API가
+      // 실패해 빈 화면에 갇힌다 — 홈 강행 대신 에러를 보여준다.
+      if (ref.read(authProvider).status == AuthStatus.unauthenticated) {
+        _showError('로그인 상태를 확인하지 못했습니다.\n다시 시도해주세요.');
+        return;
+      }
+
       if (merged || nextRoute == 'home') {
         showTopToast(context, '기존 계정으로 로그인되었습니다.');
         context.go('/home');

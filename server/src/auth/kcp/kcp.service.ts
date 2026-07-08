@@ -8,11 +8,12 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
 import { RefreshToken } from '../entities/refresh-token.entity';
+import { SocialAccount } from '../entities/social-account.entity';
+import { TokenService } from '../token.service';
 import { encryptJson, decryptJson } from './kcp-crypto';
 import { KcpRawResult, KcpVerifyResult } from './kcp.types';
 
@@ -40,7 +41,9 @@ export class KcpService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(RefreshToken)
     private readonly refreshTokenRepository: Repository<RefreshToken>,
-    private readonly jwtService: JwtService,
+    @InjectRepository(SocialAccount)
+    private readonly socialAccountRepository: Repository<SocialAccount>,
+    private readonly tokenService: TokenService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -346,6 +349,14 @@ export class KcpService {
     }
 
     // ACTIVE → 기존 계정 로그인 처리 (단순 병합)
+    // 임시 유저의 소셜 연결(카카오 등)을 기존 유저로 먼저 이관한다.
+    // 이관 없이 delete 하면 social_account 가 CASCADE 로 같이 지워져
+    // 다음 소셜 로그인 때 또 임시 유저가 생기고 본인인증을 반복하게 된다.
+    await this.socialAccountRepository.update(
+      { userId: currentUser.id },
+      { userId: existingUser.id },
+    );
+
     // 신규 임시 유저(currentUser) 정리 후 기존 유저로 토큰 발급
     await this.refreshTokenRepository.delete({ userId: currentUser.id });
     await this.userRepository.delete({ id: currentUser.id });
@@ -379,57 +390,30 @@ export class KcpService {
   }
 
   // ─── 토큰 발급 ───
+  // TokenService 로 서명해야 iss/type claim 이 붙는다. 이전엔 JwtService 로
+  // 직접 서명해 iss 가 빠졌고, JwtStrategy(issuer 검증)가 전부 401 처리 →
+  // 인증 직후 홈 로드 실패 + 앱 재시작 시 세션 증발 버그의 원인이었다.
   private async issueTokens(
     user: User,
   ): Promise<{ accessToken: string; refreshToken: string }> {
-    const payload = {
+    const tokens = this.tokenService.issueTokenPair({
       sub: user.id,
       email: user.email,
       isAdmin: user.isAdmin,
-    };
-
-    const accessToken = this.jwtService.sign(payload, {
-      expiresIn: this.configService.get('JWT_ACCESS_EXPIRES', '1h'),
     });
 
-    const refreshExpiresIn = this.configService.get(
-      'JWT_REFRESH_EXPIRES',
-      '14d',
+    // auth.service.issueAndStoreTokens 와 동일: 1 user 1 active refresh.
+    await this.refreshTokenRepository.delete({ userId: user.id });
+    await this.refreshTokenRepository.upsert(
+      {
+        userId: user.id,
+        token: tokens.refreshToken,
+        expiresAt: this.tokenService.refreshExpiresAt(tokens.refreshToken),
+      },
+      { conflictPaths: ['token'] },
     );
-    const refreshToken = this.jwtService.sign(payload, {
-      expiresIn: refreshExpiresIn,
-    });
 
-    const expiresAt = new Date();
-    const m = String(refreshExpiresIn).match(/^(\d+)(d|h|m|s)$/);
-    if (m) {
-      const v = parseInt(m[1], 10);
-      switch (m[2]) {
-        case 'd':
-          expiresAt.setDate(expiresAt.getDate() + v);
-          break;
-        case 'h':
-          expiresAt.setHours(expiresAt.getHours() + v);
-          break;
-        case 'm':
-          expiresAt.setMinutes(expiresAt.getMinutes() + v);
-          break;
-        case 's':
-          expiresAt.setSeconds(expiresAt.getSeconds() + v);
-          break;
-      }
-    } else {
-      expiresAt.setDate(expiresAt.getDate() + 14);
-    }
-
-    const entity = this.refreshTokenRepository.create({
-      userId: user.id,
-      token: refreshToken,
-      expiresAt,
-    });
-    await this.refreshTokenRepository.save(entity);
-
-    return { accessToken, refreshToken };
+    return tokens;
   }
 
   // ─── 앱 리다이렉트 URL 빌드 ───

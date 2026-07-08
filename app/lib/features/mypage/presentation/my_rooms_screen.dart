@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../models/chat_message.dart';
 import '../../../models/room.dart';
 import '../../../widgets/design/accent_blobs.dart';
 import '../../../widgets/empty_state.dart';
 import '../../../widgets/loading.dart';
+import '../../chat/providers/chat_provider.dart';
 import '../../home/presentation/widgets/room_card.dart';
 import '../../room/providers/room_detail_provider.dart';
 
@@ -136,11 +138,22 @@ class _MyRoomsScreenState extends ConsumerState<MyRoomsScreen>
       );
     }
 
+    // 방별 안 읽은 메시지 수 — 하단 탭 배지 총합이 어느 방에서 온 건지
+    // 채팅 아이콘 배지로 보여준다.
+    final chatRooms = ref.watch(chatRoomsProvider).valueOrNull;
+    final unreadByChatRoom = <String, int>{
+      for (final c in chatRooms ?? const <ChatRoom>[]) c.id: c.unreadCount,
+    };
+
     return RefreshIndicator(
-      onRefresh: _loadRooms,
+      onRefresh: () async {
+        ref.invalidate(chatRoomsProvider);
+        await _loadRooms();
+      },
       color: AppColors.primary,
       child: ListView.builder(
-        padding: const EdgeInsets.only(bottom: 20),
+        // 모임 탭과 동일한 수평 여백 — 없으면 카드가 화면 폭 100%로 붙는다.
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
         itemCount: rooms.length,
         itemBuilder: (context, index) {
           final room = rooms[index];
@@ -151,6 +164,7 @@ class _MyRoomsScreenState extends ConsumerState<MyRoomsScreen>
             onOpenChat: room.chatRoomId != null
                 ? () => context.push('/chat/${room.chatRoomId}')
                 : null,
+            unreadCount: unreadByChatRoom[room.chatRoomId] ?? 0,
           );
         },
       ),

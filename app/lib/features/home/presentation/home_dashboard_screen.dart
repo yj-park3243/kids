@@ -62,11 +62,14 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
     final selectedChild = ref.watch(selectedChildProvider);
     final children = authState.user?.children ?? [];
     // 아이 칩이 선택돼 있지 않으면 첫째를 인사말 기준으로 쓴다.
-    final child = selectedChild ?? (children.isNotEmpty ? children.first : null);
+    final child =
+        selectedChild ?? (children.isNotEmpty ? children.first : null);
 
     // 방 상세에 들어가면 invalidate 되어 자동 재조회된다(새로고침 불필요).
-    final joined = ref.watch(joinedRoomsProvider).valueOrNull;
-    // 첫 로딩 중 — 풀스크린 시머.
+    final joinedAsync = ref.watch(joinedRoomsProvider);
+    final joined = joinedAsync.valueOrNull;
+    // 첫 로딩 중 — 풀스크린 시머. 로드 실패 시엔 재시도 UI —
+    // 시머를 계속 두면 탈출 수단 없는 빈 화면에 갇힌다.
     if (joined == null) {
       return Scaffold(
         backgroundColor: Colors.transparent,
@@ -76,7 +79,40 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
               children: [
                 _buildTopBar(homeState),
                 const PinnedNoticeBanner(),
-                const Expanded(child: ShimmerList()),
+                Expanded(
+                  child: joinedAsync.hasError
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.wifi_off_rounded,
+                                size: 48,
+                                color: AppColors.ink500,
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                '모임 정보를 불러오지 못했어요',
+                                style: AppTextStyles.body1.copyWith(
+                                  color: AppColors.ink500,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              TextButton(
+                                onPressed: () =>
+                                    ref.invalidate(joinedRoomsProvider),
+                                child: Text(
+                                  '다시 시도',
+                                  style: AppTextStyles.buttonSmall.copyWith(
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : const ShimmerList(),
+                ),
               ],
             ),
           ),
@@ -97,7 +133,12 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
                   onRefresh: _refresh,
                   color: AppColors.primary,
                   child: joined.isEmpty
-                      ? _EmptyDashboard(child: child)
+                      ? _EmptyDashboard(
+                          child: child,
+                          hasPastRooms:
+                              ref.watch(hasPastRoomsProvider).valueOrNull ??
+                              false,
+                        )
                       : _FullDashboard(
                           child: child,
                           joinedRooms: joined,
@@ -244,8 +285,7 @@ class _GreetingHeader extends StatelessWidget {
     final n = stats.totalRooms;
     // 받침 있는 이름엔 '이'를 붙여 호격을 자연스럽게: '민준이의' / '하율의'.
     final possessive = _hasJongseong(name) ? '$name이의' : '$name의';
-    final greeting =
-        n == 0 ? '첫 모임이 곧 시작돼요' : '$possessive $n번째 모임이에요';
+    final greeting = n == 0 ? '첫 모임이 곧 시작돼요' : '$possessive $n번째 모임이에요';
     return GlassCard(
       radius: 22,
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
@@ -277,8 +317,9 @@ class _NextAppointmentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dDay = _dDayLabel(room.date);
-    final place =
-        (room.placeName?.isNotEmpty ?? false) ? room.placeName! : '장소 미정';
+    final place = (room.placeName?.isNotEmpty ?? false)
+        ? room.placeName!
+        : '장소 미정';
     return GestureDetector(
       onTap: () => context.push('/rooms/${room.id}'),
       child: Container(
@@ -288,10 +329,7 @@ class _NextAppointmentCard extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              AppColors.primary,
-              AppColors.accentLavender,
-            ],
+            colors: [AppColors.primary, AppColors.accentLavender],
           ),
           boxShadow: [
             BoxShadow(
@@ -308,15 +346,18 @@ class _NextAppointmentCard extends StatelessWidget {
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.25),
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
                     dDay,
-                    style: AppTextStyles.captionBold
-                        .copyWith(color: Colors.white),
+                    style: AppTextStyles.captionBold.copyWith(
+                      color: Colors.white,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -341,27 +382,31 @@ class _NextAppointmentCard extends StatelessWidget {
             const SizedBox(height: 6),
             Row(
               children: [
-                const Icon(Icons.access_time_rounded,
-                    size: 14, color: Colors.white),
+                const Icon(
+                  Icons.access_time_rounded,
+                  size: 14,
+                  color: Colors.white,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   '${_formatDate(room.date)} · ${_formatTime(room.startTime)}',
-                  style: AppTextStyles.body2
-                      .copyWith(color: Colors.white.withValues(alpha: 0.95)),
+                  style: AppTextStyles.body2.copyWith(
+                    color: Colors.white.withValues(alpha: 0.95),
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 2),
             Row(
               children: [
-                const Icon(Icons.place_rounded,
-                    size: 14, color: Colors.white),
+                const Icon(Icons.place_rounded, size: 14, color: Colors.white),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
                     place,
                     style: AppTextStyles.body2.copyWith(
-                        color: Colors.white.withValues(alpha: 0.95)),
+                      color: Colors.white.withValues(alpha: 0.95),
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -377,8 +422,11 @@ class _NextAppointmentCard extends StatelessWidget {
   static String _dDayLabel(String date) {
     final parts = date.split('-');
     if (parts.length != 3) return '';
-    final d =
-        DateTime(int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
+    final d = DateTime(
+      int.parse(parts[0]),
+      int.parse(parts[1]),
+      int.parse(parts[2]),
+    );
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final diff = d.difference(today).inDays;
@@ -418,25 +466,31 @@ class _StatsRow extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-            child: _StatTile(
-                emoji: '🧸',
-                value: '${stats.totalRooms}',
-                label: '함께한 모임',
-                tone: AppColors.primary100)),
+          child: _StatTile(
+            emoji: '🧸',
+            value: '${stats.totalRooms}',
+            label: '함께한 모임',
+            tone: AppColors.primary100,
+          ),
+        ),
         const SizedBox(width: 10),
         Expanded(
-            child: _StatTile(
-                emoji: '🤝',
-                value: '${stats.uniqueFriends}',
-                label: '만난 친구',
-                tone: AppColors.accentLavender.withValues(alpha: 0.3))),
+          child: _StatTile(
+            emoji: '🤝',
+            value: '${stats.uniqueFriends}',
+            label: '만난 친구',
+            tone: AppColors.accentLavender.withValues(alpha: 0.3),
+          ),
+        ),
         const SizedBox(width: 10),
         Expanded(
-            child: _StatTile(
-                emoji: '📍',
-                value: '${stats.uniquePlaces}',
-                label: '다녀온 곳',
-                tone: AppColors.primary100)),
+          child: _StatTile(
+            emoji: '📍',
+            value: '${stats.uniquePlaces}',
+            label: '다녀온 곳',
+            tone: AppColors.primary100,
+          ),
+        ),
       ],
     );
   }
@@ -470,9 +524,10 @@ class _StatTile extends StatelessWidget {
           const SizedBox(height: 6),
           Text(value, style: AppTextStyles.heading2.copyWith(fontSize: 18)),
           const SizedBox(height: 2),
-          Text(label,
-              style:
-                  AppTextStyles.caption.copyWith(color: AppColors.ink500)),
+          Text(
+            label,
+            style: AppTextStyles.caption.copyWith(color: AppColors.ink500),
+          ),
         ],
       ),
     );
@@ -508,8 +563,10 @@ class _RecentPhotosRow extends StatelessWidget {
                   width: 96,
                   height: 96,
                   color: AppColors.surfaceVariant,
-                  child: const Icon(Icons.broken_image_outlined,
-                      color: AppColors.textHint),
+                  child: const Icon(
+                    Icons.broken_image_outlined,
+                    color: AppColors.textHint,
+                  ),
                 ),
               ),
             ),
@@ -561,8 +618,9 @@ class _FriendsRow extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     '같이 ${f.jointCount}번',
-                    style: AppTextStyles.caption
-                        .copyWith(color: AppColors.primary700),
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.primary700,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -587,7 +645,8 @@ class _MonthlyCalendar extends StatelessWidget {
     final now = DateTime.now();
     final firstDay = DateTime(now.year, now.month, 1);
     final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
-    final leadingBlanks = firstDay.weekday % 7; // 일요일 시작 — DateTime.weekday 는 월=1, 일=7
+    final leadingBlanks =
+        firstDay.weekday % 7; // 일요일 시작 — DateTime.weekday 는 월=1, 일=7
     final cellCount = leadingBlanks + daysInMonth;
     final rows = (cellCount / 7).ceil();
 
@@ -601,23 +660,24 @@ class _MonthlyCalendar extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('${now.year}년 ${now.month}월',
-              style: AppTextStyles.body2Bold),
+          Text('${now.year}년 ${now.month}월', style: AppTextStyles.body2Bold),
           const SizedBox(height: 10),
           Row(
             children: const ['일', '월', '화', '수', '목', '금', '토']
-                .map((d) => Expanded(
-                      child: Center(
-                        child: Text(
-                          d,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: AppColors.ink500,
-                            fontWeight: FontWeight.w600,
-                          ),
+                .map(
+                  (d) => Expanded(
+                    child: Center(
+                      child: Text(
+                        d,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.ink500,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                    ))
+                    ),
+                  ),
+                )
                 .toList(),
           ),
           const SizedBox(height: 6),
@@ -643,21 +703,22 @@ class _MonthlyCalendar extends StatelessWidget {
                           color: isActive
                               ? AppColors.primary
                               : (isToday
-                                  ? AppColors.primary100
-                                  : Colors.transparent),
+                                    ? AppColors.primary100
+                                    : Colors.transparent),
                         ),
                         alignment: Alignment.center,
                         child: Text(
                           '$dayNum',
                           style: TextStyle(
                             fontSize: 12,
-                            fontWeight:
-                                isActive ? FontWeight.w700 : FontWeight.w500,
+                            fontWeight: isActive
+                                ? FontWeight.w700
+                                : FontWeight.w500,
                             color: isActive
                                 ? Colors.white
                                 : (isToday
-                                    ? AppColors.primary700
-                                    : AppColors.ink700),
+                                      ? AppColors.primary700
+                                      : AppColors.ink700),
                           ),
                         ),
                       ),
@@ -692,27 +753,32 @@ class _MilestoneStrip extends StatelessWidget {
           spacing: 8,
           runSpacing: 8,
           children: badges
-              .map((b) => Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.85),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                          color: AppColors.primary200, width: 0.8),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(b.emoji,
-                            style: const TextStyle(fontSize: 18)),
-                        const SizedBox(width: 6),
-                        Text(b.label,
-                            style: AppTextStyles.body2Bold.copyWith(
-                                color: AppColors.primary700)),
-                      ],
-                    ),
-                  ))
+              .map(
+                (b) => Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.85),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.primary200, width: 0.8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(b.emoji, style: const TextStyle(fontSize: 18)),
+                      const SizedBox(width: 6),
+                      Text(
+                        b.label,
+                        style: AppTextStyles.body2Bold.copyWith(
+                          color: AppColors.primary700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
               .toList(),
         ),
       ],
@@ -745,73 +811,92 @@ class _Badge {
 
 class _EmptyDashboard extends StatelessWidget {
   final Child? child;
+  // 지난 모임이 있는 유저에게 "첫 모임을 찾아볼까요?"(신규 가입자 문구)를
+  // 보여주지 않기 위한 분기.
+  final bool hasPastRooms;
 
-  const _EmptyDashboard({required this.child});
+  const _EmptyDashboard({required this.child, this.hasPastRooms = false});
 
   @override
   Widget build(BuildContext context) {
     final name = child?.nickname;
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 110),
-      children: [
-        const SizedBox(height: 8),
-        // 큰 일러스트 (이모지) — 시각적 무게중심.
-        Center(
-          child: Container(
-            width: 132,
-            height: 132,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  AppColors.primary100,
-                  AppColors.accentLavender.withValues(alpha: 0.35),
-                ],
+    // 콘텐츠를 (하단 탭 제외 영역의) 세로 중앙에 — RefreshIndicator 가
+    // 동작하도록 스크롤러블은 유지한다.
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 110),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight - 118),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // 큰 일러스트 (이모지) — 시각적 무게중심.
+              Center(
+                child: Container(
+                  width: 132,
+                  height: 132,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        AppColors.primary100,
+                        AppColors.accentLavender.withValues(alpha: 0.35),
+                      ],
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Text('🧸', style: TextStyle(fontSize: 72)),
+                ),
               ),
-            ),
-            alignment: Alignment.center,
-            child: const Text('🧸', style: TextStyle(fontSize: 72)),
-          ),
-        ),
-        const SizedBox(height: 20),
-        Text(
-          name != null
-              ? '$name 부모님,\n첫 모임을 찾아볼까요?'
-              : '첫 모임을 찾아볼까요?',
-          textAlign: TextAlign.center,
-          style: AppTextStyles.heading2.copyWith(height: 1.35),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          '같은 동네, 비슷한 또래의 부모님들과\n공동육아를 시작해보세요',
-          textAlign: TextAlign.center,
-          style: AppTextStyles.body2.copyWith(color: AppColors.ink500),
-        ),
-        const SizedBox(height: 20),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: PrimaryButton(
-            text: '주변 모임 둘러보기',
-            onPressed: () => context.go('/rooms'),
-          ),
-        ),
-        const SizedBox(height: 10),
-        Center(
-          child: TextButton(
-            onPressed: () => context.push('/rooms/create'),
-            child: Text(
-              '직접 모임 만들기',
-              style: AppTextStyles.body2.copyWith(
-                color: AppColors.primary700,
-                fontWeight: FontWeight.w700,
+              const SizedBox(height: 20),
+              Text(
+                hasPastRooms
+                    ? (name != null
+                          ? '$name 부모님,\n다음 모임을 찾아볼까요?'
+                          : '다음 모임을 찾아볼까요?')
+                    : (name != null
+                          ? '$name 부모님,\n첫 모임을 찾아볼까요?'
+                          : '첫 모임을 찾아볼까요?'),
+                textAlign: TextAlign.center,
+                style: AppTextStyles.heading2.copyWith(height: 1.35),
               ),
-            ),
+              const SizedBox(height: 8),
+              Text(
+                hasPastRooms
+                    ? '예정된 모임이 없어요.\n새로운 모임에 참여해보세요'
+                    : '같은 동네, 비슷한 또래의 부모님들과\n공동육아를 시작해보세요',
+                textAlign: TextAlign.center,
+                style: AppTextStyles.body2.copyWith(color: AppColors.ink500),
+              ),
+              const SizedBox(height: 20),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: PrimaryButton(
+                  text: '주변 모임 둘러보기',
+                  onPressed: () => context.go('/rooms'),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Center(
+                child: TextButton(
+                  onPressed: () => context.push('/rooms/create'),
+                  child: Text(
+                    '직접 모임 만들기',
+                    style: AppTextStyles.body2.copyWith(
+                      color: AppColors.primary700,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 }
@@ -826,9 +911,6 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      title,
-      style: AppTextStyles.sectionHead.copyWith(fontSize: 16),
-    );
+    return Text(title, style: AppTextStyles.sectionHead.copyWith(fontSize: 16));
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../models/user.dart';
 import '../../../providers/selected_child_provider.dart';
+import '../../home/providers/dashboard_provider.dart';
 import '../../home/providers/home_provider.dart';
 import '../data/auth_repository.dart';
 
@@ -55,6 +56,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
   void _clearUserScopedState() {
     _ref.invalidate(selectedChildProvider);
     _ref.invalidate(homeProvider);
+    // 홈 대시보드 데이터도 유저 스코프 — 안 지우면 재로그인 후
+    // 이전 세션의 목록/에러 상태를 그대로 물고 홈이 렌더된다.
+    _ref.invalidate(joinedRoomsProvider);
+    _ref.invalidate(dashboardProvider);
+    _ref.invalidate(hasPastRoomsProvider);
   }
 
   Future<void> checkAuth() async {

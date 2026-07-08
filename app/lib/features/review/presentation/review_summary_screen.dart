@@ -24,9 +24,9 @@ class ReviewSummaryScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: const CustomAppBar(title: '받은 후기'),
+      extendBodyBehindAppBar: true,
       body: AccentBlobsBackground(
         child: SafeArea(
-          top: false,
           child: aggregateAsync.when(
             loading: () => const AppLoadingIndicator(),
             error: (e, _) => ErrorState(

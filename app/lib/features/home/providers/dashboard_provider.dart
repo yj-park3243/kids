@@ -62,3 +62,13 @@ final joinedRoomsProvider = FutureProvider<List<Room>>((ref) async {
         status: 'UPCOMING',
       );
 });
+
+// 지난 모임 참여 이력 유무 — 예정 모임이 없을 때 홈 빈 화면이
+// "첫 모임" 문구(신규 가입자용)를 쓸지 판단하는 용도.
+final hasPastRoomsProvider = FutureProvider<bool>((ref) async {
+  final rooms = await ref.watch(roomRepositoryProvider).getMyRooms(
+        type: 'ALL',
+        status: 'PAST',
+      );
+  return rooms.isNotEmpty;
+});

@@ -268,9 +268,22 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen>
       },
     );
 
+    // 채팅 목록 캐시에서 방 이름을 찾아 앱바 제목으로. 푸시 딥링크로
+    // 바로 진입해 목록이 아직 없으면 '채팅' 폴백.
+    final chatRooms = ref.watch(chatRoomsProvider).valueOrNull;
+    var appBarTitle = '채팅';
+    if (chatRooms != null) {
+      for (final r in chatRooms) {
+        if (r.id == widget.chatRoomId) {
+          appBarTitle = r.roomTitle ?? appBarTitle;
+          break;
+        }
+      }
+    }
+
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: const CustomAppBar(title: ''),
+      appBar: CustomAppBar(title: appBarTitle),
       extendBodyBehindAppBar: true,
       body: AccentBlobsBackground(
         child: SafeArea(

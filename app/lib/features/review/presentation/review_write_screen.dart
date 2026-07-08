@@ -50,9 +50,9 @@ class ReviewWriteScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: const CustomAppBar(title: '모임 후기'),
+      extendBodyBehindAppBar: true,
       body: AccentBlobsBackground(
         child: SafeArea(
-          top: false,
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
             child: Column(
