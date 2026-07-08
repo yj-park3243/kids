@@ -49,6 +49,8 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
 
   Future<void> _refresh() async {
     ref.invalidate(joinedRoomsProvider);
+    // 빈 상태 문구 분기용 — 한 번 실패한 값이 keepAlive 로 굳지 않게 같이 갱신.
+    ref.invalidate(hasPastRoomsProvider);
     await Future.wait([
       ref.read(dashboardProvider.notifier).load(silent: true),
       ref.read(joinedRoomsProvider.future),
@@ -68,9 +70,14 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
     // 방 상세에 들어가면 invalidate 되어 자동 재조회된다(새로고침 불필요).
     final joinedAsync = ref.watch(joinedRoomsProvider);
     final joined = joinedAsync.valueOrNull;
+    // 예정 모임이 없으면 지난 이력까지 봐야 빈 화면/기록 화면을 결정할 수
+    // 있다 — 이력 확인이 끝나기 전엔 시머를 유지해 문구 깜빡임을 막는다.
+    final hasPastAsync = (joined != null && joined.isEmpty)
+        ? ref.watch(hasPastRoomsProvider)
+        : null;
     // 첫 로딩 중 — 풀스크린 시머. 로드 실패 시엔 재시도 UI —
     // 시머를 계속 두면 탈출 수단 없는 빈 화면에 갇힌다.
-    if (joined == null) {
+    if (joined == null || (hasPastAsync?.isLoading ?? false)) {
       return Scaffold(
         backgroundColor: Colors.transparent,
         body: AccentBlobsBackground(
@@ -132,13 +139,10 @@ class _HomeDashboardScreenState extends ConsumerState<HomeDashboardScreen> {
                 child: RefreshIndicator(
                   onRefresh: _refresh,
                   color: AppColors.primary,
-                  child: joined.isEmpty
-                      ? _EmptyDashboard(
-                          child: child,
-                          hasPastRooms:
-                              ref.watch(hasPastRoomsProvider).valueOrNull ??
-                              false,
-                        )
+                  // 지난 모임 이력이 있으면 예정 모임이 없어도 기록
+                  // 대시보드를 보여준다 — 신규 가입자 취급 금지.
+                  child: joined.isEmpty && !(hasPastAsync?.valueOrNull ?? false)
+                      ? _EmptyDashboard(child: child)
                       : _FullDashboard(
                           child: child,
                           joinedRooms: joined,
@@ -223,6 +227,10 @@ class _FullDashboard extends StatelessWidget {
         if (upcoming != null) ...[
           _NextAppointmentCard(room: upcoming),
           const SizedBox(height: 18),
+        ] else ...[
+          // 지난 이력만 있고 예정 모임이 없는 경우 — 다음 모임 유도.
+          _NoUpcomingCard(),
+          const SizedBox(height: 18),
         ],
         _StatsRow(stats: summary.stats),
         const SizedBox(height: 22),
@@ -300,6 +308,42 @@ class _GreetingHeader extends StatelessWidget {
             child: Text(
               greeting,
               style: AppTextStyles.cardTitle.copyWith(fontSize: 16),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── 예정 모임 없음 카드 — 지난 이력만 있는 유저에게 다음 모임 유도 ──
+class _NoUpcomingCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      radius: 22,
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+      child: Row(
+        children: [
+          const Text('📅', style: TextStyle(fontSize: 28)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('예정된 모임이 없어요', style: AppTextStyles.cardTitle),
+                const SizedBox(height: 2),
+                Text('다음 모임을 찾아볼까요?', style: AppTextStyles.caption),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: () => context.go('/rooms'),
+            child: Text(
+              '둘러보기',
+              style: AppTextStyles.buttonSmall.copyWith(
+                color: AppColors.primary,
+              ),
             ),
           ),
         ],
@@ -811,11 +855,8 @@ class _Badge {
 
 class _EmptyDashboard extends StatelessWidget {
   final Child? child;
-  // 지난 모임이 있는 유저에게 "첫 모임을 찾아볼까요?"(신규 가입자 문구)를
-  // 보여주지 않기 위한 분기.
-  final bool hasPastRooms;
 
-  const _EmptyDashboard({required this.child, this.hasPastRooms = false});
+  const _EmptyDashboard({required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -854,21 +895,13 @@ class _EmptyDashboard extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               Text(
-                hasPastRooms
-                    ? (name != null
-                          ? '$name 부모님,\n다음 모임을 찾아볼까요?'
-                          : '다음 모임을 찾아볼까요?')
-                    : (name != null
-                          ? '$name 부모님,\n첫 모임을 찾아볼까요?'
-                          : '첫 모임을 찾아볼까요?'),
+                name != null ? '$name 부모님,\n첫 모임을 찾아볼까요?' : '첫 모임을 찾아볼까요?',
                 textAlign: TextAlign.center,
                 style: AppTextStyles.heading2.copyWith(height: 1.35),
               ),
               const SizedBox(height: 8),
               Text(
-                hasPastRooms
-                    ? '예정된 모임이 없어요.\n새로운 모임에 참여해보세요'
-                    : '같은 동네, 비슷한 또래의 부모님들과\n공동육아를 시작해보세요',
+                '같은 동네, 비슷한 또래의 부모님들과\n공동육아를 시작해보세요',
                 textAlign: TextAlign.center,
                 style: AppTextStyles.body2.copyWith(color: AppColors.ink500),
               ),
