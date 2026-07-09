@@ -15,14 +15,20 @@ export class DashboardService {
   ) {}
 
   async getMyDashboard(userId: string) {
-    const [stats, frequentFriends, recentPhotos, monthlyDates] =
+    const [stats, frequentFriends, recentPhotos, dateRows] =
       await Promise.all([
         this.getStats(userId),
         this.getFrequentFriends(userId),
         this.getRecentPhotos(userId),
-        this.getMonthlyDates(userId),
+        this.getActiveDates(userId),
       ]);
-    return { stats, frequentFriends, recentPhotos, monthlyDates };
+    // activeDates: 전체 기간(예정 포함) — 달력 월 이동용.
+    // monthlyDates: 이번 달만 — 구버전 앱 호환용으로 유지.
+    const activeDates = dateRows.map((r) => r.date);
+    const monthlyDates = dateRows
+      .filter((r) => r.this_month)
+      .map((r) => r.date);
+    return { stats, frequentFriends, recentPhotos, monthlyDates, activeDates };
   }
 
   private async getStats(userId: string) {
@@ -126,21 +132,24 @@ export class DashboardService {
   }
 
   /// 이번 달(현재 월) 내가 참여한 모임 날짜들 — 캘린더에 점 표시.
+  /// 참여 모임 날짜 전체(취소 제외, 예정 포함) + 이번 달 여부.
   /// PG 는 SELECT DISTINCT 일 때 ORDER BY 가 select list 의 표현식이어야 한다.
   /// 그래서 alias `date` 로 정렬한다.
-  private async getMonthlyDates(userId: string) {
-    const rows = await this.roomRepository.query(
+  private async getActiveDates(
+    userId: string,
+  ): Promise<{ date: string; this_month: boolean }[]> {
+    return await this.roomRepository.query(
       `
-      SELECT DISTINCT r.date::text AS date
+      SELECT DISTINCT r.date::text AS date,
+        (date_trunc('month', r.date) = date_trunc('month', CURRENT_DATE))
+          AS this_month
       FROM room_member rm
       JOIN room r ON r.id = rm.room_id
       WHERE rm.user_id = $1
         AND r.status <> 'CANCELLED'
-        AND date_trunc('month', r.date) = date_trunc('month', CURRENT_DATE)
       ORDER BY date
       `,
       [userId],
     );
-    return rows.map((r: { date: string }) => r.date);
   }
 }

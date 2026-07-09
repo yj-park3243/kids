@@ -195,6 +195,24 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     _loadMapDataForCurrentRegion();
   }
 
+  // 내 위치로 카메라 이동 + 파란 점 오버레이.
+  // zoom 14 는 핀 모드(개월수·인원이 보이는 커스텀 마커).
+  Future<void> _moveToMyLocation() async {
+    final controller = _controller;
+    if (controller == null) return;
+    final pos = await LocationService.instance.getCurrentPosition();
+    if (pos == null || !mounted) return;
+    final overlay = controller.getLocationOverlay();
+    overlay.setPosition(NLatLng(pos.latitude, pos.longitude));
+    overlay.setIsVisible(true);
+    await controller.updateCamera(
+      NCameraUpdate.withParams(
+        target: NLatLng(pos.latitude, pos.longitude),
+        zoom: 14,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // 최초 1회 — 선택된 아이 개월수를 연령 필터 기본값으로.
@@ -226,7 +244,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 zoom: 12,
               ),
               mapType: NMapType.basic,
-              locationButtonEnable: true,
+              // 기본(좌하단) 위치 버튼 대신 우상단 커스텀 버튼을 쓴다.
+              locationButtonEnable: false,
               // 회전 금지 + 줌아웃·이동을 한국 범위로 제한.
               rotationGesturesEnable: false,
               minZoom: 6,
@@ -238,21 +257,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             onMapReady: (controller) async {
               _controller = controller;
               // 내 위치로 카메라 이동 — 주변 모임이 화면에 들어오도록.
-              // zoom 14 는 핀 모드(개월수·인원이 보이는 커스텀 마커).
-              final pos =
-                  await LocationService.instance.getCurrentPosition();
-              if (pos != null && mounted) {
-                // 내 위치 오버레이(파란 점) 표시.
-                final overlay = controller.getLocationOverlay();
-                overlay.setPosition(NLatLng(pos.latitude, pos.longitude));
-                overlay.setIsVisible(true);
-                await controller.updateCamera(
-                  NCameraUpdate.withParams(
-                    target: NLatLng(pos.latitude, pos.longitude),
-                    zoom: 14,
-                  ),
-                );
-              }
+              await _moveToMyLocation();
               await _loadMapDataForCurrentRegion();
             },
             // 클러스터/핀 경계(줌 11↔12)를 넘을 때만 자동 재조회 — 확대하면 클러스터가 풀린다.
@@ -363,6 +368,31 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                   ),
                 ),
               ],
+            ),
+          ),
+
+          // 내 위치로 이동 — 우상단(새로고침 아래), 네이버 기본 버튼 대체.
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 104,
+            right: 16,
+            child: Material(
+              color: AppColors.surface,
+              shape: const CircleBorder(),
+              elevation: 1.5,
+              shadowColor: Colors.black.withValues(alpha: 0.2),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: _moveToMyLocation,
+                child: const SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: Icon(
+                    Icons.my_location_rounded,
+                    size: 18,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
             ),
           ),
 

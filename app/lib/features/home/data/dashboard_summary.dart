@@ -4,28 +4,31 @@ class DashboardSummary {
   final DashboardStats stats;
   final List<FrequentFriend> frequentFriends;
   final List<RecentPhoto> recentPhotos;
-  final List<String> monthlyDates; // 'YYYY-MM-DD' 문자열, 이번 달 내가 참여한 모임 날짜
+  final List<String> activeDates; // 'YYYY-MM-DD', 전체 기간 참여 날짜(예정 포함)
 
   const DashboardSummary({
     required this.stats,
     required this.frequentFriends,
     required this.recentPhotos,
-    required this.monthlyDates,
+    required this.activeDates,
   });
 
   factory DashboardSummary.fromJson(Map<String, dynamic> json) {
     return DashboardSummary(
       stats: DashboardStats.fromJson(
-          (json['stats'] as Map?)?.cast<String, dynamic>() ?? const {}),
+        (json['stats'] as Map?)?.cast<String, dynamic>() ?? const {},
+      ),
       frequentFriends: (json['frequentFriends'] as List? ?? const [])
           .map((e) => FrequentFriend.fromJson(e as Map<String, dynamic>))
           .toList(),
       recentPhotos: (json['recentPhotos'] as List? ?? const [])
           .map((e) => RecentPhoto.fromJson(e as Map<String, dynamic>))
           .toList(),
-      monthlyDates: (json['monthlyDates'] as List? ?? const [])
-          .map((e) => e.toString())
-          .toList(),
+      // 구서버엔 activeDates 가 없으므로 monthlyDates(이번 달만)로 폴백.
+      activeDates:
+          ((json['activeDates'] ?? json['monthlyDates']) as List? ?? const [])
+              .map((e) => e.toString())
+              .toList(),
     );
   }
 
@@ -33,7 +36,7 @@ class DashboardSummary {
     stats: DashboardStats(totalRooms: 0, uniqueFriends: 0, uniquePlaces: 0),
     frequentFriends: [],
     recentPhotos: [],
-    monthlyDates: [],
+    activeDates: [],
   );
 }
 
@@ -49,10 +52,10 @@ class DashboardStats {
   });
 
   factory DashboardStats.fromJson(Map<String, dynamic> json) => DashboardStats(
-        totalRooms: (json['totalRooms'] as num?)?.toInt() ?? 0,
-        uniqueFriends: (json['uniqueFriends'] as num?)?.toInt() ?? 0,
-        uniquePlaces: (json['uniquePlaces'] as num?)?.toInt() ?? 0,
-      );
+    totalRooms: (json['totalRooms'] as num?)?.toInt() ?? 0,
+    uniqueFriends: (json['uniqueFriends'] as num?)?.toInt() ?? 0,
+    uniquePlaces: (json['uniquePlaces'] as num?)?.toInt() ?? 0,
+  );
 }
 
 class FrequentFriend {
@@ -71,12 +74,12 @@ class FrequentFriend {
   });
 
   factory FrequentFriend.fromJson(Map<String, dynamic> json) => FrequentFriend(
-        userId: json['userId'] as String? ?? '',
-        nickname: json['nickname'] as String? ?? '',
-        profileImageUrl: json['profileImageUrl'] as String?,
-        childPhotoUrl: json['childPhotoUrl'] as String?,
-        jointCount: (json['jointCount'] as num?)?.toInt() ?? 0,
-      );
+    userId: json['userId'] as String? ?? '',
+    nickname: json['nickname'] as String? ?? '',
+    profileImageUrl: json['profileImageUrl'] as String?,
+    childPhotoUrl: json['childPhotoUrl'] as String?,
+    jointCount: (json['jointCount'] as num?)?.toInt() ?? 0,
+  );
 }
 
 class RecentPhoto {
@@ -93,9 +96,9 @@ class RecentPhoto {
   });
 
   factory RecentPhoto.fromJson(Map<String, dynamic> json) => RecentPhoto(
-        id: json['id'] as String? ?? '',
-        url: json['url'] as String? ?? '',
-        roomId: json['roomId'] as String? ?? '',
-        createdAt: json['createdAt']?.toString(),
-      );
+    id: json['id'] as String? ?? '',
+    url: json['url'] as String? ?? '',
+    roomId: json['roomId'] as String? ?? '',
+    createdAt: json['createdAt']?.toString(),
+  );
 }

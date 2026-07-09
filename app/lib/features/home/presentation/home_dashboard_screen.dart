@@ -246,9 +246,9 @@ class _FullDashboard extends StatelessWidget {
           _FriendsRow(friends: summary.frequentFriends),
           const SizedBox(height: 22),
         ],
-        _SectionTitle(title: '이번 달 활동'),
+        _SectionTitle(title: '활동 달력'),
         const SizedBox(height: 10),
-        _MonthlyCalendar(activeDates: summary.monthlyDates),
+        _MonthlyCalendar(activeDates: summary.activeDates),
         const SizedBox(height: 22),
         _MilestoneStrip(stats: summary.stats),
       ],
@@ -679,33 +679,101 @@ class _FriendsRow extends StatelessWidget {
 }
 
 // ── 이번 달 캘린더 — 모임 있는 날에 점 ──
-class _MonthlyCalendar extends StatelessWidget {
+class _MonthlyCalendar extends StatefulWidget {
   final List<String> activeDates;
 
   const _MonthlyCalendar({required this.activeDates});
 
   @override
+  State<_MonthlyCalendar> createState() => _MonthlyCalendarState();
+}
+
+class _MonthlyCalendarState extends State<_MonthlyCalendar> {
+  late DateTime _month; // 표시 중인 달 (1일 고정)
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _month = DateTime(now.year, now.month, 1);
+  }
+
+  static DateTime _monthOf(String date) => DateTime(
+    int.parse(date.substring(0, 4)),
+    int.parse(date.substring(5, 7)),
+    1,
+  );
+
+  // 이동 범위: 첫 활동 달 ~ 마지막 활동 달(예정 포함), 이번 달은 항상 포함.
+  DateTime get _minMonth {
+    final now = DateTime.now();
+    final thisMonth = DateTime(now.year, now.month, 1);
+    if (widget.activeDates.isEmpty) return thisMonth;
+    final first = _monthOf(widget.activeDates.first);
+    return first.isBefore(thisMonth) ? first : thisMonth;
+  }
+
+  DateTime get _maxMonth {
+    final now = DateTime.now();
+    final thisMonth = DateTime(now.year, now.month, 1);
+    if (widget.activeDates.isEmpty) return thisMonth;
+    final last = _monthOf(widget.activeDates.last);
+    return last.isAfter(thisMonth) ? last : thisMonth;
+  }
+
+  void _shiftMonth(int delta) {
+    setState(() => _month = DateTime(_month.year, _month.month + delta, 1));
+  }
+
+  @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final firstDay = DateTime(now.year, now.month, 1);
-    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+    final isCurrentMonth = _month.year == now.year && _month.month == now.month;
+    final daysInMonth = DateTime(_month.year, _month.month + 1, 0).day;
     final leadingBlanks =
-        firstDay.weekday % 7; // 일요일 시작 — DateTime.weekday 는 월=1, 일=7
+        _month.weekday % 7; // 일요일 시작 — DateTime.weekday 는 월=1, 일=7
     final cellCount = leadingBlanks + daysInMonth;
     final rows = (cellCount / 7).ceil();
 
-    final activeSet = activeDates.toSet();
+    final activeSet = widget.activeDates.toSet();
     String key(int d) =>
-        '${now.year}-${now.month.toString().padLeft(2, '0')}-${d.toString().padLeft(2, '0')}';
+        '${_month.year}-${_month.month.toString().padLeft(2, '0')}-${d.toString().padLeft(2, '0')}';
+
+    final canGoPrev = _month.isAfter(_minMonth);
+    final canGoNext = _month.isBefore(_maxMonth);
 
     return GlassCard(
       radius: 20,
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      padding: const EdgeInsets.fromLTRB(14, 6, 14, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('${now.year}년 ${now.month}월', style: AppTextStyles.body2Bold),
-          const SizedBox(height: 10),
+          Row(
+            children: [
+              Text(
+                '${_month.year}년 ${_month.month}월',
+                style: AppTextStyles.body2Bold,
+              ),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.chevron_left_rounded, size: 22),
+                color: canGoPrev
+                    ? AppColors.ink700
+                    : AppColors.ink500.withValues(alpha: 0.3),
+                visualDensity: VisualDensity.compact,
+                onPressed: canGoPrev ? () => _shiftMonth(-1) : null,
+              ),
+              IconButton(
+                icon: const Icon(Icons.chevron_right_rounded, size: 22),
+                color: canGoNext
+                    ? AppColors.ink700
+                    : AppColors.ink500.withValues(alpha: 0.3),
+                visualDensity: VisualDensity.compact,
+                onPressed: canGoNext ? () => _shiftMonth(1) : null,
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
           Row(
             children: const ['일', '월', '화', '수', '목', '금', '토']
                 .map(
@@ -736,7 +804,7 @@ class _MonthlyCalendar extends StatelessWidget {
                     return const Expanded(child: SizedBox(height: 30));
                   }
                   final isActive = activeSet.contains(key(dayNum));
-                  final isToday = dayNum == now.day;
+                  final isToday = isCurrentMonth && dayNum == now.day;
                   return Expanded(
                     child: Center(
                       child: Container(
