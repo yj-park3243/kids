@@ -64,12 +64,18 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen>
   }
 
   @override
+  void deactivate() {
+    // 이 방을 읽음 처리한 결과를 목록/하단 탭 배지에 반영.
+    // dispose에서는 ref를 쓸 수 없어(Bad state 크래시) deactivate에서 수행.
+    ref.invalidate(chatRoomsProvider);
+    super.deactivate();
+  }
+
+  @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _messageController.dispose();
     _scrollController.dispose();
-    // 이 방을 읽음 처리한 결과를 목록/하단 탭 배지에 반영.
-    ref.invalidate(chatRoomsProvider);
     super.dispose();
   }
 

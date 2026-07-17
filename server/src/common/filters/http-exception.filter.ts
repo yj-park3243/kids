@@ -8,6 +8,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { QueryFailedError } from 'typeorm';
 import {
   TelegramService,
   escapeHtml,
@@ -46,6 +47,15 @@ export class HttpExceptionFilter implements ExceptionFilter {
           code = 'VALIDATION_ERROR';
         }
       }
+    } else if (
+      exception instanceof QueryFailedError &&
+      (exception.driverError as { code?: string } | undefined)?.code === '22P02'
+    ) {
+      // invalid input syntax (잘못된 uuid/enum 캐스팅) — 파라미터가 잘못된
+      // 요청이므로 500 이 아닌 400. DB 에러 원문도 클라이언트에 노출하지 않는다.
+      status = HttpStatus.BAD_REQUEST;
+      code = 'BAD_REQUEST';
+      message = '잘못된 요청 파라미터입니다.';
     } else if (exception instanceof Error) {
       message = exception.message;
       stack = exception.stack;
