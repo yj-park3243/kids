@@ -153,12 +153,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                 collapseMode: CollapseMode.pin,
               ),
               actions: [
-          IconButton(
-            icon:
-                const Icon(Icons.share_rounded, color: AppColors.textPrimary),
-            tooltip: '공유',
-            onPressed: () => _shareRoom(room),
-          ),
+          // 공유 기능(카카오)은 아직 미구현이라 버튼을 숨긴다. 완성 시 복구.
           PullDownButton(
             itemBuilder: (context) => [
               if (isHost &&
@@ -177,6 +172,13 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
                   title: '모임 종료',
                   icon: Icons.event_available_rounded,
                   onTap: () => _completeRoom(room),
+                ),
+              if (isHost && room.status == 'COMPLETED')
+                PullDownMenuItem(
+                  title: '출석 체크',
+                  icon: Icons.how_to_reg_outlined,
+                  onTap: () =>
+                      context.push('/rooms/${widget.roomId}/attendance'),
                 ),
               if (isHost)
                 PullDownMenuItem(
@@ -367,11 +369,6 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
     }
   }
 
-  void _shareRoom(Room room) {
-    // TODO: KakaoShareService().shareRoom(room); — App-Features-B 통합
-    showTopToast(context, '공유 기능 준비 중');
-  }
-
   Future<void> _cancelRoom(Room room) async {
     final confirmed = await showCupertinoModalPopup<bool>(
       context: context,
@@ -433,11 +430,38 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
       if (mounted) {
         ref.read(roomDetailProvider(widget.roomId).notifier).loadRoom();
         showTopToast(context, '모임이 종료되었습니다', backgroundColor: AppColors.success);
+        // 출석 체크는 종료 후 24시간 이내만 가능 — 종료 직후 유도.
+        _promptAttendance();
       }
     } catch (e) {
       if (mounted) {
         showTopToast(context, '모임 종료에 실패했습니다', backgroundColor: AppColors.error);
       }
+    }
+  }
+
+  /// 모임 종료 직후 출석 체크로 유도.
+  Future<void> _promptAttendance() async {
+    final go = await showCupertinoModalPopup<bool>(
+      context: context,
+      builder: (ctx) => CupertinoActionSheet(
+        title: const Text('출석 체크'),
+        message: const Text(
+            '지금 출석 체크를 할까요?\n노쇼 멤버는 쑥쑥 등급에 반영돼요. (종료 후 24시간 이내 가능)'),
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('출석 체크하기'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('나중에'),
+        ),
+      ),
+    );
+    if (go == true && mounted) {
+      context.push('/rooms/${widget.roomId}/attendance');
     }
   }
 }

@@ -84,6 +84,7 @@ class _PhotoPageState extends ConsumerState<_PhotoPage> {
   RoomPhoto? _photo;
   List<PhotoComment> _comments = [];
   bool _loading = true;
+  bool _loadError = false;
   final _commentController = TextEditingController();
   bool _sending = false;
 
@@ -100,7 +101,10 @@ class _PhotoPageState extends ConsumerState<_PhotoPage> {
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _loadError = false;
+    });
     try {
       final repo = ref.read(photoRepositoryProvider);
       final results = await Future.wait([
@@ -115,7 +119,12 @@ class _PhotoPageState extends ConsumerState<_PhotoPage> {
       });
     } catch (_) {
       if (!mounted) return;
-      setState(() => _loading = false);
+      // 로드 실패 시 _photo가 null로 남아 무한 스피너에 갇히던 것을
+      // 에러 상태로 분기해 재시도할 수 있게 한다.
+      setState(() {
+        _loading = false;
+        _loadError = true;
+      });
     }
   }
 
@@ -158,8 +167,27 @@ class _PhotoPageState extends ConsumerState<_PhotoPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading || _photo == null) {
+    if (_loading) {
       return const Center(child: CircularProgressIndicator());
+    }
+    if (_photo == null) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.broken_image_outlined,
+                size: 56, color: AppColors.textHint),
+            const SizedBox(height: 12),
+            Text(
+              _loadError ? '사진을 불러오지 못했어요' : '사진을 찾을 수 없어요',
+              style: AppTextStyles.body1.copyWith(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 16),
+            if (_loadError)
+              TextButton(onPressed: _load, child: const Text('다시 시도')),
+          ],
+        ),
+      );
     }
     final p = _photo!;
     return ListView(

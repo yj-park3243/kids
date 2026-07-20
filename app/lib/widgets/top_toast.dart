@@ -15,7 +15,9 @@ void showTopToast(
   entry = OverlayEntry(
     builder: (_) => _TopToast(
       message: message,
-      backgroundColor: backgroundColor ?? AppColors.error,
+      // 기본색은 중립(다크). 성공은 AppColors.success, 실패는 AppColors.error를
+      // 호출부에서 명시한다. (기본이 error였던 탓에 성공 메시지가 빨갛게 보였음)
+      backgroundColor: backgroundColor ?? AppColors.ink900,
       duration: duration,
       onDismissed: () => entry.remove(),
     ),

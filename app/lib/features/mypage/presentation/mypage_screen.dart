@@ -1,6 +1,7 @@
 import '../../../widgets/top_toast.dart';
 import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -610,6 +611,8 @@ class _VersionFooterState extends State<_VersionFooter> {
   }
 
   void _onTap() {
+    // 릴리스 빌드에서는 디버그 데이터 뷰어(토큰 등 노출) 진입을 완전 차단.
+    if (kReleaseMode) return;
     _tapCount += 1;
     if (_tapCount >= _unlockTapCount) {
       _tapCount = 0;

@@ -90,6 +90,34 @@ export class RoomSchedulerService {
     }
   }
 
+  // 시작 30분 전 리마인드 — 5분 크론 버킷에 맞춰 (30,35]분 구간에서 1회만 발송.
+  @Cron('*/5 * * * *')
+  async handleRoomReminders() {
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split('T')[0];
+    const rooms = await this.roomRepository
+      .createQueryBuilder('room')
+      .where('room.status IN (:...statuses)', {
+        statuses: ['RECRUITING', 'CLOSED'],
+      })
+      .andWhere('room.date IN (:...dates)', { dates: [today, tomorrow] })
+      .getMany();
+    for (const room of rooms) {
+      const startDateTime = new Date(room.date + 'T' + room.startTime);
+      const diffMin = (startDateTime.getTime() - now.getTime()) / 60000;
+      if (diffMin > 30 && diffMin <= 35) {
+        void this.dispatchRoomReminder(
+          room.id,
+          room.title,
+          room.startTime,
+        ).catch(() => undefined);
+      }
+    }
+  }
+
   private async dispatchReviewRequest(
     roomId: string,
     roomTitle: string,
@@ -121,6 +149,29 @@ export class RoomSchedulerService {
         });
       } catch (e) {
         this.logger.warn(`failed to push REVIEW_REQUEST to ${m.userId}: ${(e as Error).message}`);
+      }
+    }
+  }
+
+  private async dispatchRoomReminder(
+    roomId: string,
+    roomTitle: string,
+    startTime: string,
+  ) {
+    const members = await this.roomMemberRepository.find({ where: { roomId } });
+    for (const m of members) {
+      try {
+        await this.notificationService.create({
+          userId: m.userId,
+          type: 'ROOM_REMINDER',
+          title: '모임 시작 30분 전',
+          body: `[${roomTitle}] 모임이 곧 시작해요. (${startTime.substring(0, 5)})`,
+          data: { roomId },
+        });
+      } catch (e) {
+        this.logger.warn(
+          `failed to push ROOM_REMINDER to ${m.userId}: ${(e as Error).message}`,
+        );
       }
     }
   }

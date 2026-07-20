@@ -48,8 +48,10 @@ class _ChildSetupScreenState extends ConsumerState<ChildSetupScreen> {
     if (_children.isEmpty) return; // 버튼 비활성 상태라 보통 도달 안 함
     setState(() => _isLoading = true);
     try {
-      for (final child in _children) {
-        final repo = ref.read(authRepositoryProvider);
+      final repo = ref.read(authRepositoryProvider);
+      // 원본을 복사해 순회하되, 성공한 자녀는 즉시 _children 에서 제거한다.
+      // 중간에 실패해 사용자가 재시도해도 이미 등록된 자녀가 중복 전송되지 않게.
+      for (final child in [..._children]) {
         final verificationUrl =
             await repo.uploadImage(child.verificationPhotoPath!);
         await ref.read(authProvider.notifier).addChild(
@@ -62,10 +64,12 @@ class _ChildSetupScreenState extends ConsumerState<ChildSetupScreen> {
               napTime: child.napTime,
               temperamentTags: const [], // 기질은 등록 후 마이페이지에서 추가
             );
+        _children.remove(child);
       }
       if (widget.popOnDone) {
         if (mounted) {
-          showTopToast(context, '아이를 추가했습니다');
+          showTopToast(context, '아이를 추가했습니다',
+              backgroundColor: AppColors.success);
           context.pop();
         }
       } else {

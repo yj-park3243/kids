@@ -184,6 +184,13 @@ class _PhoneVerificationScreenState
     setState(() => _errorMessage = message);
   }
 
+  /// 본인인증을 완료할 수 없는 상황(예: 이미 다른 계정에서 사용 중인 CI)에서
+  /// 앱을 지우는 것 외에 벗어날 방법이 없던 문제를 해소 — 로그아웃 후 로그인으로.
+  Future<void> _switchAccount() async {
+    await ref.read(authProvider.notifier).logout();
+    if (mounted) context.go('/login');
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -195,7 +202,17 @@ class _PhoneVerificationScreenState
       },
       child: Scaffold(
         backgroundColor: AppColors.background,
-        appBar: const CustomAppBar(title: '본인인증', showBack: false),
+        appBar: CustomAppBar(
+          title: '본인인증',
+          showBack: false,
+          actions: [
+            TextButton(
+              onPressed: _switchAccount,
+              child: Text('다른 계정',
+                  style: AppTextStyles.body2.copyWith(color: AppColors.primary)),
+            ),
+          ],
+        ),
         body: SafeArea(
           child: Stack(
             children: [
@@ -225,6 +242,15 @@ class _PhoneVerificationScreenState
                         PrimaryButton(
                           text: '다시 시도',
                           onPressed: _loadKcpForm,
+                        ),
+                        const SizedBox(height: 8),
+                        TextButton(
+                          onPressed: () => context.push('/inquiry'),
+                          child: const Text('문제가 있나요? 고객센터 문의'),
+                        ),
+                        TextButton(
+                          onPressed: _switchAccount,
+                          child: const Text('다른 계정으로 로그인'),
                         ),
                       ],
                     ),
