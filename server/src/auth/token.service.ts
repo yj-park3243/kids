@@ -86,6 +86,42 @@ export class TokenService {
     };
   }
 
+  // 비밀번호 재설정용 단기 토큰 — KCP 본인인증 성공 후에만 발급.
+  signResetToken(userId: string): string {
+    return this.jwtService.sign(
+      { sub: userId, type: 'reset' },
+      { issuer: ISSUER, expiresIn: '15m', jwtid: randomUUID() },
+    );
+  }
+
+  verifyResetToken(token: string): { sub: string } {
+    try {
+      const decoded = this.jwtService.verify<{ sub: string; type: string }>(
+        token,
+        { issuer: ISSUER },
+      );
+      if (decoded.type !== 'reset') {
+        throw new UnauthorizedException({
+          code: 'INVALID_TOKEN_TYPE',
+          message: 'reset 토큰이 아닙니다.',
+        });
+      }
+      return decoded;
+    } catch (err) {
+      if (err instanceof TokenExpiredError) {
+        throw new UnauthorizedException({
+          code: 'EXPIRED_TOKEN',
+          message: '재설정 세션이 만료되었습니다. 다시 시도해주세요.',
+        });
+      }
+      if (err instanceof UnauthorizedException) throw err;
+      throw new UnauthorizedException({
+        code: 'INVALID_TOKEN',
+        message: '유효하지 않은 토큰입니다.',
+      });
+    }
+  }
+
   verifyAccessToken(token: string): AccessTokenClaims {
     return this.verifyWithType<AccessTokenClaims>(token, 'access');
   }

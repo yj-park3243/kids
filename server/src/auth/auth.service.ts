@@ -4,6 +4,7 @@ import {
   ConflictException,
   ForbiddenException,
   BadRequestException,
+  NotFoundException,
   Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -312,6 +313,18 @@ export class AuthService {
       user: this.sanitizeUser(user),
       isNewUser: true,
     };
+  }
+
+  // KCP 본인인증으로 발급된 단기 resetToken 으로 비밀번호를 재설정한다.
+  async resetPassword(resetToken: string, newPassword: string) {
+    const { sub: userId } = this.tokenService.verifyResetToken(resetToken);
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('사용자를 찾을 수 없습니다.');
+    }
+    user.passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.userRepository.save(user);
+    return { success: true };
   }
 
   async emailLogin(dto: EmailLoginDto) {

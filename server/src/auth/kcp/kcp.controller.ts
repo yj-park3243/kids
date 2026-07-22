@@ -37,6 +37,15 @@ export class KcpController {
     return { html };
   }
 
+  // ─── GET /auth/kcp/reset-form — 비밀번호 재설정용 KCP Form (인증 불필요) ───
+  @Get('reset-form')
+  @Public()
+  @ApiOperation({ summary: 'KCP 비밀번호 재설정용 본인인증 Form (인증 불필요)' })
+  async getResetForm(@Query('returnUrl') returnUrl?: string) {
+    const html = await this.kcpService.generateCertForm('', returnUrl, 'reset');
+    return { html };
+  }
+
   // ─── POST /auth/kcp/callback — KCP가 직접 호출하는 콜백 ───
   // 인증 불필요. 결과를 처리해 앱 딥링크로 리다이렉트하는 HTML 응답.
   @Post('callback')
@@ -53,10 +62,29 @@ export class KcpController {
         `[KCP Callback] bodyKeys=${Object.keys(body || {})} queryKeys=${Object.keys(query || {})}`,
       );
 
-      const { userId, kcpData } = await this.kcpService.handleCallback(
+      const { userId, kcpData, mode } = await this.kcpService.handleCallback(
         body || {},
         query || {},
       );
+
+      // 비밀번호 재설정 흐름 — 로그인하지 않고 단기 reset 토큰만 앱으로 전달.
+      if (mode === 'reset') {
+        const { resetToken } = await this.kcpService.verifyForReset(kcpData);
+        const resetUrl = this.kcpService.buildResetRedirect(resetToken);
+        const resetHtml = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>인증 완료</title></head>
+<body>
+<script>window.location.href = '${resetUrl}';</script>
+<p>인증이 완료되었습니다. 앱으로 이동 중...</p>
+<a href="${resetUrl}">앱으로 이동</a>
+</body></html>`;
+        res
+          .status(200)
+          .header('Content-Type', 'text/html; charset=utf-8')
+          .send(resetHtml);
+        return;
+      }
+
       const result = await this.kcpService.verifyCert(userId, kcpData);
       const appUrl = this.kcpService.buildSuccessRedirect(result);
       // [진단] 토큰 발급/딥링크 전달 상태 — 본인인증 후 401(토큰 유실) 원인 추적용.

@@ -27,7 +27,13 @@ const KCP_CERT_GET_URL = 'https://cert.kcp.co.kr/api/query/getCertData.do';
 const ORDER_TTL_MS = 30 * 60 * 1000; // 30분
 const FETCH_TIMEOUT_MS = 10000;
 
-type OrderEntry = { userId: string; reg_cert_key: string; expiresAt: number };
+type OrderEntry = {
+  userId: string;
+  reg_cert_key: string;
+  expiresAt: number;
+  // 'verify' = 온보딩 본인인증(로그인), 'reset' = 비밀번호 재설정용.
+  mode: 'verify' | 'reset';
+};
 
 @Injectable()
 export class KcpService {
@@ -61,7 +67,11 @@ export class KcpService {
   }
 
   // ─── 1. 거래등록 + WebView용 HTML form 반환 ───
-  async generateCertForm(userId: string, returnUrl?: string): Promise<string> {
+  async generateCertForm(
+    userId: string,
+    returnUrl?: string,
+    mode: 'verify' | 'reset' = 'verify',
+  ): Promise<string> {
     this.cleanupExpiredOrders();
 
     const ordr_idxx = `ORD${Date.now()}${Math.floor(Math.random() * 1000)}`;
@@ -112,6 +122,7 @@ export class KcpService {
       userId,
       reg_cert_key,
       expiresAt: Date.now() + ORDER_TTL_MS,
+      mode,
     });
 
     return `<!DOCTYPE html>
@@ -136,7 +147,11 @@ export class KcpService {
   async handleCallback(
     body: Record<string, any>,
     query: Record<string, any> = {},
-  ): Promise<{ userId: string; kcpData: KcpRawResult }> {
+  ): Promise<{
+    userId: string;
+    kcpData: KcpRawResult;
+    mode: 'verify' | 'reset';
+  }> {
     const { res_cd, res_msg } = body;
     const ordr_idxx: string | undefined = query.ordr_idxx || body.ordr_idxx;
 
@@ -166,7 +181,24 @@ export class KcpService {
     );
     this.orderMap.delete(ordr_idxx);
 
-    return { userId: entry.userId, kcpData: decrypted };
+    return { userId: entry.userId, kcpData: decrypted, mode: entry.mode };
+  }
+
+  // ─── 비밀번호 재설정 — CI 로 계정만 찾아 단기 reset 토큰 발급(로그인 X) ───
+  async verifyForReset(kcpData: KcpRawResult): Promise<{ resetToken: string }> {
+    if (!kcpData.ci) {
+      throw new BadRequestException('본인인증 정보를 확인할 수 없습니다.');
+    }
+    const user = await this.userRepository.findOne({
+      where: { ci: kcpData.ci },
+    });
+    if (!user) {
+      throw new NotFoundException('본인인증 정보와 일치하는 계정이 없습니다.');
+    }
+    if (user.status === 'BANNED' || user.status === 'WITHDRAWN') {
+      throw new ForbiddenException('이 계정은 비밀번호를 재설정할 수 없습니다.');
+    }
+    return { resetToken: this.tokenService.signResetToken(user.id) };
   }
 
   // ─── 3. 결과 조회 + 복호화 ───
@@ -429,6 +461,12 @@ export class KcpService {
       isNewUser: String(result.user.isNewUser),
       merged: result.merged === true ? 'true' : 'false',
     });
+    return `${scheme}://kcp-cert?${params.toString()}`;
+  }
+
+  buildResetRedirect(resetToken: string): string {
+    const scheme = this.getAppScheme();
+    const params = new URLSearchParams({ status: 'reset', resetToken });
     return `${scheme}://kcp-cert?${params.toString()}`;
   }
 
