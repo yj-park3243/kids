@@ -11,13 +11,12 @@ import '../../features/auth/presentation/profile_setup_screen.dart';
 import '../../features/chat/presentation/chat_room_screen.dart';
 import '../../features/follow/presentation/following_list_screen.dart';
 import '../../features/home/presentation/home_dashboard_screen.dart';
-import '../../features/home/presentation/home_screen.dart';
+import '../../features/home/presentation/rooms_hub_screen.dart';
 import '../../features/map/presentation/map_screen.dart';
 import '../../features/mypage/presentation/appeal_screen.dart';
 import '../../features/mypage/presentation/blocked_users_screen.dart';
 import '../../features/mypage/presentation/child_edit_screen.dart';
 import '../../features/mypage/presentation/debug_data_screen.dart';
-import '../../features/mypage/presentation/my_rooms_screen.dart';
 import '../../features/mypage/presentation/mypage_screen.dart';
 import '../../features/mypage/presentation/profile_edit_screen.dart';
 import '../../features/notice/presentation/notice_detail_screen.dart';
@@ -105,20 +104,12 @@ final appRouter = GoRouter(
             ),
           ],
         ),
-        // 모임 — 기존 HomeScreen (방 리스트/필터)을 그대로 사용.
+        // 모임 — 둘러보기(탐색) + 내 모임(참여/채팅)을 세그먼트로 합친 허브.
         StatefulShellBranch(
           routes: [
             GoRoute(
               path: '/rooms',
-              builder: (context, state) => const HomeScreen(),
-            ),
-          ],
-        ),
-        StatefulShellBranch(
-          routes: [
-            GoRoute(
-              path: '/chat',
-              builder: (context, state) => const MyRoomsScreen(),
+              builder: (context, state) => const RoomsHubScreen(),
             ),
           ],
         ),

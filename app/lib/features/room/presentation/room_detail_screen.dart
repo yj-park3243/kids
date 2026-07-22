@@ -20,6 +20,7 @@ import '../../../widgets/design/glass_card.dart';
 import '../../../widgets/empty_state.dart';
 import '../../../widgets/loading.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../chat/providers/chat_provider.dart';
 import '../../mypage/providers/block_provider.dart';
 import '../../review/presentation/review_write_screen.dart' show ReviewMember;
 import '../../home/providers/dashboard_provider.dart';
@@ -111,6 +112,14 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
     final room = state.room!;
     final isHost = room.host.id == currentUserId;
     final isAccepted = room.myStatus == 'ACCEPTED';
+    // 이 방 채팅의 안 읽은 개수 — 하단 채팅 버튼에 배지로 표시.
+    final chatRooms = ref.watch(chatRoomsProvider).valueOrNull;
+    final unreadCount = room.chatRoomId == null
+        ? 0
+        : (chatRooms
+                ?.where((c) => c.id == room.chatRoomId)
+                .fold<int>(0, (sum, c) => sum + c.unreadCount) ??
+            0);
     final isPending = room.myStatus == 'PENDING';
     final isParticipant = isHost || isAccepted;
 
@@ -320,6 +329,7 @@ class _RoomDetailScreenState extends ConsumerState<RoomDetailScreen> {
         isAccepted: isAccepted,
         isPending: isPending,
         isJoining: state.isJoining,
+        unreadCount: unreadCount,
         onJoin: () => _joinRoom(),
         onChat: () {
           if (room.chatRoomId != null) {
@@ -1354,6 +1364,7 @@ class _BottomBar extends StatelessWidget {
   final bool isAccepted;
   final bool isPending;
   final bool isJoining;
+  final int unreadCount;
   final VoidCallback onJoin;
   final VoidCallback onChat;
   final VoidCallback onReview;
@@ -1364,10 +1375,14 @@ class _BottomBar extends StatelessWidget {
     required this.isAccepted,
     required this.isPending,
     required this.isJoining,
+    required this.unreadCount,
     required this.onJoin,
     required this.onChat,
     required this.onReview,
   });
+
+  String _chatLabel(String base) =>
+      unreadCount > 0 ? '$base · ${unreadCount > 99 ? '99+' : unreadCount}' : base;
 
   @override
   Widget build(BuildContext context) {
@@ -1398,7 +1413,7 @@ class _BottomBar extends StatelessWidget {
             Expanded(
               child: SecondaryButton(
                 key: const Key('btn-room-detail-chat'),
-                text: '채팅방',
+                text: _chatLabel('채팅방'),
                 icon: Icons.chat_bubble_outline_rounded,
                 onPressed: onChat,
               ),
@@ -1423,7 +1438,7 @@ class _BottomBar extends StatelessWidget {
           Expanded(
             child: PrimaryButton(
               key: const Key('btn-room-detail-chat'),
-              text: '채팅방 입장',
+              text: _chatLabel('채팅방 입장'),
               icon: Icons.chat_bubble_rounded,
               onPressed: onChat,
             ),

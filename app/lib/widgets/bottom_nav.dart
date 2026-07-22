@@ -8,7 +8,8 @@ import 'package:go_router/go_router.dart';
 import '../core/constants/app_colors.dart';
 import '../features/chat/providers/chat_provider.dart';
 
-/// 메인 5탭 (홈/지도/모임/채팅/마이).
+/// 메인 4탭 (홈/지도/모임/마이). 채팅은 '모임' 탭 안(내 모임)으로 합쳤고,
+/// 안 읽은 메시지 총합 배지는 '모임' 탭에 표시한다.
 /// iOS 26+ Liquid Glass native tab bar, iOS<26 CupertinoTabBar, Android Material3 NavigationBar.
 class MainScaffold extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
@@ -29,7 +30,7 @@ class MainScaffold extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedIndex = navigationShell.currentIndex;
-    // 모든 방의 안 읽은 메시지 총합 → 채팅 탭 빨간 배지.
+    // 모든 방의 안 읽은 메시지 총합 → '모임' 탭 빨간 배지.
     final unread = ref.watch(totalUnreadProvider);
 
     return AdaptiveScaffold(
@@ -51,14 +52,13 @@ class MainScaffold extends ConsumerWidget {
                 items: [
                   const BottomNavigationBarItem(icon: Icon(CupertinoIcons.house_fill), label: '홈'),
                   const BottomNavigationBarItem(icon: Icon(CupertinoIcons.map_fill), label: '지도'),
-                  const BottomNavigationBarItem(icon: Icon(CupertinoIcons.person_3_fill), label: '모임'),
                   BottomNavigationBarItem(
                     icon: Badge.count(
                       count: unread,
                       isLabelVisible: unread > 0,
-                      child: const Icon(CupertinoIcons.chat_bubble_fill),
+                      child: const Icon(CupertinoIcons.person_3_fill),
                     ),
-                    label: '채팅',
+                    label: '모임',
                   ),
                   const BottomNavigationBarItem(icon: Icon(CupertinoIcons.person_fill), label: '마이'),
                 ],
@@ -68,10 +68,9 @@ class MainScaffold extends ConsumerWidget {
         items: [
           const AdaptiveNavigationDestination(icon: 'house.fill', label: '홈'),
           const AdaptiveNavigationDestination(icon: 'map.fill', label: '지도'),
-          const AdaptiveNavigationDestination(icon: 'person.3.fill', label: '모임'),
           AdaptiveNavigationDestination(
-            icon: 'bubble.left.fill',
-            label: '채팅',
+            icon: 'person.3.fill',
+            label: '모임',
             badgeCount: unread > 0 ? unread : null,
           ),
           const AdaptiveNavigationDestination(icon: 'person.fill', label: '마이'),
@@ -96,22 +95,17 @@ class MainScaffold extends ConsumerWidget {
                 label: '지도',
               ),
               NavigationDestination(
-                icon: const Icon(Icons.groups_outlined),
-                selectedIcon: Icon(Icons.groups_rounded, color: AppColors.primary),
-                label: '모임',
-              ),
-              NavigationDestination(
                 icon: Badge.count(
                   count: unread,
                   isLabelVisible: unread > 0,
-                  child: const Icon(Icons.chat_bubble_outline_rounded),
+                  child: const Icon(Icons.groups_outlined),
                 ),
                 selectedIcon: Badge.count(
                   count: unread,
                   isLabelVisible: unread > 0,
-                  child: Icon(Icons.chat_bubble_rounded, color: AppColors.primary),
+                  child: Icon(Icons.groups_rounded, color: AppColors.primary),
                 ),
-                label: '채팅',
+                label: '모임',
               ),
               NavigationDestination(
                 icon: const Icon(Icons.person_outline_rounded),
