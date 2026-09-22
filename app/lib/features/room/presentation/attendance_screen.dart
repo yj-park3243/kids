@@ -3,12 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_radius.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../models/room.dart';
 import '../../../widgets/app_bar.dart';
 import '../../../widgets/common_button.dart';
-import '../../../widgets/design/accent_blobs.dart';
+import '../../../widgets/design/avatar.dart';
+import '../../../widgets/design/notebook.dart';
 import '../../../widgets/empty_state.dart';
 import '../../../widgets/loading.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -60,7 +62,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
         .where((m) => !m.isHost)
         .map((m) => AttendanceRecord(
               userId: m.id,
-              attended: _attendance[m.id] ?? true,
+              attended: _attendance[m.id] ?? m.attended ?? true,
             ))
         .toList();
 
@@ -84,6 +86,8 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     final msg = applied.isEmpty
         ? '출석이 저장되었습니다'
         : applied.map((n) => '$n님 노쇼 1회 적용됨').join('\n');
+    // 방 상세의 members.attended 를 최신으로.
+    ref.read(roomDetailProvider(widget.roomId).notifier).loadRoom();
     showTopToast(context, msg, backgroundColor: AppColors.success);
     context.pop();
   }
@@ -96,26 +100,22 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
 
     if (state.isLoading && state.room == null) {
       return const Scaffold(
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.paper,
         appBar: CustomAppBar(title: '출석 체크'),
-        extendBodyBehindAppBar: true,
-        body: AccentBlobsBackground(child: AppLoadingIndicator()),
+        body: AppLoadingIndicator(),
       );
     }
 
     if (state.error != null && state.room == null) {
       return Scaffold(
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.paper,
         appBar: const CustomAppBar(title: '출석 체크'),
-        extendBodyBehindAppBar: true,
-        body: AccentBlobsBackground(
-          child: SafeArea(
-            child: ErrorState(
-              message: state.error!,
-              onRetry: () => ref
-                  .read(roomDetailProvider(widget.roomId).notifier)
-                  .loadRoom(),
-            ),
+        body: SafeArea(
+          child: ErrorState(
+            message: state.error!,
+            onRetry: () => ref
+                .read(roomDetailProvider(widget.roomId).notifier)
+                .loadRoom(),
           ),
         ),
       );
@@ -126,27 +126,24 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
 
     if (accessError != null) {
       return Scaffold(
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.paper,
         appBar: const CustomAppBar(title: '출석 체크'),
-        extendBodyBehindAppBar: true,
-        body: AccentBlobsBackground(
-          child: SafeArea(
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.lock_clock_rounded,
-                        size: 48, color: AppColors.textHint),
-                    const SizedBox(height: 16),
-                    Text(
-                      accessError,
-                      style: AppTextStyles.body1Bold,
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.lock_clock_rounded,
+                      size: 48, color: AppColors.ink3),
+                  const SizedBox(height: 16),
+                  Text(
+                    accessError,
+                    style: AppTextStyles.body1Bold,
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ),
             ),
           ),
@@ -157,79 +154,81 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     final members = (room.members ?? []).where((m) => !m.isHost).toList();
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppColors.paper,
       appBar: const CustomAppBar(title: '출석 체크'),
-      extendBodyBehindAppBar: true,
-      body: AccentBlobsBackground(
-        child: SafeArea(
-          child: Column(
-            children: [
-              // 안내 배너
-              Container(
-                margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppColors.primary50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.primary100),
-                ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // 안내 배너
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 12, 20, 0),
+              child: DashedBox(
                 child: Row(
                   children: [
-                    const Icon(Icons.info_outline_rounded,
-                        size: 18, color: AppColors.primaryDark),
-                    const SizedBox(width: 8),
+                    Icon(Icons.info_outline_rounded,
+                        size: 18, color: AppColors.ink3),
+                    SizedBox(width: 8),
                     Expanded(
-                      child: Text(
-                        '노쇼 처리된 멤버는 쑥쑥 등급에 반영돼요',
-                        style: AppTextStyles.caption
-                            .copyWith(color: AppColors.primary700),
-                      ),
+                      child: _BannerText(),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
+            ),
 
-              Expanded(
-                child: members.isEmpty
-                    ? Center(
-                        child: Text(
-                          '출석 체크할 멤버가 없어요',
-                          style: AppTextStyles.body2,
-                        ),
-                      )
-                    : ListView.separated(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 8),
-                        itemCount: members.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 8),
-                        itemBuilder: (context, index) {
-                          final m = members[index];
-                          final attended = _attendance[m.id] ?? true;
-                          return _AttendanceRow(
-                            member: m,
-                            attended: attended,
-                            onChanged: (v) =>
-                                setState(() => _attendance[m.id] = v),
-                          );
-                        },
+            Expanded(
+              child: members.isEmpty
+                  ? Center(
+                      child: Text(
+                        '출석 체크할 멤버가 없어요',
+                        style: AppTextStyles.body2,
                       ),
-              ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 4),
+                      itemCount: members.length,
+                      separatorBuilder: (_, __) => const DashedDivider(),
+                      itemBuilder: (context, index) {
+                        final m = members[index];
+                        // 이미 저장한 결과가 있으면 그걸 기본값으로 — 재저장이 정정이 되게.
+                        final attended =
+                            _attendance[m.id] ?? m.attended ?? true;
+                        return _AttendanceRow(
+                          member: m,
+                          attended: attended,
+                          onChanged: (v) =>
+                              setState(() => _attendance[m.id] = v),
+                        );
+                      },
+                    ),
+            ),
 
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-                child: PrimaryButton(
-                  text: '저장',
-                  icon: Icons.check_circle_outline_rounded,
-                  isLoading: submitState.isSubmitting,
-                  onPressed:
-                      members.isEmpty ? null : () => _submit(room.members ?? []),
-                ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+              child: PrimaryButton(
+                text: '저장',
+                isLoading: submitState.isSubmitting,
+                onPressed:
+                    members.isEmpty ? null : () => _submit(room.members ?? []),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
+    );
+  }
+}
+
+/// 배너 문구 — const 로 쓰려고 분리.
+class _BannerText extends StatelessWidget {
+  const _BannerText();
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      '노쇼 처리된 멤버는 쑥쑥 등급에 반영돼요',
+      style: AppTextStyles.caption,
     );
   }
 }
@@ -247,32 +246,22 @@ class _AttendanceRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.divider),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 15),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: AppColors.surfaceVariant,
-            backgroundImage: member.profileImageUrl != null
-                ? NetworkImage(member.profileImageUrl!)
-                : null,
-            child: member.profileImageUrl == null
-                ? const Icon(Icons.person_rounded,
-                    color: AppColors.textHint, size: 20)
-                : null,
+          InitialAvatar(
+            label: member.nickname,
+            size: 40,
+            tone: InitialAvatar.toneFor(member.id),
+            imageUrl: member.profileImageUrl,
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(member.nickname, style: AppTextStyles.body2Bold),
+                Text(member.nickname, style: AppTextStyles.body1Bold),
                 if (member.children != null && member.children!.isNotEmpty)
                   Text(
                     member.children!
@@ -305,16 +294,16 @@ class _ToggleSegment extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: AppColors.surfaceVariant,
-        borderRadius: BorderRadius.circular(10),
+        color: AppColors.fill,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           _segmentButton('출석', attended, () => onChanged(true),
-              activeColor: AppColors.success),
+              activeColor: AppColors.ink),
           _segmentButton('노쇼', !attended, () => onChanged(false),
-              activeColor: AppColors.error),
+              activeColor: AppColors.bad),
         ],
       ),
     );
@@ -328,17 +317,18 @@ class _ToggleSegment extends StatelessWidget {
   }) {
     return GestureDetector(
       onTap: onTap,
+      behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
           color: active ? activeColor : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(9),
         ),
         child: Text(
           label,
           style: AppTextStyles.caption.copyWith(
-            color: active ? Colors.white : AppColors.textSecondary,
+            color: active ? Colors.white : AppColors.ink2,
             fontWeight: active ? FontWeight.w700 : FontWeight.w500,
           ),
         ),

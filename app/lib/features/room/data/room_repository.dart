@@ -36,6 +36,11 @@ class RoomRepository {
     await _dio.delete('${ApiConstants.rooms}/$roomId/join');
   }
 
+  /// 참여자 내보내기 (방장) — DELETE /rooms/:roomId/members/:userId
+  Future<void> kickMember(String roomId, String userId) async {
+    await _dio.delete('${ApiConstants.rooms}/$roomId/members/$userId');
+  }
+
   Future<List<JoinRequest>> getJoinRequests(String roomId) async {
     final response =
         await _dio.get('${ApiConstants.rooms}/$roomId/join-requests');

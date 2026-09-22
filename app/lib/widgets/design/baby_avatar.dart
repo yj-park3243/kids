@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/constants/app_colors.dart';
 
 enum BabyAvatarTone { primary, coral, lilac }
 
@@ -17,12 +18,13 @@ class BabyAvatar extends StatelessWidget {
 
   List<Color> get _bgGradient {
     switch (tone) {
+      // 단색 틴트 (하늘 / 노랑 / 회색) — 그라데이션 대신 같은 색 두 번.
       case BabyAvatarTone.primary:
-        return const [Color(0xFFFCDDE5), Color(0xFFF9A8BF)];
+        return const [AppColors.sky, AppColors.sky];
       case BabyAvatarTone.coral:
-        return const [Color(0xFFFFE0D2), Color(0xFFFFC0AC)];
+        return const [AppColors.hi, AppColors.hi];
       case BabyAvatarTone.lilac:
-        return const [Color(0xFFEEE5FA), Color(0xFFD5C7F2)];
+        return const [AppColors.fill, AppColors.fill];
     }
   }
 

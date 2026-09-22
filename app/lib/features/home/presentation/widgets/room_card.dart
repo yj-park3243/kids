@@ -1,21 +1,36 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/constants/app_text_styles.dart';
-import '../../../../core/location/location_service.dart';
-import '../../../../core/utils/date_utils.dart';
 import '../../../../models/room.dart';
-import '../../../../widgets/design/age_badge.dart';
 import '../../../../widgets/design/design_chip.dart';
-import '../../../../widgets/design/glass_card.dart';
+import '../../../../widgets/design/notebook.dart';
 
-class RoomCard extends ConsumerWidget {
+/// 목록 한 행 (docs/09_UI_수첩안.md §4 '모임 찾기').
+///
+/// `[DateBlock] | 제목 + 메타 한 줄 + pill ≤2 | 상태 pill + 인원`
+/// 카드가 아니라 행이다 — 행 사이 구분은 [DashedDivider] 로 목록 쪽에서 그린다.
+class RoomCard extends StatelessWidget {
   final Room room;
   final VoidCallback? onTap;
+
+  /// 옛 API — 행 전체 탭이 방 상세로 가므로 [onTap] 이 없을 때의 대체로만 쓴다.
   final VoidCallback? onOpenDetail;
+
+  /// 안읽음 배지를 탭했을 때 열 채팅방.
   final VoidCallback? onOpenChat;
+
+  /// 0 보다 크면 오른쪽에 berry 숫자 배지.
   final int unreadCount;
+
+  /// 기본 pill 줄(개월수 + 승인 필요/준비물) 대신 쓸 pill 목록.
+  /// 빈 목록을 주면 pill 줄이 사라진다.
+  final List<Widget>? pills;
+
+  /// 오른쪽 열(상태 pill + 인원) 대신 쓸 위젯. 안읽음 배지와의 간격은
+  /// 호출부가 정한다 — 아무것도 안 보이려면 `SizedBox.shrink()` 를 준다.
+  final Widget? trailing;
 
   const RoomCard({
     super.key,
@@ -24,608 +39,278 @@ class RoomCard extends ConsumerWidget {
     this.onOpenDetail,
     this.onOpenChat,
     this.unreadCount = 0,
+    this.pills,
+    this.trailing,
   });
 
-  bool get _hasActions => onOpenDetail != null || onOpenChat != null;
-
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // 거리 — 참여 중인 방은 표시하지 않는다.
-    final myPos = ref.watch(currentPositionProvider).valueOrNull;
-    String? distanceText;
-    if (room.latitude != null &&
-        room.longitude != null &&
-        !room.joined &&
-        myPos != null) {
-      distanceText = formatDistance(distanceKm(
-        myPos.latitude,
-        myPos.longitude,
-        room.latitude!,
-        room.longitude!,
-      ));
-    }
-    final ageColors = _ageColors(room.ageMonthMin);
-    final accent = ageColors.last;
+  Widget build(BuildContext context) {
+    final date = DateTime.tryParse(room.date);
+    final rowPills = pills ?? defaultRoomPills(room);
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 6, 0, 8),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(22),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(22),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(22),
-              // 위는 살짝 밝은 흰색, 아래는 약간 톤 다운된 오프화이트.
-              // 미세한 그라데이션이 빛을 받는 둥근 표면처럼 보이게 한다.
-              gradient: const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0xFFFFFFFF), Color(0xFFF7F4F8)],
-              ),
-              border: Border.all(
-                color: accent.withValues(alpha: 0.18),
-                width: 1,
-              ),
-              // 입체감 — 위쪽 1px highlight + 중간 ambient + 깊은 drop.
-              boxShadow: [
-                // 상단 인너 하이라이트(가짜) — 살짝 위로 띄워주는 light cast.
-                BoxShadow(
-                  color: Colors.white.withValues(alpha: 0.9),
-                  blurRadius: 0,
-                  spreadRadius: -1,
-                  offset: const Offset(0, -1),
-                ),
-                // 컬러 그림자 — 카드 색상 톤이 바닥에 살짝 번지게.
-                BoxShadow(
-                  color: accent.withValues(alpha: 0.18),
-                  blurRadius: 22,
-                  spreadRadius: -6,
-                  offset: const Offset(0, 14),
-                ),
-                // 깊이감을 잡는 ambient shadow.
-                BoxShadow(
-                  color: const Color(0xFF1A1A2E).withValues(alpha: 0.08),
-                  blurRadius: 28,
-                  offset: const Offset(0, 10),
-                ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap ?? onOpenDetail,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 15),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              if (date != null) ...[
+                DateBlock(date: date, today: _isToday(date)),
+                const SizedBox(width: 12),
               ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(22),
-              child: Stack(
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      room.title,
+                      style: AppTextStyles.cardTitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 3),
+                    RoomMetaLine(parts: roomMetaParts(room)),
+                    if (rowPills.isNotEmpty) ...[
+                      const SizedBox(height: 7),
+                      Wrap(spacing: 6, runSpacing: 4, children: rowPills),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // 좌측 컬러 액센트 띠 — 연령대 톤. 카드를 책처럼 보이게.
-                  Positioned(
-                    left: 0,
-                    top: 0,
-                    bottom: 0,
-                    child: Container(
-                      width: 5,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            ageColors.first,
-                            accent,
-                          ],
-                        ),
-                      ),
+                  if (unreadCount > 0)
+                    UnreadBadge(count: unreadCount, onTap: onOpenChat),
+                  if (trailing != null)
+                    trailing!
+                  else ...[
+                    Padding(
+                      padding: EdgeInsets.only(top: unreadCount > 0 ? 6 : 0),
+                      child: roomStatusPill(room),
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 14, 14, 14),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // 연령 블록 — 그림자 + 안쪽 highlight 로 floating chip 느낌.
-                        Container(
-                          width: 72,
-                          height: 72,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: ageColors,
-                            ),
-                            borderRadius: BorderRadius.circular(18),
-                            boxShadow: [
-                              // 컬러 그림자 — 자기 색이 바닥에 번진다.
-                              BoxShadow(
-                                color: accent.withValues(alpha: 0.4),
-                                blurRadius: 12,
-                                offset: const Offset(0, 6),
-                              ),
-                            ],
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.35),
-                              width: 1,
-                            ),
-                          ),
-                          alignment: Alignment.center,
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              // 좌상단 사선 highlight — 광택.
-                              Positioned(
-                                top: 6,
-                                left: 8,
-                                right: 18,
-                                child: Container(
-                                  height: 18,
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topCenter,
-                                      end: Alignment.bottomCenter,
-                                      colors: [
-                                        Colors.white.withValues(alpha: 0.35),
-                                        Colors.white.withValues(alpha: 0),
-                                      ],
-                                    ),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                              ),
-                              Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    '${room.ageMonthMin}+',
-                                    style: AppTextStyles.cardTitle.copyWith(
-                                      color: Colors.white,
-                                      fontSize: 18,
-                                      shadows: [
-                                        Shadow(
-                                          color: accent.withValues(alpha: 0.45),
-                                          blurRadius: 4,
-                                          offset: const Offset(0, 1),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    '개월',
-                                    style: AppTextStyles.chip.copyWith(
-                                      color: Colors.white.withValues(alpha: 0.95),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Row(
-                                children: [
-                                  AgeBadge(
-                                    label:
-                                        '${room.ageMonthMin}~${room.ageMonthMax}개월',
-                                    solid: false,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  DesignChip(
-                                    label: AppConstants
-                                            .placeTypes[room.placeType] ??
-                                        '기타',
-                                    tone: ChipTone.lilac,
-                                    height: 22,
-                                  ),
-                                  const Spacer(),
-                                  _statusChip(room.status),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                room.title,
-                                style: AppTextStyles.cardTitle,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 6),
-                              Row(
-                                children: [
-                                  const Icon(Icons.schedule_rounded,
-                                      size: 12, color: AppColors.ink500),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    AppDateUtils.formatDateTime(
-                                        room.date, room.startTime),
-                                    style: AppTextStyles.caption,
-                                  ),
-                                  if (room.regionDong.trim().isNotEmpty) ...[
-                                    const SizedBox(width: 8),
-                                    const Icon(Icons.location_on_rounded,
-                                        size: 12, color: AppColors.ink500),
-                                    const SizedBox(width: 3),
-                                    Flexible(
-                                      child: Text(
-                                        room.regionDong,
-                                        style: AppTextStyles.caption,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                  if (distanceText != null) ...[
-                                    const SizedBox(width: 4),
-                                    const Icon(Icons.near_me_rounded,
-                                        size: 11, color: AppColors.primary),
-                                    const SizedBox(width: 2),
-                                    Text(
-                                      distanceText,
-                                      style: AppTextStyles.caption.copyWith(
-                                        color: AppColors.primary,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                  const Spacer(),
-                                  DesignChip(
-                                    label:
-                                        '${room.currentMembers}/${room.maxMembers}명',
-                                    tone: room.isFull
-                                        ? ChipTone.ink
-                                        : ChipTone.primarySolid,
-                                    height: 22,
-                                    icon: Icons.people_rounded,
-                                  ),
-                                ],
-                              ),
-                              if (room.tags.isNotEmpty) ...[
-                                const SizedBox(height: 8),
-                                Wrap(
-                                  spacing: 6,
-                                  runSpacing: 6,
-                                  children: room.tags
-                                      .take(4)
-                                      .map((tag) => _TagChip(label: tag))
-                                      .toList(),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                        if (_hasActions) ...[
-                          const SizedBox(width: 8),
-                          _CardActions(
-                            onOpenDetail: onOpenDetail,
-                            onOpenChat: onOpenChat,
-                            unreadCount: unreadCount,
-                          ),
-                        ],
-                      ],
+                    const SizedBox(height: 5),
+                    Text(
+                      '${room.currentMembers}/${room.maxMembers}명',
+                      style: AppTextStyles.caption,
                     ),
-                  ),
+                  ],
                 ],
               ),
-            ),
+            ],
           ),
         ),
       ),
     );
   }
-
-  List<Color> _ageColors(int age) {
-    if (age < 6) return const [Color(0xFFFAD2DD), AppColors.primary];
-    if (age < 12) return const [Color(0xFFF7A8BF), AppColors.primaryDark];
-    if (age < 24) return const [Color(0xFFD5C7F2), AppColors.accentLavender];
-    if (age < 36) return const [Color(0xFFC9B2EC), AppColors.secondaryDark];
-    return const [Color(0xFFFFC0AC), AppColors.accentCoral];
-  }
-
-  Widget _statusChip(String status) {
-    final label = AppConstants.roomStatus[status] ?? status;
-    if (status == 'RECRUITING') {
-      return DesignChip(label: label, tone: ChipTone.primaryGhost, height: 22);
-    }
-    return DesignChip(label: label, tone: ChipTone.outline, height: 22);
-  }
 }
 
-/// 홈 2열 그리드용 컴팩트 카드 — 정보는 [RoomCard] 와 동일하지만 세로 레이아웃.
-/// 좁은 폭에 맞춰 글자/칩 크기를 줄이고, 태그는 처음 2개만 표시.
-class RoomCardCompact extends ConsumerWidget {
+/// 좁은 자리(지도 시트·대시보드)용 작은 행 — 날짜 36 + 제목 + 메타 한 줄.
+class RoomCardCompact extends StatelessWidget {
   final Room room;
   final VoidCallback? onTap;
 
   const RoomCardCompact({super.key, required this.room, this.onTap});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final myPos = ref.watch(currentPositionProvider).valueOrNull;
-    String? distanceText;
-    if (room.latitude != null &&
-        room.longitude != null &&
-        !room.joined &&
-        myPos != null) {
-      distanceText = formatDistance(distanceKm(
-        myPos.latitude,
-        myPos.longitude,
-        room.latitude!,
-        room.longitude!,
-      ));
-    }
-
-    return GlassCard(
-      onTap: onTap,
-      radius: 18,
-      borderWidth: 2,
-      padding: EdgeInsets.zero,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // 상단 나이 컬러 헤더 — 카드 폭 전체.
-          Container(
-            height: 60,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: _compactAgeColors(room.ageMonthMin),
-              ),
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(18)),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              '${room.ageMonthMin}~${room.ageMonthMax}개월',
-              style: AppTextStyles.cardTitle.copyWith(
-                color: Colors.white,
-                fontSize: 14,
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(10, 9, 10, 11),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // 칩 행 — 장소 + 상태
-                Row(
-                  children: [
-                    Flexible(
-                      child: DesignChip(
-                        label:
-                            AppConstants.placeTypes[room.placeType] ?? '기타',
-                        tone: ChipTone.lilac,
-                        height: 18,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    _compactStatusChip(room.status),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  room.title,
-                  style: AppTextStyles.body2Bold,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 6),
-                // 시간
-                Row(
-                  children: [
-                    const Icon(Icons.schedule_rounded,
-                        size: 11, color: AppColors.ink500),
-                    const SizedBox(width: 3),
-                    Expanded(
-                      child: Text(
-                        AppDateUtils.formatDateTime(room.date, room.startTime),
-                        style: AppTextStyles.caption.copyWith(fontSize: 11),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                // 동·거리
-                if (room.regionDong.trim().isNotEmpty ||
-                    distanceText != null) ...[
-                  const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      const Icon(Icons.location_on_rounded,
-                          size: 11, color: AppColors.ink500),
-                      const SizedBox(width: 3),
-                      Expanded(
-                        child: Text(
-                          [
-                            if (room.regionDong.trim().isNotEmpty)
-                              room.regionDong,
-                            if (distanceText != null) distanceText,
-                          ].join(' · '),
-                          style: AppTextStyles.caption.copyWith(
-                            fontSize: 11,
-                            color: distanceText != null
-                                ? AppColors.primary
-                                : null,
-                            fontWeight: distanceText != null
-                                ? FontWeight.w700
-                                : null,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-                const SizedBox(height: 8),
-                // 인원 칩
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: DesignChip(
-                    label:
-                        '${room.currentMembers}/${room.maxMembers}명',
-                    tone: room.isFull ? ChipTone.ink : ChipTone.primarySolid,
-                    height: 20,
-                    icon: Icons.people_rounded,
-                  ),
-                ),
-                // 태그 — 좁은 폭이라 처음 2개만.
-                if (room.tags.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 4,
-                    runSpacing: 4,
-                    children: room.tags
-                        .take(2)
-                        .map((tag) => _TagChip(label: tag))
-                        .toList(),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-List<Color> _compactAgeColors(int age) {
-  if (age < 6) return const [Color(0xFFFAD2DD), AppColors.primary];
-  if (age < 12) return const [Color(0xFFF7A8BF), AppColors.primaryDark];
-  if (age < 24) return const [Color(0xFFD5C7F2), AppColors.accentLavender];
-  if (age < 36) return const [Color(0xFFC9B2EC), AppColors.secondaryDark];
-  return const [Color(0xFFFFC0AC), AppColors.accentCoral];
-}
-
-Widget _compactStatusChip(String status) {
-  final label = AppConstants.roomStatus[status] ?? status;
-  if (status == 'RECRUITING') {
-    return DesignChip(label: label, tone: ChipTone.primaryGhost, height: 18);
-  }
-  return DesignChip(label: label, tone: ChipTone.outline, height: 18);
-}
-
-/// 태그(#태그) 칩 — 태그별로 색이 다양하게 순환된다.
-class _TagChip extends StatelessWidget {
-  final String label;
-
-  const _TagChip({required this.label});
-
-  // 태그 문자열 → 안정적인 (배경, 글자) 색 쌍.
-  static const List<({Color bg, Color fg})> _palette = [
-    (bg: Color(0xFFFCE0E8), fg: Color(0xFFB23A60)), // pink
-    (bg: Color(0xFFEDE3FB), fg: Color(0xFF5A3F99)), // lavender
-    (bg: Color(0xFFFFE3DA), fg: Color(0xFFC0573E)), // coral
-    (bg: Color(0xFFF8D2DD), fg: Color(0xFF9A2F52)), // deep pink
-    (bg: Color(0xFFE6DAF9), fg: Color(0xFF6B3FA0)), // purple
-    (bg: Color(0xFFFFD9CC), fg: Color(0xFFB5462E)), // deep coral
-  ];
-
-  ({Color bg, Color fg}) _colorFor(String key) {
-    if (key.isEmpty) return _palette.first;
-    final hash = key.codeUnits.fold<int>(0, (a, b) => (a + b) & 0xffff);
-    return _palette[hash % _palette.length];
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final c = _colorFor(label);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-      decoration: BoxDecoration(
-        color: c.bg,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        '#$label',
-        style: AppTextStyles.chip.copyWith(
-          color: c.fg,
-          fontSize: 11,
-        ),
-      ),
-    );
-  }
-}
+    final date = DateTime.tryParse(room.date);
 
-class _CardActions extends StatelessWidget {
-  final VoidCallback? onOpenDetail;
-  final VoidCallback? onOpenChat;
-  final int unreadCount;
-
-  const _CardActions({
-    this.onOpenDetail,
-    this.onOpenChat,
-    this.unreadCount = 0,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        if (onOpenDetail != null)
-          _ActionIcon(
-            icon: Icons.home_rounded,
-            tooltip: '방 상세',
-            color: AppColors.primary,
-            onTap: onOpenDetail!,
-          ),
-        if (onOpenDetail != null && onOpenChat != null)
-          const SizedBox(height: 8),
-        if (onOpenChat != null)
-          Badge(
-            isLabelVisible: unreadCount > 0,
-            label: Text(unreadCount > 99 ? '99+' : '$unreadCount'),
-            backgroundColor: AppColors.error,
-            child: _ActionIcon(
-              icon: Icons.chat_bubble_rounded,
-              tooltip: '채팅',
-              color: AppColors.secondary,
-              onTap: onOpenChat!,
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _ActionIcon extends StatelessWidget {
-  final IconData icon;
-  final String tooltip;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _ActionIcon({
-    required this.icon,
-    required this.tooltip,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
         onTap: onTap,
-        child: Tooltip(
-          message: tooltip,
-          child: Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            alignment: Alignment.center,
-            child: Icon(icon, size: 20, color: color),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 11),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              if (date != null) ...[
+                DateBlock(date: date, today: _isToday(date), width: 36),
+                const SizedBox(width: 10),
+              ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      room.title,
+                      style: AppTextStyles.cardTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    RoomMetaLine(parts: roomMetaParts(room)),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
+}
+
+/// 행 메타 한 줄 — "10:30 · 플레이타임 망원점 · 망원동". 구분자는 3px 점.
+class RoomMetaLine extends StatelessWidget {
+  final List<String> parts;
+
+  const RoomMetaLine({super.key, required this.parts});
+
+  @override
+  Widget build(BuildContext context) {
+    final spans = <InlineSpan>[];
+    for (final part in parts) {
+      if (spans.isNotEmpty) {
+        spans.add(const WidgetSpan(
+          alignment: PlaceholderAlignment.middle,
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 6),
+            child: _MetaDot(),
+          ),
+        ));
+      }
+      spans.add(TextSpan(text: part));
+    }
+    return Text.rich(
+      TextSpan(children: spans),
+      style: AppTextStyles.body2,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+}
+
+class _MetaDot extends StatelessWidget {
+  const _MetaDot();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 3,
+      height: 3,
+      decoration: const BoxDecoration(
+        color: AppColors.line2,
+        shape: BoxShape.circle,
+      ),
+    );
+  }
+}
+
+/// 안읽음 숫자 배지 — berry 20px 알약. 탭하면 채팅방.
+class UnreadBadge extends StatelessWidget {
+  final int count;
+  final VoidCallback? onTap;
+
+  const UnreadBadge({super.key, required this.count, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final body = Container(
+      height: 20,
+      constraints: const BoxConstraints(minWidth: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: AppColors.berry,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(count > 99 ? '99+' : '$count', style: AppTextStyles.badge),
+    );
+    if (onTap == null) return body;
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: body,
+    );
+  }
+}
+
+/// 메타 한 줄에 들어갈 조각 — 시간 · 장소 · 동. 빈 값은 넣지 않는다.
+List<String> roomMetaParts(Room room) {
+  final place = (room.placeName ?? '').trim().isNotEmpty
+      ? room.placeName!.trim()
+      : (AppConstants.placeTypes[room.placeType] ?? '');
+  return [
+    _shortTime(room.startTime),
+    if (place.isNotEmpty) place,
+    if (room.regionDong.trim().isNotEmpty) room.regionDong.trim(),
+  ].where((e) => e.isNotEmpty).toList();
+}
+
+/// 기본 pill 줄 — 개월수(sky) + 승인 필요/준비물(muted) 중 하나. 최대 2개.
+List<Widget> defaultRoomPills(Room room) {
+  return [
+    Pill(
+      label: '${room.ageMonthMin}~${room.ageMonthMax}개월',
+      tone: PillTone.sky,
+    ),
+    if (room.isApprovalRequired)
+      const Pill(label: '승인 필요', tone: PillTone.muted)
+    else if (room.requiredItems.isNotEmpty)
+      const Pill(label: '준비물', tone: PillTone.muted),
+  ];
+}
+
+/// 상태 pill — 모집중만 형광펜, 나머지는 회색.
+Pill roomStatusPill(Room room) {
+  if (room.status == 'RECRUITING') {
+    if (room.joined) return const Pill(label: '참여 중', tone: PillTone.muted);
+    if (room.isFull) return const Pill(label: '마감', tone: PillTone.muted);
+    return const Pill(label: '모집중', tone: PillTone.hi);
+  }
+  const labels = {
+    'CLOSED': '마감',
+    'IN_PROGRESS': '진행중',
+    'COMPLETED': '종료',
+    'CANCELLED': '취소',
+  };
+  return Pill(
+    label: labels[room.status] ??
+        AppConstants.roomStatus[room.status] ??
+        room.status,
+    tone: PillTone.muted,
+  );
+}
+
+/// 날짜 그룹 라벨 — "오늘 · 9월 12일 금요일" / "내일" / "이번 주" / "다음 주" / "그 이후".
+/// 지난 날짜는 달로 묶는다.
+String roomGroupLabel(DateTime date) {
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final target = DateTime(date.year, date.month, date.day);
+  final diff = target.difference(today).inDays;
+
+  if (diff == 0) return '오늘 · ${DateFormat('M월 d일 EEEE', 'ko').format(date)}';
+  if (diff == 1) return '내일';
+  if (diff < 0) {
+    return target.year == today.year
+        ? DateFormat('M월', 'ko').format(date)
+        : DateFormat('yyyy년 M월', 'ko').format(date);
+  }
+  // 이번 주 = 오늘이 속한 주의 일요일까지 (월요일 시작).
+  final endOfWeek = today.add(Duration(days: 7 - today.weekday));
+  if (!target.isAfter(endOfWeek)) return '이번 주';
+  if (!target.isAfter(endOfWeek.add(const Duration(days: 7)))) return '다음 주';
+  return '그 이후';
+}
+
+bool _isToday(DateTime date) {
+  final now = DateTime.now();
+  return date.year == now.year && date.month == now.month && date.day == now.day;
+}
+
+/// "10:30" — 초가 붙어 와도 시:분까지만.
+String _shortTime(String startTime) {
+  final parts = startTime.split(':');
+  if (parts.length < 2) return startTime;
+  return '${parts[0]}:${parts[1]}';
 }

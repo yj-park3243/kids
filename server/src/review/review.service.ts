@@ -73,6 +73,14 @@ export class ReviewService {
     return this.toResponse(saved);
   }
 
+  async getMineInRoom(roomId: string, authorUserId: string) {
+    const rows = await this.reviewRepository.find({
+      where: { roomId, authorId: authorUserId },
+      order: { createdAt: 'ASC' },
+    });
+    return rows.map((r) => this.toResponse(r));
+  }
+
   async update(reviewId: string, userId: string, dto: UpdateReviewDto) {
     const review = await this.reviewRepository.findOne({
       where: { id: reviewId },

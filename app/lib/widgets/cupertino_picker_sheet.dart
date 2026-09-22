@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../core/constants/app_colors.dart';
 import '../core/constants/app_text_styles.dart';
+import 'design/notebook.dart';
 
 /// 하단 시트에 Cupertino 휠 picker 를 띄우고 결과를 반환하는 helper.
 ///
@@ -31,11 +32,11 @@ Future<T?> showPickerSheet<T>({
             children: [
               // 그립 인디케이터
               Container(
-                width: 40,
+                width: 36,
                 height: 4,
                 margin: const EdgeInsets.only(top: 8, bottom: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.divider,
+                  color: AppColors.line2,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -46,24 +47,26 @@ Future<T?> showPickerSheet<T>({
                   children: [
                     TextButton(
                       onPressed: () => Navigator.of(ctx).pop(),
-                      child: Text('취소', style: AppTextStyles.body2.copyWith(color: AppColors.textSecondary)),
+                      child: Text('취소', style: AppTextStyles.body2),
                     ),
                     Expanded(
                       child: Center(
-                        child: Text(title, style: AppTextStyles.body1Bold),
+                        child: Text(title, style: AppTextStyles.sectionHead),
                       ),
                     ),
                     TextButton(
                       onPressed: () => Navigator.of(ctx).pop(current),
                       child: Text(
                         '확인',
-                        style: AppTextStyles.body2Bold.copyWith(color: AppColors.primary),
+                        style: AppTextStyles.body2Bold
+                            .copyWith(color: AppColors.ink),
                       ),
                     ),
                   ],
                 ),
               ),
-              const Divider(height: 1, color: AppColors.divider),
+              const DashedDivider(
+                  margin: EdgeInsets.symmetric(horizontal: 20)),
               Expanded(
                 child: builder(current, (v) => current = v),
               ),

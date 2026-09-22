@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../widgets/app_bar.dart';
+import '../../../widgets/design/notebook.dart';
 import '../providers/notice_provider.dart';
 
 class NoticeListScreen extends ConsumerWidget {
@@ -15,7 +16,7 @@ class NoticeListScreen extends ConsumerWidget {
     final asyncNotices = ref.watch(noticeListProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.paper,
       appBar: const CustomAppBar(title: '공지사항'),
       body: asyncNotices.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -32,45 +33,48 @@ class NoticeListScreen extends ConsumerWidget {
             );
           }
           return RefreshIndicator(
+            color: AppColors.ink,
             onRefresh: () => ref.refresh(noticeListProvider.future),
             child: ListView.separated(
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
               itemCount: notices.length,
-              separatorBuilder: (_, __) =>
-                  const Divider(height: 1, color: AppColors.divider),
+              separatorBuilder: (_, __) => const DashedDivider(),
               itemBuilder: (context, i) {
                 final n = notices[i];
-                return ListTile(
+                return InkWell(
                   onTap: () => context.push('/notices/${n.id}'),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-                  title: Row(
-                    children: [
-                      if (n.isPinned) ...[
-                        const Icon(Icons.push_pin_rounded,
-                            size: 15, color: AppColors.primary),
-                        const SizedBox(width: 4),
-                      ],
-                      Expanded(
-                        child: Text(
-                          n.title,
-                          style: AppTextStyles.body1Bold,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                    child: Row(
+                      children: [
+                        if (n.isPinned) ...[
+                          const Icon(Icons.push_pin_rounded,
+                              size: 15, color: AppColors.ink),
+                          const SizedBox(width: 6),
+                        ],
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                n.title,
+                                style: AppTextStyles.cardTitle,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 3),
+                              Text(_formatDate(n.createdAt),
+                                  style: AppTextStyles.caption),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  subtitle: Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      _formatDate(n.createdAt),
-                      style: AppTextStyles.caption
-                          .copyWith(color: AppColors.textHint),
+                        const SizedBox(width: 8),
+                        const Icon(Icons.chevron_right_rounded,
+                            size: 18, color: AppColors.line2),
+                      ],
                     ),
                   ),
-                  trailing: const Icon(Icons.chevron_right_rounded,
-                      color: AppColors.textHint),
                 );
               },
             ),
@@ -97,13 +101,9 @@ class _Message extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 48, color: AppColors.textHint),
+          Icon(icon, size: 48, color: AppColors.ink3),
           const SizedBox(height: 12),
-          Text(
-            text,
-            style:
-                AppTextStyles.body2.copyWith(color: AppColors.textSecondary),
-          ),
+          Text(text, style: AppTextStyles.body2),
           if (onRetry != null) ...[
             const SizedBox(height: 12),
             TextButton(onPressed: onRetry, child: const Text('다시 시도')),

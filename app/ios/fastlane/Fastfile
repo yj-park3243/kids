@@ -3,6 +3,31 @@ default_platform(:ios)
 APP_DIR = File.expand_path("../..", __dir__)
 
 platform :ios do
+  desc "ASC 버전/빌드 상태 조회 (읽기 전용) — 심사 제출 전에 확인용"
+  lane :status do
+    require "spaceship"
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+      key_id: ENV["ASC_KEY_ID"],
+      issuer_id: ENV["ASC_ISSUER_ID"],
+      filepath: ENV["ASC_KEY_PATH"],
+    )
+    app = Spaceship::ConnectAPI::App.find(ENV["APP_IDENTIFIER"])
+    UI.user_error!("ASC 에서 앱을 찾지 못했습니다") unless app
+
+    UI.important("=== App Store 버전 ===")
+    app.get_app_store_versions(includes: "build").each do |v|
+      UI.message("v#{v.version_string} | state=#{v.app_store_state} | build=#{v.build&.version}")
+    end
+
+    UI.important("=== 최근 TestFlight 빌드 ===")
+    Spaceship::ConnectAPI::Build.all(
+      app_id: app.id, sort: "-uploadedDate", limit: 5,
+      includes: "preReleaseVersion",
+    ).each do |b|
+      UI.message("build #{b.version} (v#{b.pre_release_version&.version}) | #{b.processing_state}")
+    end
+  end
+
   desc "ASC에 앱 등록 여부 확인"
   lane :check_app do
     require "spaceship"
@@ -198,7 +223,10 @@ platform :ios do
     File.read(File.join(APP_DIR, "pubspec.yaml")) =~ /version:\s*([\d.]+)\+(\d+)/
     app_version = $1
     build_num = $2
-    notes = "버그를 수정하고 안정성을 개선했어요."
+    # 릴리스 노트: fastlane/release_notes.txt 가 있으면 그걸 쓴다(없으면 기본 문구).
+    notes_file = File.join(__dir__, "release_notes.txt")
+    notes = File.exist?(notes_file) ? File.read(notes_file).strip : nil
+    notes = "버그를 수정하고 안정성을 개선했어요." if notes.nil? || notes.empty?
 
     # 편집 버전 보장 / whatsNew 채우기용 spaceship 토큰
     Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(

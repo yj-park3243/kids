@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
+import '../../../../widgets/design/design_chip.dart';
 import '../../../../widgets/top_toast.dart';
 
 const List<String> kSuggestedRequiredItems = [
@@ -86,12 +87,9 @@ class _RequiredItemsPickerState extends State<RequiredItemsPicker> {
       children: [
         Row(
           children: [
-            Text('준비물', style: AppTextStyles.body2Bold),
+            Text('준비물', style: AppTextStyles.captionBold),
             const SizedBox(width: 6),
-            Text(
-              '(선택, 최대 $_kMaxItems개)',
-              style: AppTextStyles.caption.copyWith(color: AppColors.textHint),
-            ),
+            Text('(선택, 최대 $_kMaxItems개)', style: AppTextStyles.caption),
           ],
         ),
         const SizedBox(height: 10),
@@ -100,46 +98,13 @@ class _RequiredItemsPickerState extends State<RequiredItemsPicker> {
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: kSuggestedRequiredItems.map((item) {
-            final selected = value.contains(item);
-            return GestureDetector(
-              onTap: () => _toggle(item),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: selected
-                      ? AppColors.primary.withValues(alpha: 0.1)
-                      : AppColors.surface,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: selected ? AppColors.primary : AppColors.divider,
-                    width: selected ? 1.5 : 1,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (selected) ...[
-                      const Icon(Icons.check_rounded,
-                          size: 14, color: AppColors.primary),
-                      const SizedBox(width: 4),
-                    ],
-                    Text(
-                      item,
-                      style: AppTextStyles.body2.copyWith(
-                        color: selected
-                            ? AppColors.primary
-                            : AppColors.textSecondary,
-                        fontWeight:
-                            selected ? FontWeight.w600 : FontWeight.w400,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }).toList(),
+          children: kSuggestedRequiredItems
+              .map((item) => FilterChipButton(
+                    label: item,
+                    selected: value.contains(item),
+                    onTap: () => _toggle(item),
+                  ))
+              .toList(),
         ),
 
         const SizedBox(height: 12),
@@ -153,27 +118,24 @@ class _RequiredItemsPickerState extends State<RequiredItemsPicker> {
                 maxLength: _kMaxItemLength,
                 decoration: InputDecoration(
                   hintText: '직접 추가 (예: 비상약)',
-                  hintStyle: AppTextStyles.body2.copyWith(
-                    color: AppColors.textHint,
-                  ),
+                  hintStyle:
+                      AppTextStyles.body1.copyWith(color: AppColors.ink3),
                   counterText: '',
                   isDense: true,
                   contentPadding: const EdgeInsets.symmetric(
                       horizontal: 12, vertical: 12),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide:
-                        const BorderSide(color: AppColors.divider),
+                    borderSide: const BorderSide(color: AppColors.line2),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide:
-                        const BorderSide(color: AppColors.divider),
+                    borderSide: const BorderSide(color: AppColors.line2),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide:
-                        const BorderSide(color: AppColors.primary),
+                        const BorderSide(color: AppColors.ink, width: 1.5),
                   ),
                   filled: true,
                   fillColor: AppColors.surface,
@@ -183,8 +145,7 @@ class _RequiredItemsPickerState extends State<RequiredItemsPicker> {
             ),
             IconButton(
               onPressed: _addCustom,
-              icon: const Icon(Icons.add_circle_rounded,
-                  color: AppColors.primary),
+              icon: const Icon(Icons.add_circle_rounded, color: AppColors.ink),
               iconSize: 32,
             ),
           ],
@@ -201,13 +162,10 @@ class _RequiredItemsPickerState extends State<RequiredItemsPicker> {
                 .map((item) => Chip(
                       label: Text(item, style: AppTextStyles.tag),
                       deleteIcon: const Icon(Icons.close, size: 16),
-                      deleteIconColor: AppColors.primary,
-                      backgroundColor:
-                          AppColors.primary.withValues(alpha: 0.08),
+                      deleteIconColor: AppColors.ink3,
+                      backgroundColor: AppColors.fill,
                       side: BorderSide.none,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
+                      shape: const StadiumBorder(),
                       onDeleted: () {
                         widget.onChanged(
                             value.where((e) => e != item).toList());

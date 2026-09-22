@@ -5,7 +5,11 @@ import '../../core/constants/app_shadows.dart';
 
 enum GlassTone { white }
 
-/// 흰 베이스 카드. `accentColor` 지정 시 좌측 3px 컬러 보더 표시.
+/// 카드 — 흰 면 + 1px 헤어라인. 그림자 없음.
+///
+/// 떠 있어야 하는 카드(홈의 '다음 모임')만 [hero] 로 그림자를 준다.
+/// 한 화면에 hero 는 하나. 이름(GlassCard)은 호환용이며 유리 효과는 더 이상 없다.
+/// `accentColor`(좌측 컬러 바)는 무시된다 — 색 대신 굵기로 강조한다.
 class GlassCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
@@ -18,6 +22,8 @@ class GlassCard extends StatelessWidget {
   final Color? accentColor;
   final double accentWidth;
   final double borderWidth;
+  final bool hero;
+  final Color? color;
 
   const GlassCard({
     super.key,
@@ -26,26 +32,31 @@ class GlassCard extends StatelessWidget {
     this.radius = AppRadius.md,
     this.tone = GlassTone.white,
     this.onTap,
-    this.blur = 22,
+    this.blur = 0,
     this.width,
     this.height,
     this.accentColor,
-    this.accentWidth = 3,
+    this.accentWidth = 0,
     this.borderWidth = 1,
+    this.hero = false,
+    this.color,
   });
 
   @override
   Widget build(BuildContext context) {
-    final borderRadius = BorderRadius.circular(radius);
+    final borderRadius = BorderRadius.circular(hero ? AppRadius.lg : radius);
 
     final decoration = BoxDecoration(
       borderRadius: borderRadius,
-      color: AppColors.surface,
-      border: Border.all(color: AppColors.divider, width: borderWidth),
-      boxShadow: AppShadows.glass,
+      color: color ?? AppColors.surface,
+      border: Border.all(
+        color: hero ? AppColors.line2 : AppColors.line,
+        width: borderWidth,
+      ),
+      boxShadow: hero ? AppShadows.hero : null,
     );
 
-    Widget body = Container(
+    final body = Container(
       width: width,
       height: height,
       padding: padding,
@@ -53,37 +64,29 @@ class GlassCard extends StatelessWidget {
       child: child,
     );
 
-    if (accentColor != null) {
-      body = ClipRRect(
+    if (onTap == null) return body;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: borderRadius,
-        child: Stack(
-          children: [
-            body,
-            Positioned(
-              left: 0,
-              top: 0,
-              bottom: 0,
-              child: Container(
-                width: accentWidth,
-                color: accentColor,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (onTap != null) {
-      body = Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: borderRadius,
-          child: body,
-        ),
-      );
-    }
-
-    return body;
+        child: body,
+      ),
+    );
   }
+}
+
+/// 새 이름. 내부는 [GlassCard] 와 같다 — 새 코드는 이쪽을 쓴다.
+class AppCard extends GlassCard {
+  const AppCard({
+    super.key,
+    required super.child,
+    super.padding,
+    super.radius,
+    super.onTap,
+    super.width,
+    super.height,
+    super.hero,
+    super.color,
+  });
 }

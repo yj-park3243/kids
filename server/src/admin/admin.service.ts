@@ -23,7 +23,9 @@ import {
   ResolveReportDto,
   ReplyInquiryDto,
 } from './dto/admin-query.dto';
+import { NotificationService } from '../notification/notification.service';
 import { UserService } from '../user/user.service';
+import { kstDateString } from '../common/utils/kst';
 
 const ONLINE_THRESHOLD_MIN = 5;
 
@@ -44,6 +46,7 @@ export class AdminService {
     private inquiryRepository: Repository<SupportInquiry>,
     private jwtService: JwtService,
     private userService: UserService,
+    private notificationService: NotificationService,
   ) {}
 
   async correctIdentity(
@@ -93,8 +96,9 @@ export class AdminService {
 
   async getDashboard() {
     const now = new Date();
-    const today = new Date(now);
-    today.setHours(0, 0, 0, 0);
+    // 서버는 UTC — '오늘' 은 한국 자정 기준으로 잡는다.
+    const todayDateStr = kstDateString(now);
+    const today = new Date(`${todayDateStr}T00:00:00+09:00`);
 
     const sevenDaysAgo = new Date(today);
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -102,7 +106,6 @@ export class AdminService {
     const thirtyDaysAgo = new Date(today);
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29); // 오늘 포함 30일
 
-    const todayDateStr = today.toISOString().slice(0, 10);
     const onlineCutoff = new Date(now.getTime() - ONLINE_THRESHOLD_MIN * 60_000);
 
     const [
@@ -563,6 +566,19 @@ export class AdminService {
     inquiry.status = dto.status ?? 'REPLIED';
     inquiry.repliedAt = new Date();
     await this.inquiryRepository.save(inquiry);
+
+    // 문의한 사람에게 답변 도착 알림 — 앱은 이걸로 '내 문의 내역'으로 진입한다.
+    try {
+      await this.notificationService.create({
+        userId: inquiry.userId,
+        type: 'INQUIRY_REPLIED',
+        title: '1:1 문의 답변',
+        body: `[${inquiry.subject}] 문의에 답변이 도착했어요.`,
+        data: { inquiryId: inquiry.id },
+      });
+    } catch {
+      // 알림 실패가 답변 저장을 막지 않는다.
+    }
     return { success: true };
   }
 }

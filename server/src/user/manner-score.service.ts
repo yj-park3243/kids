@@ -3,7 +3,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 
-const BASE = 36.5;
+// user.entity 의 manner_score 기본값(20, 떡잎 중간)과 반드시 같아야 한다.
+// 기준이 다르면 첫 재계산(후기/신고/노쇼) 때 점수가 기준선으로 점프해 벌점이 승급으로 둔갑한다.
+const BASE = 20;
 const MIN = 0;
 const MAX = 99.9;
 
@@ -19,7 +21,7 @@ function scoreDelta(score: number): number {
 }
 
 // 매너 온도 통합 재계산. 단일 진입점.
-// 36.5°C 기준 + Σ scoreDelta(review.score) − confirmedReports × 1.0 − noShowCount × 0.3
+// 20 기준 + Σ scoreDelta(review.score) − confirmedReports × 1.0 − noShowCount × 0.3
 // scoreDelta: 5→+0.5, 4→+0.2, 3→0, 2→-0.2, 1→-0.5 (docs/02 §8.3)
 @Injectable()
 export class MannerScoreService {

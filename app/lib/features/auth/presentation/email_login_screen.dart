@@ -45,36 +45,34 @@ class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
     ref.listen<AuthState>(authProvider, (previous, next) {
       if (next.status == AuthStatus.authenticated) {
         context.go('/home');
-      } else if (next.status == AuthStatus.phoneVerification) {
-        context.go('/phone-verification');
       } else if (next.status == AuthStatus.profileSetup) {
         context.go('/profile-setup');
       } else if (next.status == AuthStatus.childSetup) {
         context.go('/child-setup');
       } else if (next.errorMessage != null) {
-        showTopToast(context, next.errorMessage!, backgroundColor: AppColors.error);
+        showTopToast(context, next.errorMessage!,
+            backgroundColor: AppColors.bad);
       }
     });
 
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: const CustomAppBar(title: '이메일 로그인'),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 20),
-                Text('환영합니다!', style: AppTextStyles.heading1),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
+                Text('환영합니다!', style: AppTextStyles.display),
+                const SizedBox(height: 6),
                 Text(
                   '이메일과 비밀번호로 로그인해 주세요',
-                  style: AppTextStyles.body2.copyWith(color: AppColors.textSecondary),
+                  style: AppTextStyles.body2,
                 ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 32),
 
                 CommonInput(
                   key: const Key('input-email'),
@@ -98,8 +96,11 @@ class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
                   onSubmitted: (_) => _login(),
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                      color: AppColors.textHint,
+                      _obscurePassword
+                          ? Icons.visibility_off_rounded
+                          : Icons.visibility_rounded,
+                      color: AppColors.ink3,
+                      size: 20,
                     ),
                     onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                   ),
@@ -109,13 +110,12 @@ class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: () {
-                      // TODO: Password reset
-                    },
+                    onPressed: () => context.push('/password-reset'),
                     child: Text(
                       '비밀번호를 잊으셨나요?',
                       style: AppTextStyles.caption.copyWith(
-                        color: AppColors.primary,
+                        color: AppColors.link,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -136,15 +136,13 @@ class _EmailLoginScreenState extends ConsumerState<EmailLoginScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        '계정이 없으신가요? ',
-                        style: AppTextStyles.body2.copyWith(color: AppColors.textSecondary),
-                      ),
+                      Text('계정이 없으신가요? ', style: AppTextStyles.body2),
                       GestureDetector(
                         onTap: () => context.pushReplacement('/email-register'),
                         child: Text(
                           '회원가입',
-                          style: AppTextStyles.body2Bold.copyWith(color: AppColors.primary),
+                          style: AppTextStyles.body2Bold
+                              .copyWith(color: AppColors.link),
                         ),
                       ),
                     ],

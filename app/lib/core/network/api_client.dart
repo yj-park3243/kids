@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import '../constants/api_constants.dart';
 import 'api_interceptor.dart';
 
@@ -23,14 +24,18 @@ class ApiClient {
       ),
     );
 
-    dio.interceptors.addAll([
-      AuthInterceptor(dio),
-      LogInterceptor(
-        requestBody: true,
-        responseBody: true,
-        error: true,
-      ),
-    ]);
+    dio.interceptors.add(AuthInterceptor(dio));
+    // 요청/응답 본문에 Authorization 헤더와 로그인 응답의 토큰 원문이 들어간다.
+    // 릴리스에서 기기 로그(os_log)로 새어나가지 않도록 디버그에서만 붙인다.
+    if (kDebugMode) {
+      dio.interceptors.add(
+        LogInterceptor(
+          requestBody: true,
+          responseBody: true,
+          error: true,
+        ),
+      );
+    }
 
     return dio;
   }

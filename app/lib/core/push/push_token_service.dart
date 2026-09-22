@@ -23,10 +23,13 @@ class PushTokenService {
     if (_initialized) return;
     _initialized = true;
 
-    try {
-      await FirebaseMessaging.instance.requestPermission();
-    } catch (e) {
-      if (kDebugMode) debugPrint('[Push] 권한 요청 실패: $e');
+    // UI 테스트 빌드에서는 시스템 권한 팝업이 스크린샷을 가리므로 건너뛴다(ATT 와 같은 플래그).
+    if (!const bool.fromEnvironment('UI_TEST_SKIP_ATT')) {
+      try {
+        await FirebaseMessaging.instance.requestPermission();
+      } catch (e) {
+        if (kDebugMode) debugPrint('[Push] 권한 요청 실패: $e');
+      }
     }
 
     // 토큰 갱신 감지 — 갱신될 때마다 재등록.

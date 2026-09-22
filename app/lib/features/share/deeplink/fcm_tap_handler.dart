@@ -72,7 +72,8 @@ class FcmTapHandler {
   }
 
   /// type/roomId 등으로 목적지 경로를 만든다. 딥링크가 없으면 null.
-  String? _resolveRoute(Map<String, dynamic> data) {
+  /// 인앱 알림 목록도 같은 규칙을 쓴다 — 푸시 탭과 목록 탭이 다른 곳으로 가지 않게.
+  static String? resolveRoute(Map<String, dynamic> data) {
     final type = (data['type'] ?? '').toString();
     final roomId = data['roomId']?.toString();
     final chatRoomId = data['chatRoomId']?.toString();
@@ -101,6 +102,8 @@ class FcmTapHandler {
         return photoId != null
             ? '/rooms/$roomId/photos/$photoId'
             : '/rooms/$roomId/photos';
+      case 'INQUIRY_REPLIED':
+        return '/inquiries';
       case 'NOSHOW_WARNING':
       case 'REPORT_RESOLVED':
         return '/notifications';
@@ -113,7 +116,7 @@ class FcmTapHandler {
     final data = _normalize(message.data);
     if (kDebugMode) debugPrint('FCM tap: data=$data');
     // 알 수 없는 타입은 알림 화면으로 폴백.
-    router.push(_resolveRoute(data) ?? '/notifications');
+    router.push(resolveRoute(data) ?? '/notifications');
   }
 
   void _handleForeground(GoRouter router, RemoteMessage message) {
@@ -125,7 +128,7 @@ class FcmTapHandler {
     final notification = message.notification;
     final title = notification?.title ?? '알림';
     final body = notification?.body ?? '';
-    final route = _resolveRoute(_normalize(message.data));
+    final route = resolveRoute(_normalize(message.data));
 
     messenger.hideCurrentSnackBar();
     messenger.showSnackBar(

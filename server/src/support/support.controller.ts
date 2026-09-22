@@ -1,5 +1,6 @@
 import {
   Controller,
+  Get,
   Post,
   Body,
   Req,
@@ -62,6 +63,14 @@ export class SupportController {
     @Body() dto: CreateInquiryDto,
   ) {
     return this.supportService.createInquiry(userId, dto);
+  }
+
+  @Get('support/inquiries')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '내 1:1 문의 내역 (답변 포함)' })
+  async getMyInquiries(@CurrentUser('id') userId: string) {
+    return this.supportService.getMyInquiries(userId);
   }
 
   @Post('support/report')

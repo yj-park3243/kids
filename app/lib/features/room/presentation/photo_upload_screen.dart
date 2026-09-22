@@ -10,6 +10,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../widgets/app_bar.dart';
+import '../../../widgets/design/primary_button.dart';
 import '../data/photo_repository.dart';
 
 /// 앱 안에서 디바이스 사진 라이브러리를 직접 그리드로 보여주고 다중 선택.
@@ -130,27 +131,31 @@ class _PhotoUploadScreenState extends ConsumerState<PhotoUploadScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: CustomAppBar(
-        title: '사진 선택',
-        actions: [
-          TextButton(
-            onPressed: _selected.isEmpty || _uploading ? null : _upload,
-            child: Text(
-              _uploading ? '$_uploadDone/$_uploadTotal' : '전송 ${_selected.isEmpty ? '' : '(${_selected.length})'}',
-              style: AppTextStyles.body2Bold.copyWith(
-                color: _selected.isEmpty
-                    ? AppColors.textHint
-                    : AppColors.primary,
-              ),
-            ),
-          ),
-        ],
-      ),
+      backgroundColor: AppColors.paper,
+      appBar: const CustomAppBar(title: '사진 선택'),
       body: SafeArea(
         child: Stack(
           children: [
-            _buildBody(),
+            Column(
+              children: [
+                Expanded(child: _buildBody()),
+                if (!_permissionDenied)
+                  Container(
+                    decoration: const BoxDecoration(
+                      color: AppColors.surface,
+                      border: Border(top: BorderSide(color: AppColors.line)),
+                    ),
+                    padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
+                    child: PrimaryButton(
+                      text: _uploading
+                          ? '$_uploadDone / $_uploadTotal'
+                          : '전송${_selected.isEmpty ? '' : ' (${_selected.length})'}',
+                      isEnabled: _selected.isNotEmpty && !_uploading,
+                      onPressed: _upload,
+                    ),
+                  ),
+              ],
+            ),
             if (_uploading)
               _UploadProgressOverlay(done: _uploadDone, total: _uploadTotal),
           ],
@@ -160,7 +165,10 @@ class _PhotoUploadScreenState extends ConsumerState<PhotoUploadScreen> {
   }
 
   Widget _buildBody() {
-    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_loading) {
+      return const Center(
+          child: CircularProgressIndicator(color: AppColors.ink));
+    }
     if (_permissionDenied) {
       return _PermissionBlocker(
         onOpenSettings: () => PhotoManager.openSetting(),
@@ -172,8 +180,7 @@ class _PhotoUploadScreenState extends ConsumerState<PhotoUploadScreen> {
           padding: const EdgeInsets.all(AppSpacing.xl),
           child: Text(
             '사진이 없어요',
-            style: AppTextStyles.body2
-                .copyWith(color: AppColors.textSecondary, height: 1.6),
+            style: AppTextStyles.body2.copyWith(height: 1.6),
           ),
         ),
       );
@@ -187,11 +194,11 @@ class _PhotoUploadScreenState extends ConsumerState<PhotoUploadScreen> {
         return false;
       },
       child: GridView.builder(
-        padding: const EdgeInsets.all(AppSpacing.xxs),
+        padding: const EdgeInsets.all(2),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 3,
-          crossAxisSpacing: AppSpacing.xxs,
-          mainAxisSpacing: AppSpacing.xxs,
+          crossAxisSpacing: 2,
+          mainAxisSpacing: 2,
         ),
         itemCount: _assets.length,
         itemBuilder: (_, i) {
@@ -200,39 +207,38 @@ class _PhotoUploadScreenState extends ConsumerState<PhotoUploadScreen> {
           final picked = pickedIndex >= 0;
           return GestureDetector(
             onTap: () => _toggle(a),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                _AssetThumb(asset: a),
-                if (picked)
-                  Container(
-                    color: AppColors.primary.withValues(alpha: 0.18),
-                  ),
-                Positioned(
-                  top: 6,
-                  right: 6,
-                  child: Container(
-                    width: 24,
-                    height: 24,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: picked ? AppColors.primary : Colors.black26,
-                      border: Border.all(color: Colors.white, width: 1.5),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  _AssetThumb(asset: a),
+                  if (picked)
+                    ColoredBox(
+                      color: AppColors.ink.withValues(alpha: 0.2),
                     ),
-                    child: picked
-                        ? Text(
-                            '${pickedIndex + 1}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          )
-                        : null,
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: Container(
+                      width: 24,
+                      height: 24,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: picked
+                            ? AppColors.ink
+                            : AppColors.ink.withValues(alpha: 0.25),
+                        border: Border.all(color: Colors.white, width: 1.5),
+                      ),
+                      child: picked
+                          ? Text('${pickedIndex + 1}',
+                              style: AppTextStyles.badge)
+                          : null,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           );
         },
@@ -270,7 +276,7 @@ class _AssetThumbState extends State<_AssetThumb> {
   @override
   Widget build(BuildContext context) {
     if (_bytes == null) {
-      return Container(color: AppColors.surfaceVariant);
+      return const ColoredBox(color: AppColors.fill);
     }
     return Image.memory(_bytes!, fit: BoxFit.cover);
   }
@@ -287,13 +293,14 @@ class _UploadProgressOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     return Positioned.fill(
       child: ColoredBox(
-        color: Colors.black54,
+        color: AppColors.ink.withValues(alpha: 0.45),
         child: Center(
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.line),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -302,7 +309,7 @@ class _UploadProgressOverlay extends StatelessWidget {
                   width: 44,
                   height: 44,
                   child: CircularProgressIndicator(
-                    color: AppColors.primary,
+                    color: AppColors.ink,
                     strokeWidth: 3,
                   ),
                 ),
@@ -334,7 +341,7 @@ class _PermissionBlocker extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(Icons.photo_library_outlined,
-                size: 56, color: AppColors.textHint),
+                size: 56, color: AppColors.ink3),
             const SizedBox(height: 16),
             Text(
               '사진첩 접근 권한이 필요해요',
@@ -344,13 +351,16 @@ class _PermissionBlocker extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               '설정에서 사진 접근을 허용해주세요.',
-              style: AppTextStyles.body2.copyWith(color: AppColors.textSecondary),
+              style: AppTextStyles.body2,
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: onOpenSettings,
-              child: const Text('설정 열기'),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: 200,
+              child: PrimaryButton(
+                text: '설정 열기',
+                onPressed: onOpenSettings,
+              ),
             ),
           ],
         ),

@@ -51,27 +51,23 @@ class _InquiryScreenState extends ConsumerState<InquiryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.paper,
       appBar: const CustomAppBar(title: '1:1 문의'),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '무엇이 궁금하신가요?',
-                  style: AppTextStyles.heading2,
-                ),
-                const SizedBox(height: 8),
+                Text('무엇이 궁금하신가요?', style: AppTextStyles.display),
+                const SizedBox(height: 6),
                 Text(
                   '문의 주시면 빠른 시일 내에 답변드리겠습니다.',
-                  style: AppTextStyles.body2
-                      .copyWith(color: AppColors.textSecondary),
+                  style: AppTextStyles.caption,
                 ),
-                const SizedBox(height: 28),
+                const SizedBox(height: 26),
                 CommonInput(
                   label: '제목',
                   hint: '예: 로그인이 안 돼요',

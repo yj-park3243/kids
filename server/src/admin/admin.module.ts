@@ -10,6 +10,7 @@ import { Room } from '../room/entities/room.entity';
 import { Child } from '../child/entities/child.entity';
 import { UserReport } from '../support/entities/user-report.entity';
 import { SupportInquiry } from '../support/entities/support-inquiry.entity';
+import { NotificationModule } from '../notification/notification.module';
 import { UserModule } from '../user/user.module';
 
 @Module({
@@ -23,6 +24,7 @@ import { UserModule } from '../user/user.module';
       }),
     }),
     forwardRef(() => UserModule),
+    NotificationModule,
   ],
   controllers: [AdminController],
   providers: [AdminService],

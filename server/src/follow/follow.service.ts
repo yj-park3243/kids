@@ -81,6 +81,43 @@ export class FollowService {
     };
   }
 
+  // 나를 팔로우하는 사람. 맞팔 여부(isFollowing)를 함께 내려 목록에서 바로 팔로우할 수 있게.
+  async getMyFollowers(userId: string) {
+    const rows = await this.followRepository
+      .createQueryBuilder('f')
+      .innerJoin(User, 'u', 'u.id = f.follower_id')
+      .leftJoin(
+        Follow,
+        'back',
+        'back.follower_id = :userId AND back.target_user_id = f.follower_id',
+        { userId },
+      )
+      .where('f.target_user_id = :userId', { userId })
+      .select([
+        'f.follower_id AS "targetUserId"',
+        'u.nickname AS nickname',
+        'u.profile_image_url AS "profileImageUrl"',
+        'u.region_sigungu AS "regionSigungu"',
+        'u.manner_score AS "mannerScore"',
+        'f.created_at AS "followedAt"',
+        'back.id IS NOT NULL AS "isFollowing"',
+      ])
+      .orderBy('f.created_at', 'DESC')
+      .getRawMany();
+
+    return {
+      items: rows.map((r) => ({
+        targetUserId: r.targetUserId,
+        nickname: r.nickname,
+        profileImageUrl: r.profileImageUrl,
+        regionSigungu: r.regionSigungu,
+        mannerScore: Number(r.mannerScore),
+        followedAt: r.followedAt,
+        isFollowing: r.isFollowing === true,
+      })),
+    };
+  }
+
   // 호스트의 팔로워 전원에게 FOLLOW_NEW_ROOM 알림 발송 (Room 생성 후 호출)
   async dispatchFollowNewRoomNotification(roomId: string, hostUserId: string) {
     const followers = await this.followRepository.find({

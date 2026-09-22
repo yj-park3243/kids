@@ -7,16 +7,18 @@ import '../../features/auth/presentation/email_register_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/onboarding_screen.dart';
 import '../../features/auth/presentation/phone_verification_screen.dart';
+import '../../features/auth/presentation/password_reset_screen.dart';
 import '../../features/auth/presentation/profile_setup_screen.dart';
 import '../../features/chat/presentation/chat_room_screen.dart';
 import '../../features/follow/presentation/following_list_screen.dart';
 import '../../features/home/presentation/home_dashboard_screen.dart';
-import '../../features/home/presentation/rooms_hub_screen.dart';
+import '../../features/home/presentation/home_screen.dart';
 import '../../features/map/presentation/map_screen.dart';
 import '../../features/mypage/presentation/appeal_screen.dart';
 import '../../features/mypage/presentation/blocked_users_screen.dart';
 import '../../features/mypage/presentation/child_edit_screen.dart';
 import '../../features/mypage/presentation/debug_data_screen.dart';
+import '../../features/mypage/presentation/my_rooms_screen.dart';
 import '../../features/mypage/presentation/mypage_screen.dart';
 import '../../features/mypage/presentation/profile_edit_screen.dart';
 import '../../features/notice/presentation/notice_detail_screen.dart';
@@ -35,6 +37,7 @@ import '../../features/room/presentation/room_create_screen.dart';
 import '../../features/room/presentation/room_detail_screen.dart';
 import '../../features/splash/presentation/splash_screen.dart';
 import '../../features/support/presentation/inquiry_screen.dart';
+import '../../features/support/presentation/inquiry_list_screen.dart';
 import '../../widgets/bottom_nav.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -73,6 +76,10 @@ final appRouter = GoRouter(
       builder: (context, state) => const PhoneVerificationScreen(),
     ),
     GoRoute(
+      path: '/password-reset',
+      builder: (context, state) => const PasswordResetScreen(),
+    ),
+    GoRoute(
       path: '/profile-setup',
       builder: (context, state) => const ProfileSetupScreen(),
     ),
@@ -104,12 +111,21 @@ final appRouter = GoRouter(
             ),
           ],
         ),
-        // 모임 — 둘러보기(탐색) + 내 모임(참여/채팅)을 세그먼트로 합친 허브.
+        // 모임 찾기 — 전체 모임 탐색.
         StatefulShellBranch(
           routes: [
             GoRoute(
               path: '/rooms',
-              builder: (context, state) => const RoomsHubScreen(),
+              builder: (context, state) => const HomeScreen(),
+            ),
+          ],
+        ),
+        // 내 모임 — 참여 중인 모임 + 방별 채팅 진입.
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/my-rooms',
+              builder: (context, state) => const MyRoomsScreen(),
             ),
           ],
         ),
@@ -232,6 +248,11 @@ final appRouter = GoRouter(
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) => const InquiryScreen(),
     ),
+    GoRoute(
+      path: '/inquiries',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const InquiryListScreen(),
+    ),
 
     // 차단 사용자 관리
     GoRoute(
@@ -279,9 +300,12 @@ final appRouter = GoRouter(
     ),
 
     // 사용자 리뷰 요약
+    // 받은 후기 요약 — 2026-09 당분간 닫음. 진입점을 다 지웠지만 옛 링크/푸시로
+    // 들어와도 열리지 않도록 마이페이지로 돌려보낸다.
     GoRoute(
       path: '/users/:userId/reviews',
       parentNavigatorKey: _rootNavigatorKey,
+      redirect: (context, state) => '/mypage',
       builder: (context, state) =>
           ReviewSummaryScreen(userId: state.pathParameters['userId']!),
     ),

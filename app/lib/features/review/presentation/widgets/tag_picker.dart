@@ -22,10 +22,9 @@ class TagPicker extends StatelessWidget {
       runSpacing: 8,
       children: options.map((tag) {
         final isSelected = selected.contains(tag);
-        return DesignChip(
+        return Pill(
           label: tag,
-          tone: isSelected ? ChipTone.primarySolid : ChipTone.primaryGhost,
-          selected: isSelected,
+          tone: isSelected ? PillTone.ink : PillTone.line,
           onTap: () => onToggle(tag),
           height: 32,
         );

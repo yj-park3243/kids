@@ -25,7 +25,7 @@ export class JoinRequest {
   userId: string;
 
   @Column({ type: 'varchar', length: 20, default: 'PENDING' })
-  status: string; // PENDING, ACCEPTED, REJECTED, CANCELLED
+  status: string; // PENDING, ACCEPTED, REJECTED, CANCELLED, KICKED
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

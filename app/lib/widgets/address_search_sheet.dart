@@ -5,6 +5,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 import '../core/constants/app_colors.dart';
 import '../core/constants/app_text_styles.dart';
+import 'design/notebook.dart';
 
 /// Daum 우편번호 검색 결과.
 class AddressResult {
@@ -173,11 +174,11 @@ class _AddressSearchSheetState extends State<_AddressSearchSheet> {
         child: Column(
           children: [
             Container(
-              width: 40,
+              width: 36,
               height: 4,
               margin: const EdgeInsets.only(top: 8, bottom: 4),
               decoration: BoxDecoration(
-                color: AppColors.divider,
+                color: AppColors.line2,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -187,18 +188,20 @@ class _AddressSearchSheetState extends State<_AddressSearchSheet> {
                 children: [
                   IconButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close_rounded),
+                    icon: const Icon(Icons.close_rounded,
+                        size: 22, color: AppColors.ink),
                   ),
                   Expanded(
                     child: Center(
-                      child: Text('주소 검색', style: AppTextStyles.body1Bold),
+                      child: Text('주소 검색', style: AppTextStyles.sectionHead),
                     ),
                   ),
                   const SizedBox(width: 48),
                 ],
               ),
             ),
-            const Divider(height: 1, color: AppColors.divider),
+            const DashedDivider(
+                margin: EdgeInsets.symmetric(horizontal: 20)),
             Expanded(
               child: Stack(
                 children: [

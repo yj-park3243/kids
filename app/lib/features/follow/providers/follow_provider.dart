@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/network/api_error.dart';
 import '../../../models/follow.dart';
 import '../data/follow_repository.dart';
 
@@ -61,10 +62,17 @@ class FollowingNotifier extends StateNotifier<FollowingState> {
             .toList(),
       );
     } catch (e) {
-      state = state.copyWith(error: '언팔로우에 실패했어요');
+      state = state.copyWith(
+        error: apiErrorMessage(e, fallback: '언팔로우에 실패했어요'),
+      );
     }
   }
 }
+
+/// 나를 팔로우하는 사람 목록.
+final followersProvider = FutureProvider.autoDispose<List<Follow>>((ref) {
+  return ref.watch(followRepositoryProvider).getMyFollowers();
+});
 
 final followingProvider =
     StateNotifierProvider<FollowingNotifier, FollowingState>((ref) {
@@ -84,7 +92,8 @@ class FollowToggleNotifier
     bool initial,
   ) : super(AsyncValue.data(initial));
 
-  Future<void> toggle() async {
+  /// 성공이면 null, 실패면 사용자에게 보여줄 사유(차단 관계 등 서버 메시지).
+  Future<String?> toggle() async {
     final current = state.value ?? false;
     state = const AsyncValue.loading();
     try {
@@ -95,10 +104,14 @@ class FollowToggleNotifier
         await _repository.follow(targetUserId);
         state = const AsyncValue.data(true);
       }
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
+      return null;
+    } catch (e) {
       // 실패 시 직전 상태로 복귀
       state = AsyncValue.data(current);
+      return apiErrorMessage(
+        e,
+        fallback: current ? '언팔로우에 실패했어요' : '팔로우에 실패했어요',
+      );
     }
   }
 }

@@ -52,6 +52,8 @@ export function defaultTemplate(
       return { title: '노쇼 경고', body: '노쇼가 누적되었어요. 3회 도달 시 참여가 제한됩니다.' };
     case 'REPORT_RESOLVED':
       return { title: '신고 처리 결과', body: '신고하신 건이 처리되었어요.' };
+    case 'INQUIRY_REPLIED':
+      return { title: '1:1 문의 답변', body: '문의하신 내용에 답변이 도착했어요.' };
     default:
       return null;
   }

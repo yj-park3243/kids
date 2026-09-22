@@ -39,12 +39,12 @@ class MapFilterChildInfo {
 class _MapFilterPanelState extends State<MapFilterPanel> {
   bool _expanded = false;
 
-  // 섹션별 칩 색 — 그룹마다 다른 보조 색으로 단조로움을 덜어준다.
-  static const Color _ageColor = AppColors.primary;
-  static const Color _dateColor = AppColors.accentCoral;
-  static const Color _timeColor = AppColors.accentLavender;
-  static const Color _placeColor = AppColors.primaryDark;
-  static const Color _joinColor = AppColors.secondaryDark;
+  // 수첩안: 필터 칩은 색으로 그룹을 나누지 않는다 — 선택 = 잉크 채움 하나로 충분.
+  static const Color _ageColor = AppColors.ink;
+  static const Color _dateColor = AppColors.ink;
+  static const Color _timeColor = AppColors.ink;
+  static const Color _placeColor = AppColors.ink;
+  static const Color _joinColor = AppColors.ink;
 
   MapFilter get _f => widget.filter;
   void _emit(MapFilter f) => widget.onChanged(f);
@@ -55,13 +55,7 @@ class _MapFilterPanelState extends State<MapFilterPanel> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border.all(color: AppColors.line2),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -104,7 +98,7 @@ class _MapFilterPanelState extends State<MapFilterPanel> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
-            const Icon(Icons.tune_rounded, size: 20, color: AppColors.primary),
+            const Icon(Icons.tune_rounded, size: 20, color: AppColors.ink),
             const SizedBox(width: 8),
             Text('필터', style: AppTextStyles.body2Bold),
             if (count > 0) ...[
@@ -113,13 +107,13 @@ class _MapFilterPanelState extends State<MapFilterPanel> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
-                  color: AppColors.primary,
+                  color: AppColors.hi,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   '$count',
                   style: AppTextStyles.caption.copyWith(
-                    color: Colors.white,
+                    color: AppColors.ink,
                     fontWeight: FontWeight.w700,
                     fontSize: 11,
                   ),
@@ -199,8 +193,7 @@ class _MapFilterPanelState extends State<MapFilterPanel> {
             children: [
               _toggle('무료만', _f.freeOnly,
                   () => _emit(_f.copyWith(freeOnly: !_f.freeOnly))),
-              _toggle('또래 부모(±5)', _f.parentAgeMatch,
-                  () => _emit(_f.copyWith(parentAgeMatch: !_f.parentAgeMatch))),
+              // '또래 부모(±5)' — 방 만들기에서 옵션을 숨긴 동안 필터도 숨긴다(필드는 유지).
               if (widget.isSingleParent)
                 _toggle('싱글맘·싱글대디', _f.singleParentOnly,
                     () => _emit(
@@ -238,21 +231,17 @@ class _MapFilterPanelState extends State<MapFilterPanel> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
-          // 비선택 시에도 섹션 색을 옅게 깔아 그룹을 구분한다.
-          color: selected
-              ? color.withValues(alpha: 0.16)
-              : color.withValues(alpha: 0.06),
+          color: selected ? color : AppColors.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selected ? color : color.withValues(alpha: 0.3),
-            width: selected ? 1.5 : 1,
+            color: selected ? color : AppColors.line2,
           ),
         ),
         child: Text(
           label,
           style: AppTextStyles.caption.copyWith(
-            color: selected ? color : AppColors.textSecondary,
-            fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+            color: selected ? Colors.white : AppColors.ink,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
           ),
         ),
       ),
@@ -265,10 +254,10 @@ class _MapFilterPanelState extends State<MapFilterPanel> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: on ? AppColors.primary : AppColors.background,
+          color: on ? AppColors.ink : AppColors.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: on ? AppColors.primary : AppColors.divider,
+            color: on ? AppColors.ink : AppColors.line2,
           ),
         ),
         child: Row(

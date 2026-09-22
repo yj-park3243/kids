@@ -138,7 +138,6 @@ class _PhoneVerificationScreenState
       final accessToken = params['accessToken']?.toString() ?? '';
       final refreshToken = params['refreshToken']?.toString() ?? '';
       final userId = params['userId']?.toString() ?? '';
-      final nextRoute = params['nextRoute']?.toString() ?? 'profile-setup';
       final merged = params['merged'] == 'true';
 
       if (accessToken.isEmpty || userId.isEmpty) {
@@ -164,11 +163,15 @@ class _PhoneVerificationScreenState
         return;
       }
 
-      if (merged || nextRoute == 'home') {
+      // 계정 병합(이미 다른 계정이 쓰던 CI)이면 토큰이 그 계정으로 바뀌었으니
+      // 스택을 정리하고 홈으로. 그 외에는 인증을 요청한 화면으로 돌아간다.
+      if (merged) {
         showTopToast(context, '기존 계정으로 로그인되었습니다.');
         context.go('/home');
       } else {
-        context.go('/profile-setup');
+        showTopToast(context, '본인 인증이 완료됐어요',
+            backgroundColor: AppColors.ok);
+        context.pop(true);
       }
     } catch (e) {
       if (!mounted) return;
@@ -193,91 +196,86 @@ class _PhoneVerificationScreenState
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) {
-          showTopToast(context, '본인인증을 완료해야 이용 가능합니다.');
-        }
-      },
-      child: Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: CustomAppBar(
-          title: '본인인증',
-          showBack: false,
-          actions: [
-            TextButton(
-              onPressed: _switchAccount,
-              child: Text('다른 계정',
-                  style: AppTextStyles.body2.copyWith(color: AppColors.primary)),
-            ),
-          ],
-        ),
-        body: SafeArea(
-          child: Stack(
-            children: [
-              if (_controller != null && _errorMessage == null)
-                WebViewWidget(controller: _controller!),
-              if (_errorMessage != null)
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 32),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.error_outline_rounded,
-                          size: 64,
-                          color: AppColors.error,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          _errorMessage!,
-                          textAlign: TextAlign.center,
-                          style: AppTextStyles.body1.copyWith(
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        PrimaryButton(
-                          text: '다시 시도',
-                          onPressed: _loadKcpForm,
-                        ),
-                        const SizedBox(height: 8),
-                        TextButton(
-                          onPressed: () => context.push('/inquiry'),
-                          child: const Text('문제가 있나요? 고객센터 문의'),
-                        ),
-                        TextButton(
-                          onPressed: _switchAccount,
-                          child: const Text('다른 계정으로 로그인'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              if (_isLoading || _isVerifying)
-                Container(
-                  color: Colors.black26,
-                  child: const Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        CircularProgressIndicator(
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(AppColors.primary),
-                        ),
-                        SizedBox(height: 16),
-                        Text(
-                          '처리 중입니다...',
-                          style: TextStyle(color: Colors.white, fontSize: 14),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
+    // 본인인증은 모임 만들기·참여 앞의 게이트라 언제든 그만둘 수 있어야 한다.
+    return Scaffold(
+      appBar: CustomAppBar(
+        title: '본인인증',
+        actions: [
+          TextButton(
+            onPressed: _switchAccount,
+            child: Text('다른 계정',
+                style: AppTextStyles.body2.copyWith(color: AppColors.link)),
           ),
+        ],
+      ),
+      body: SafeArea(
+        child: Stack(
+          children: [
+            if (_controller != null && _errorMessage == null)
+              WebViewWidget(controller: _controller!),
+            if (_errorMessage != null)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.error_outline_rounded,
+                        size: 48,
+                        color: AppColors.ink3,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _errorMessage!,
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.body1,
+                      ),
+                      const SizedBox(height: 24),
+                      PrimaryButton(
+                        text: '다시 시도',
+                        onPressed: _loadKcpForm,
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton(
+                        onPressed: () => context.push('/inquiry'),
+                        child: Text(
+                          '문제가 있나요? 고객센터 문의',
+                          style: AppTextStyles.body2
+                              .copyWith(color: AppColors.link),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: _switchAccount,
+                        child: Text(
+                          '다른 계정으로 로그인',
+                          style: AppTextStyles.body2
+                              .copyWith(color: AppColors.link),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            if (_isLoading || _isVerifying)
+              ColoredBox(
+                color: AppColors.paper.withValues(alpha: 0.72),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const CircularProgressIndicator(
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(AppColors.ink),
+                        strokeWidth: 2.4,
+                      ),
+                      const SizedBox(height: 16),
+                      Text('처리 중입니다...', style: AppTextStyles.body2),
+                    ],
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );

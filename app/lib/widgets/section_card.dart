@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../core/constants/app_colors.dart';
 import '../core/constants/app_radius.dart';
-import '../core/constants/app_shadows.dart';
 import '../core/constants/app_spacing.dart';
 import '../core/constants/app_text_styles.dart';
 
@@ -34,7 +33,7 @@ class SectionCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: color ?? AppColors.surface,
         borderRadius: AppRadius.rMd,
-        boxShadow: AppShadows.glass,
+        border: Border.all(color: AppColors.line),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

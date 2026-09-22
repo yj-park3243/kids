@@ -12,6 +12,7 @@ import '../../../core/utils/validators.dart';
 import '../../../widgets/address_search_sheet.dart';
 import '../../../widgets/common_button.dart';
 import '../../../widgets/common_input.dart';
+import '../../../widgets/design/notebook.dart';
 import '../providers/auth_provider.dart';
 
 class ProfileSetupScreen extends ConsumerStatefulWidget {
@@ -122,7 +123,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: const BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -131,21 +132,24 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 40,
+              width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.divider,
+                color: AppColors.line2,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             ListTile(
-              leading: const Icon(Icons.camera_alt_rounded, color: AppColors.primary),
+              leading: const Icon(Icons.camera_alt_rounded,
+                  size: 21, color: AppColors.ink3),
               title: Text('카메라로 촬영', style: AppTextStyles.body1),
               onTap: () => Navigator.pop(context, ImageSource.camera),
             ),
+            const DashedDivider(margin: EdgeInsets.symmetric(horizontal: 20)),
             ListTile(
-              leading: const Icon(Icons.photo_library_rounded, color: AppColors.primary),
+              leading: const Icon(Icons.photo_library_rounded,
+                  size: 21, color: AppColors.ink3),
               title: Text('앨범에서 선택', style: AppTextStyles.body1),
               onTap: () => Navigator.pop(context, ImageSource.gallery),
             ),
@@ -224,56 +228,69 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
       if (next.status == AuthStatus.childSetup) {
         context.go('/child-setup');
       } else if (next.errorMessage != null) {
-        showTopToast(context, next.errorMessage!, backgroundColor: AppColors.error);
+        showTopToast(context, next.errorMessage!,
+            backgroundColor: AppColors.bad);
       }
     });
 
     return Scaffold(
-      backgroundColor: AppColors.background,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('프로필을 설정해 주세요', style: AppTextStyles.heading2),
-                const SizedBox(height: 8),
+                const _StepHeader(step: 1, total: 2),
+                const SizedBox(height: 22),
+                Text('프로필을 설정해 주세요', style: AppTextStyles.display),
+                const SizedBox(height: 6),
                 Text(
                   '다른 부모님들에게 보여질 정보입니다',
-                  style: AppTextStyles.body2.copyWith(color: AppColors.textSecondary),
+                  style: AppTextStyles.body2,
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 28),
 
-                // Profile Image
+                // 프로필 사진 — 둥근 네모 스티커 + 잉크 카메라 배지.
                 Center(
                   child: GestureDetector(
                     onTap: _pickImage,
                     child: Stack(
+                      clipBehavior: Clip.none,
                       children: [
-                        CircleAvatar(
-                          radius: 50,
-                          backgroundColor: AppColors.surfaceVariant,
-                          backgroundImage: _profileImagePath != null
-                              ? FileImage(File(_profileImagePath!))
-                              : null,
+                        Container(
+                          width: 96,
+                          height: 96,
+                          decoration: BoxDecoration(
+                            color: AppColors.fill,
+                            borderRadius: BorderRadius.circular(36),
+                            image: _profileImagePath != null
+                                ? DecorationImage(
+                                    image: FileImage(File(_profileImagePath!)),
+                                    fit: BoxFit.cover,
+                                  )
+                                : null,
+                          ),
                           child: _profileImagePath == null
-                              ? const Icon(Icons.person_rounded, size: 50, color: AppColors.textHint)
+                              ? const Icon(Icons.person_rounded,
+                                  size: 40, color: AppColors.ink3)
                               : null,
                         ),
                         Positioned(
-                          bottom: 0,
-                          right: 0,
+                          bottom: -2,
+                          right: -2,
                           child: Container(
-                            width: 32,
-                            height: 32,
+                            width: 30,
+                            height: 30,
                             decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 2),
+                              color: AppColors.ink,
+                              borderRadius: BorderRadius.circular(11),
+                              border: Border.all(
+                                  color: AppColors.paper, width: 2),
                             ),
-                            child: const Icon(Icons.camera_alt_rounded, size: 16, color: Colors.white),
+                            child: const Icon(Icons.camera_alt_rounded,
+                                size: 15, color: Colors.white),
                           ),
                         ),
                       ],
@@ -282,7 +299,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                 ),
                 const SizedBox(height: 32),
 
-                // Nickname
+                // 닉네임 — 자동 생성(새로고침) + 중복확인.
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -292,7 +309,8 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                         hint: '2~10자로 입력',
                         controller: _nicknameController,
                         validator: Validators.nickname,
-                        onChanged: (_) => setState(() => _isNicknameAvailable = null),
+                        onChanged: (_) =>
+                            setState(() => _isNicknameAvailable = null),
                         maxLength: 10,
                       ),
                     ),
@@ -303,10 +321,13 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                         height: 52,
                         width: 52,
                         child: ElevatedButton(
-                          onPressed: _isGeneratingNickname ? null : _generateRandomNickname,
+                          onPressed: _isGeneratingNickname
+                              ? null
+                              : _generateRandomNickname,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.surfaceVariant,
-                            foregroundColor: AppColors.primary,
+                            backgroundColor: AppColors.fill,
+                            foregroundColor: AppColors.ink,
+                            disabledBackgroundColor: AppColors.fill,
                             elevation: 0,
                             padding: EdgeInsets.zero,
                             shape: RoundedRectangleBorder(
@@ -318,7 +339,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                                   width: 20,
                                   height: 20,
                                   child: CircularProgressIndicator(
-                                    color: AppColors.primary,
+                                    color: AppColors.ink3,
                                     strokeWidth: 2,
                                   ),
                                 )
@@ -332,11 +353,14 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                       child: SizedBox(
                         height: 52,
                         child: ElevatedButton(
-                          onPressed: _isCheckingNickname ? null : _checkNickname,
+                          onPressed:
+                              _isCheckingNickname ? null : _checkNickname,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.secondary,
+                            backgroundColor: AppColors.ink,
                             foregroundColor: Colors.white,
+                            disabledBackgroundColor: AppColors.fill,
                             elevation: 0,
+                            textStyle: AppTextStyles.buttonSmall,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -346,7 +370,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                                   width: 20,
                                   height: 20,
                                   child: CircularProgressIndicator(
-                                    color: Colors.white,
+                                    color: AppColors.ink3,
                                     strokeWidth: 2,
                                   ),
                                 )
@@ -361,7 +385,8 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(
                       '사용 가능한 닉네임입니다',
-                      style: AppTextStyles.caption.copyWith(color: AppColors.success),
+                      style:
+                          AppTextStyles.caption.copyWith(color: AppColors.ok),
                     ),
                   ),
                 if (_isNicknameAvailable == false)
@@ -369,11 +394,12 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(
                       '이미 사용 중인 닉네임입니다',
-                      style: AppTextStyles.caption.copyWith(color: AppColors.error),
+                      style:
+                          AppTextStyles.caption.copyWith(color: AppColors.bad),
                     ),
                   ),
 
-                const SizedBox(height: 28),
+                const SizedBox(height: 26),
 
                 // 부모 유형 (필수, 가입 후 변경 불가)
                 Text('부모 유형', style: AppTextStyles.body2Bold),
@@ -382,7 +408,6 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                   children: [
                     Expanded(
                       child: _ParentGenderOption(
-                        emoji: '👩',
                         label: '엄마',
                         selected: _parentGender == 'MOM',
                         onTap: () => setState(() {
@@ -394,7 +419,6 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: _ParentGenderOption(
-                        emoji: '👨',
                         label: '아빠',
                         selected: _parentGender == 'DAD',
                         onTap: () => setState(() {
@@ -410,24 +434,26 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(
                       _parentGenderError!,
-                      style: AppTextStyles.caption.copyWith(color: AppColors.error),
+                      style:
+                          AppTextStyles.caption.copyWith(color: AppColors.bad),
                     ),
                   ),
                 const SizedBox(height: 6),
                 Text(
                   '한 번 선택하면 변경할 수 없어요. 운영자 문의 시에만 정정 가능합니다.',
-                  style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                  style: AppTextStyles.caption,
                 ),
 
                 const SizedBox(height: 24),
 
                 // 한부모 가정 (필수, 가입 후 변경 불가, default off)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                   decoration: BoxDecoration(
                     color: AppColors.surface,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.divider),
+                    border: Border.all(color: AppColors.line2),
                   ),
                   child: Row(
                     children: [
@@ -443,7 +469,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                       ),
                       Switch.adaptive(
                         value: _isSingleParent,
-                        activeThumbColor: AppColors.primary,
+                        activeThumbColor: AppColors.ink,
                         onChanged: (v) => setState(() => _isSingleParent = v),
                       ),
                     ],
@@ -452,7 +478,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                 const SizedBox(height: 6),
                 Text(
                   '싱글맘·싱글대디 전용 모임에 참여할 수 있어요. 가입 후 변경 불가.',
-                  style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                  style: AppTextStyles.caption,
                 ),
 
                 const SizedBox(height: 24),
@@ -473,27 +499,27 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                   },
                   borderRadius: BorderRadius.circular(12),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 14),
                     decoration: BoxDecoration(
                       color: AppColors.surface,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.divider),
+                      border: Border.all(color: AppColors.line2),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.location_on_outlined,
-                            size: 20, color: AppColors.primary),
+                        const Icon(Icons.place_outlined,
+                            size: 19, color: AppColors.ink3),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             _regionSido == null
                                 ? '동네 검색'
                                 : '$_regionSido $_regionSigungu $_regionDong',
-                            style: AppTextStyles.body1.copyWith(
-                              color: _regionSido == null
-                                  ? AppColors.textHint
-                                  : AppColors.textPrimary,
-                            ),
+                            style: _regionSido == null
+                                ? AppTextStyles.body1
+                                    .copyWith(color: AppColors.ink3)
+                                : AppTextStyles.body1,
                           ),
                         ),
                         if (_regionSido != null)
@@ -504,8 +530,11 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                               _regionDong = null;
                             }),
                             child: const Icon(Icons.close_rounded,
-                                size: 18, color: AppColors.textHint),
-                          ),
+                                size: 18, color: AppColors.ink3),
+                          )
+                        else
+                          const Icon(Icons.chevron_right_rounded,
+                              size: 20, color: AppColors.line2),
                       ],
                     ),
                   ),
@@ -513,10 +542,10 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                 const SizedBox(height: 6),
                 Text(
                   '동네를 설정하면 주변에 새 모임이 생길 때 알림을 받을 수 있어요. 지금 건너뛰어도 돼요.',
-                  style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                  style: AppTextStyles.caption,
                 ),
 
-                const SizedBox(height: 40),
+                const SizedBox(height: 36),
 
                 PrimaryButton(
                   text: '다음',
@@ -532,15 +561,51 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   }
 }
 
-/// 부모 유형 선택 카드. 핑크 글래스 톤.
+/// 가입 온보딩 스텝 표시 — 손글씨 숫자 + 얇은 잉크 진행바.
+class _StepHeader extends StatelessWidget {
+  final int step;
+  final int total;
+
+  const _StepHeader({required this.step, required this.total});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Text('$step', style: AppTextStyles.handLg),
+            Text(
+              ' / $total',
+              style: AppTextStyles.handLg.copyWith(color: AppColors.ink3),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: LinearProgressIndicator(
+            value: step / total,
+            minHeight: 4,
+            backgroundColor: AppColors.fill,
+            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.ink),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// 부모 유형 선택 카드 — 흰 면 + 헤어라인, 선택되면 잉크 테두리 + 체크.
 class _ParentGenderOption extends StatelessWidget {
-  final String emoji;
   final String label;
   final bool selected;
   final VoidCallback onTap;
 
   const _ParentGenderOption({
-    required this.emoji,
     required this.label,
     required this.selected,
     required this.onTap,
@@ -550,28 +615,26 @@ class _ParentGenderOption extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
+      behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(vertical: 14),
+        padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: selected ? AppColors.primary50 : AppColors.surface,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: selected ? AppColors.primary : AppColors.divider,
-            width: selected ? 1.6 : 1,
+            color: selected ? AppColors.ink : AppColors.line2,
+            width: selected ? 1.5 : 1,
           ),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(emoji, style: const TextStyle(fontSize: 28)),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: AppTextStyles.body1Bold.copyWith(
-                color: selected ? AppColors.primary700 : AppColors.textPrimary,
-              ),
-            ),
+            Text(label, style: AppTextStyles.body1Bold),
+            if (selected) ...[
+              const SizedBox(width: 6),
+              const Icon(Icons.check_rounded, size: 17, color: AppColors.ink),
+            ],
           ],
         ),
       ),

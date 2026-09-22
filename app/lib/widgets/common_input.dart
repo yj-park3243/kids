@@ -46,7 +46,7 @@ class CommonInput extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (label != null) ...[
-          Text(label!, style: AppTextStyles.body2Bold),
+          Text(label!, style: AppTextStyles.captionBold),
           const SizedBox(height: 8),
         ],
         TextFormField(
@@ -84,10 +84,7 @@ class CommonInput extends StatelessWidget {
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(
-                color: AppColors.primary100.withValues(alpha: 0.8),
-                width: 1,
-              ),
+              borderSide: const BorderSide(color: AppColors.line2, width: 1),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),

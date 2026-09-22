@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../auth/phone_verification_gate.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/constants/app_radius.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../models/user.dart';
 import '../../../providers/selected_child_provider.dart';
-import '../../../widgets/design/accent_blobs.dart';
 import '../../../widgets/design/primary_button.dart';
+import '../../../widgets/design/notebook.dart';
 import '../../../widgets/empty_state.dart';
 import '../../../widgets/loading.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -26,9 +28,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   final _scrollController = ScrollController();
 
-  // 칩 영역(아이 선택 + 필터) 접기/펴기 상태.
-  bool _filtersExpanded = true;
-
   @override
   void initState() {
     super.initState();
@@ -38,7 +37,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       if (user != null) {
         ref.read(selectedChildProvider.notifier).initFromUser(user);
       }
-      ref.read(homeProvider.notifier).loadRooms(refresh: true);
+      // ref.listen 은 '변화'만 잡는다 — 홈 대시보드가 먼저 아이를 고른 뒤 이
+      // 화면이 처음 만들어지는 기본 경로에서는 한 번도 안 불린다. 그래서 첫
+      // 조회는 현재 선택된 아이로 직접 시드한다(setAgeMonth 가 목록도 불러온다).
+      final child = ref.read(selectedChildProvider);
+      ref.read(homeProvider.notifier).setAgeMonth(
+            child != null
+                ? AppDateUtils.calculateAgeMonths(
+                    child.birthYear, child.birthMonth)
+                : null,
+          );
       ref.read(homeProvider.notifier).loadUnreadCount();
     });
   }
@@ -65,309 +73,313 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     ref.listen<Child?>(selectedChildProvider, (prev, next) {
       if (prev?.id != next?.id) {
-        ref.read(homeProvider.notifier).loadRooms(
-              refresh: true,
-              ageMonth: next != null
-                  ? AppDateUtils.calculateAgeMonths(next.birthYear, next.birthMonth)
+        ref.read(homeProvider.notifier).setAgeMonth(
+              next != null
+                  ? AppDateUtils.calculateAgeMonths(
+                      next.birthYear, next.birthMonth)
                   : null,
             );
       }
     });
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: AccentBlobsBackground(
-        child: SafeArea(
-          child: Column(
-            children: [
-              // 모임 탭 상단 — 방 만들기(+) 버튼만 유지.
-              // 로고/제목/검색/알림과 공지 배너는 홈 대시보드로 이전됨.
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
-                child: Row(
-                  children: [
-                    const Spacer(),
-                    GlassIconButton(
-                      key: const Key('btn-home-create-room'),
-                      icon: Icons.add_rounded,
-                      onTap: () => context.push('/rooms/create'),
+      backgroundColor: AppColors.paper,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // 앱바 한 줄 — 화면 제목 + 노란 '만들기' 알약.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 6),
+              child: Row(
+                children: [
+                  Text('모임 찾기', style: AppTextStyles.screenTitle),
+                  const Spacer(),
+                  // 모서리 이름표 — 누구 기준으로 보는지. 누르면 아이 선택 시트.
+                  if (children.isNotEmpty) ...[
+                    NameTag(
+                      text: selectedChild == null
+                          ? '모든 아이'
+                          : '${selectedChild.nickname} '
+                              '${AppDateUtils.calculateAgeMonths(selectedChild.birthYear, selectedChild.birthMonth)}개월',
+                      onTap: () => _pickChild(context, children, selectedChild),
                     ),
+                    const SizedBox(width: 12),
                   ],
-                ),
+                  _CreatePill(
+                    key: const Key('btn-home-create-room'),
+                    onTap: () => openRoomCreate(context, ref),
+                  ),
+                ],
               ),
+            ),
 
-              // 필터 영역 토글 버튼.
+            // 포스트잇 보드 — 자주 쓰는 조건을 붙였다 뗀다. 기간(노랑)과 장소(하늘)는
+            // 서로 다른 축이라 하나씩 붙을 수 있고, 같은 축의 다른 포스트잇을 붙이면
+            // 먼저 것이 떨어진다. 정밀 조건은 '＋ 더보기' 시트.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+              child: Wrap(
+                spacing: 10,
+                runSpacing: 12,
+                // 한 줄 4칸(74×4 + 10×3 = 326 ≤ 335). 5칸이면 두 줄로 내려가 세로를 먹는다.
+                // 내일·키즈카페 같은 나머지 조건은 '더보기' 시트에서.
+                children: [
+                  _datePostIt(0, '오늘', DateFilter.today, homeState,
+                      caption: _mdLabel(DateTime.now())),
+                  _datePostIt(1, '이번 주', DateFilter.thisWeek, homeState,
+                      caption: '일요일까지'),
+                  _placePostIt(2, 'PLAYGROUND', homeState, caption: '야외'),
+                  PostItSlot(
+                    label: '＋ 조건\n더보기',
+                    onTap: () => _openMoreFilters(context),
+                  ),
+                ],
+              ),
+            ),
+            // 붙인 조건 요약 — 보드에 없는 조건(내일·키즈카페 등)도 여기서 보이고 뗄 수 있다.
+            if (homeState.dateFilter != DateFilter.all ||
+                homeState.placeTypeFilter != null)
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
-                child: Row(
-                  children: [
-                    GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => setState(
-                          () => _filtersExpanded = !_filtersExpanded),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.tune_rounded,
-                            size: 16,
-                            color: AppColors.primary,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '필터',
-                            style: AppTextStyles.chip.copyWith(
-                              color: AppColors.primary700,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(width: 2),
-                          Icon(
-                            _filtersExpanded
-                                ? Icons.keyboard_arrow_up_rounded
-                                : Icons.keyboard_arrow_down_rounded,
-                            size: 18,
-                            color: AppColors.primary,
-                          ),
-                        ],
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                child: Text.rich(
+                  TextSpan(children: [
+                    const TextSpan(text: '붙인 조건: '),
+                    TextSpan(
+                      text: [
+                        switch (homeState.dateFilter) {
+                          DateFilter.today => '오늘',
+                          DateFilter.tomorrow => '내일',
+                          DateFilter.thisWeek => '이번 주',
+                          DateFilter.all => null,
+                        },
+                        if (homeState.placeTypeFilter != null)
+                          AppConstants.placeTypes[homeState.placeTypeFilter!],
+                      ].whereType<String>().join(' · '),
+                      style: AppTextStyles.captionBold.copyWith(color: AppColors.ink),
+                    ),
+                    const TextSpan(text: ' · '),
+                    WidgetSpan(
+                      alignment: PlaceholderAlignment.middle,
+                      child: GestureDetector(
+                        onTap: () {
+                          final n = ref.read(homeProvider.notifier);
+                          n.setDateFilter(DateFilter.all);
+                          n.setPlaceTypeFilter(null);
+                        },
+                        child: Text('모두 떼기',
+                            style: AppTextStyles.caption.copyWith(
+                                color: AppColors.link, fontWeight: FontWeight.w600)),
                       ),
                     ),
-                    const Spacer(),
-                  ],
+                  ]),
+                  style: AppTextStyles.caption,
                 ),
               ),
 
-              // 아이 선택 칩 + 필터 칩 — 함께 접고 펼친다.
-              AnimatedSize(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeInOut,
-                child: _filtersExpanded
-                    ? Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const SizedBox(height: 8),
-                          // 아이 선택 칩 — 아이가 2명 이상일 때만.
-                          if (children.length >= 2) ...[
-                            SizedBox(
-                              height: 36,
-                              child: ListView(
-                                scrollDirection: Axis.horizontal,
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 20),
-                                children: [
-                                  _childChip(
-                                    '전체',
-                                    null,
-                                    selectedChild == null,
-                                    () => ref
-                                        .read(selectedChildProvider.notifier)
-                                        .clear(),
-                                  ),
-                                  ...children.map((child) {
-                                    final ageMonths =
-                                        AppDateUtils.calculateAgeMonths(
-                                            child.birthYear,
-                                            child.birthMonth);
-                                    return _childChip(
-                                      child.nickname,
-                                      AppDateUtils.formatAgeMonths(ageMonths),
-                                      selectedChild?.id == child.id,
-                                      () => ref
-                                          .read(
-                                              selectedChildProvider.notifier)
-                                          .select(child),
-                                    );
-                                  }),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                          ],
-
-                          // Filter chips
-                          SizedBox(
-                            height: 36,
-                            child: ListView(
-                              scrollDirection: Axis.horizontal,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 20),
-                              children: [
-                                _paddedChip(_filterChip(
-                                  label: '전체',
-                                  color: AppColors.primary,
-                                  selected:
-                                      homeState.dateFilter == DateFilter.all,
-                                  onTap: () => ref
-                                      .read(homeProvider.notifier)
-                                      .setDateFilter(DateFilter.all),
-                                )),
-                                _paddedChip(_filterChip(
-                                  label: '오늘',
-                                  color: AppColors.accentCoral,
-                                  selected: homeState.dateFilter ==
-                                      DateFilter.today,
-                                  onTap: () => ref
-                                      .read(homeProvider.notifier)
-                                      .setDateFilter(DateFilter.today),
-                                )),
-                                _paddedChip(_filterChip(
-                                  label: '내일',
-                                  color: AppColors.primary,
-                                  selected: homeState.dateFilter ==
-                                      DateFilter.tomorrow,
-                                  onTap: () => ref
-                                      .read(homeProvider.notifier)
-                                      .setDateFilter(DateFilter.tomorrow),
-                                )),
-                                _paddedChip(_filterChip(
-                                  label: '이번 주',
-                                  color: AppColors.accentLavender,
-                                  selected: homeState.dateFilter ==
-                                      DateFilter.thisWeek,
-                                  onTap: () => ref
-                                      .read(homeProvider.notifier)
-                                      .setDateFilter(DateFilter.thisWeek),
-                                )),
-                                Container(
-                                  width: 1,
-                                  height: 18,
-                                  margin: const EdgeInsets.symmetric(
-                                      vertical: 9, horizontal: 6),
-                                  color: AppColors.dividerStrong,
-                                ),
-                                _paddedChip(_filterChip(
-                                  label: '장소 전체',
-                                  color: AppColors.placeAll,
-                                  selected: homeState.placeTypeFilter == null,
-                                  onTap: () => ref
-                                      .read(homeProvider.notifier)
-                                      .setPlaceTypeFilter(null),
-                                )),
-                                ...AppConstants.placeTypes.entries.map(
-                                  (e) => _paddedChip(_filterChip(
-                                    label: e.value,
-                                    color: AppColors.placeColorFor(e.key),
-                                    selected:
-                                        homeState.placeTypeFilter == e.key,
-                                    onTap: () => ref
-                                        .read(homeProvider.notifier)
-                                        .setPlaceTypeFilter(e.key),
-                                  )),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      )
-                    : const SizedBox.shrink(),
+            // 개월수 필터가 걸린 이유를 한 줄로 — 목록이 짧은 까닭을 먼저 알린다.
+            if (children.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: _ChildFilterCaption(
+                    child: selectedChild,
+                    fallback: children.first,
+                    onToggle: () {
+                      final n = ref.read(selectedChildProvider.notifier);
+                      selectedChild == null
+                          ? n.select(children.first)
+                          : n.clear();
+                    },
+                  ),
+                ),
               ),
-              const SizedBox(height: 8),
 
-              Expanded(child: _buildRoomList(homeState)),
-            ],
-          ),
+            const SizedBox(height: 4),
+            Expanded(child: _buildRoomList(homeState)),
+          ],
         ),
       ),
     );
   }
 
-  Widget _paddedChip(Widget chip) =>
-      Padding(padding: const EdgeInsets.only(right: 8), child: chip);
+  static String _mdLabel(DateTime d) {
+    const w = ['월', '화', '수', '목', '금', '토', '일'];
+    return '${d.month}/${d.day} ${w[d.weekday - 1]}';
+  }
 
-  // 색이 칩마다 다른 필터 칩.
-  Widget _filterChip({
-    required String label,
-    required Color color,
+  Widget _datePostIt(int index, String label, DateFilter filter,
+      HomeState homeState, {String? caption}) {
+    final on = homeState.dateFilter == filter;
+    return PostIt(
+      label: label,
+      caption: caption,
+      tone: PostItTone.hi,
+      selected: on,
+      tiltDegrees: PostIt.tiltFor(index),
+      onTap: () => ref
+          .read(homeProvider.notifier)
+          .setDateFilter(on ? DateFilter.all : filter),
+    );
+  }
+
+  Widget _placePostIt(int index, String key, HomeState homeState,
+      {String? caption}) {
+    final on = homeState.placeTypeFilter == key;
+    return PostIt(
+      label: AppConstants.placeTypes[key] ?? key,
+      caption: caption,
+      tone: PostItTone.sky,
+      selected: on,
+      tiltDegrees: PostIt.tiltFor(index),
+      onTap: () =>
+          ref.read(homeProvider.notifier).setPlaceTypeFilter(on ? null : key),
+    );
+  }
+
+  /// '＋ 더보기' — 언제 / 어디서 체크리스트. 고르는 즉시 적용된다.
+  Future<void> _openMoreFilters(BuildContext context) {
+    return showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+      ),
+      builder: (ctx) => Consumer(builder: (ctx, ref, _) {
+        final st = ref.watch(homeProvider);
+        final n = ref.read(homeProvider.notifier);
+        return SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.line2,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text('언제 놀까요?', style: AppTextStyles.handXl.copyWith(fontSize: 26)),
+                const SizedBox(height: 6),
+                for (final e in const [
+                  (DateFilter.all, '아무 때나', '기간 안 가림'),
+                  (DateFilter.today, '오늘', null),
+                  (DateFilter.tomorrow, '내일', null),
+                  (DateFilter.thisWeek, '이번 주', '일요일까지'),
+                ])
+                  _CheckRow(
+                    label: e.$2,
+                    note: e.$3,
+                    selected: st.dateFilter == e.$1,
+                    onTap: () => n.setDateFilter(e.$1),
+                  ),
+                const SizedBox(height: 22),
+                Text('어디서 놀까요?', style: AppTextStyles.handXl.copyWith(fontSize: 26)),
+                const SizedBox(height: 6),
+                _CheckRow(
+                  label: '어디든',
+                  note: '장소 안 가림',
+                  selected: st.placeTypeFilter == null,
+                  onTap: () => n.setPlaceTypeFilter(null),
+                ),
+                for (final e in AppConstants.placeTypes.entries)
+                  _CheckRow(
+                    label: e.value,
+                    selected: st.placeTypeFilter == e.key,
+                    onTap: () => n.setPlaceTypeFilter(e.key),
+                  ),
+                const SizedBox(height: 16),
+                PrimaryButton(
+                  text: '완료',
+                  onPressed: () => Navigator.of(ctx).pop(),
+                ),
+              ],
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+  /// 아이 선택 시트 — 아이별 + '모든 아이'.
+  Future<void> _pickChild(
+      BuildContext context, List<Child> children, Child? current) async {
+    final picked = await showModalBottomSheet<Object>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 10),
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.line2,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 6),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text('누구 기준으로 볼까요?', style: AppTextStyles.sectionHead),
+              ),
+            ),
+            for (final c in children)
+              _childOption(
+                ctx,
+                title: c.nickname,
+                subtitle:
+                    '${AppDateUtils.calculateAgeMonths(c.birthYear, c.birthMonth)}개월',
+                selected: current?.id == c.id,
+                onTap: () => Navigator.of(ctx).pop(c),
+              ),
+            _childOption(
+              ctx,
+              title: '모든 아이',
+              subtitle: '개월수 조건 없이 전부',
+              selected: current == null,
+              onTap: () => Navigator.of(ctx).pop('all'),
+            ),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    final n = ref.read(selectedChildProvider.notifier);
+    picked is Child ? n.select(picked) : n.clear();
+  }
+
+  Widget _childOption(
+    BuildContext ctx, {
+    required String title,
+    required String subtitle,
     required bool selected,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
+    return ListTile(
       onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        height: 28,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: selected ? color : color.withValues(alpha: 0.14),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: selected
-                ? Colors.transparent
-                : color.withValues(alpha: 0.4),
-            width: 0.8,
-          ),
-        ),
-        child: Text(
-          label,
-          style: AppTextStyles.chip.copyWith(
-            color: selected ? Colors.white : color,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _childChip(
-      String label, String? age, bool selected, VoidCallback onTap) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-          decoration: BoxDecoration(
-            gradient: selected ? AppColors.primaryGradient : null,
-            color: selected ? null : Colors.white.withValues(alpha: 0.7),
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(
-              color: selected ? Colors.transparent : AppColors.primary200,
-              width: 0.8,
-            ),
-            boxShadow: selected
-                ? [
-                    BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.28),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.child_care_rounded,
-                size: 14,
-                color: selected ? Colors.white : AppColors.primary,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                label,
-                style: AppTextStyles.chip.copyWith(
-                  color: selected ? Colors.white : AppColors.ink700,
-                ),
-              ),
-              if (age != null) ...[
-                const SizedBox(width: 4),
-                Text(
-                  age,
-                  style: AppTextStyles.chip.copyWith(
-                    fontSize: 11,
-                    color: selected
-                        ? Colors.white.withValues(alpha: 0.9)
-                        : AppColors.ink500,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+      title: Text(title,
+          style: selected ? AppTextStyles.body1Bold : AppTextStyles.body1),
+      subtitle: Text(subtitle, style: AppTextStyles.caption),
+      trailing: selected
+          ? const Icon(Icons.check_rounded, color: AppColors.ink, size: 20)
+          : null,
     );
   }
 
@@ -386,7 +398,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (homeState.error != null && homeState.rooms.isEmpty) {
       return RefreshIndicator(
         onRefresh: onRefresh,
-        color: AppColors.primary,
+        color: AppColors.ink,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
@@ -402,20 +414,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       );
     }
     if (homeState.rooms.isEmpty) {
+      // 아이 기준(개월수)은 기본 상태라 사유로 대지 않는다 — 위 캡션에 이미 적혀 있다.
+      // 사용자가 직접 건 날짜·장소 필터만 이름을 대준다.
+      final causes = [
+        if (homeState.dateFilter != DateFilter.all) '날짜',
+        if (homeState.placeTypeFilter != null) '장소',
+      ];
       return RefreshIndicator(
         onRefresh: onRefresh,
-        color: AppColors.primary,
+        color: AppColors.ink,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
             SizedBox(
               height: MediaQuery.of(context).size.height * 0.55,
+              // 아이 개월수 필터는 기본으로 걸려 있다 — 필터 탓에 0건인데
+              // '아직 모임이 없어요'라고 하면 사실과 다르다.
               child: EmptyState(
                 icon: Icons.child_care_rounded,
-                title: '아직 모임이 없어요',
-                subtitle: '첫 번째 모임을 만들어 보세요!',
+                title:
+                    causes.isEmpty ? '아직 모임이 없어요' : '조건에 맞는 모임이 없어요',
+                subtitle: causes.isEmpty
+                    ? '첫 번째 모임을 만들어 보세요!'
+                    : '${causes.join('·')} 필터를 풀면 더 볼 수 있어요',
                 buttonText: '모임 만들기',
-                onButtonTap: () => context.push('/rooms/create'),
+                onButtonTap: () => openRoomCreate(context, ref),
               ),
             ),
           ],
@@ -424,108 +447,248 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
 
     final rooms = homeState.rooms;
-    final homeRows = _buildHomeRows(rooms.length);
+    final items = _buildListItems(rooms.map((r) => r.date).toList());
     return RefreshIndicator(
       onRefresh: onRefresh,
-      color: AppColors.primary,
+      color: AppColors.ink,
       child: ListView.builder(
         controller: _scrollController,
         // 행이 화면보다 적어도 풀투리프레시·스크롤 제스처가 동작하게.
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(10, 4, 10, 110),
-        itemCount: homeRows.length + (homeState.isLoadingMore ? 1 : 0),
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 110),
+        itemCount: items.length + (homeState.isLoadingMore ? 1 : 0),
         itemBuilder: (context, index) {
           // 더보기 로딩 인디케이터 (맨 끝)
-          if (homeState.isLoadingMore && index == homeRows.length) {
+          if (homeState.isLoadingMore && index == items.length) {
             return const Padding(
               padding: EdgeInsets.all(16),
               child: Center(
                 child: CircularProgressIndicator(
-                  color: AppColors.primary,
+                  color: AppColors.ink,
                   strokeWidth: 2,
                 ),
               ),
             );
           }
-          final row = homeRows[index];
-          if (row.isAd) {
+          final item = items[index];
+          if (item.groupLabel != null) return GroupLabel(item.groupLabel!);
+          if (item.adSlot != null) {
             return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 3),
-              child: NativeAdCard(key: ValueKey('native-ad-${row.adSlot}')),
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: NativeAdCard(key: ValueKey('native-ad-${item.adSlot}')),
             );
           }
-          // 카드 페어 — 한 행에 2개씩.
-          final left = rooms[row.leftRoomIndex!];
-          final right = row.rightRoomIndex != null
-              ? rooms[row.rightRoomIndex!]
-              : null;
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 3),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: RoomCardCompact(
-                    room: left,
-                    onTap: () => context.push('/rooms/${left.id}'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: right != null
-                      ? RoomCardCompact(
-                          room: right,
-                          onTap: () => context.push('/rooms/${right.id}'),
-                        )
-                      : const SizedBox.shrink(),
-                ),
-              ],
-            ),
+          final room = rooms[item.roomIndex!];
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (item.showDivider) const DashedDivider(),
+              RoomCard(
+                room: room,
+                onTap: () => context.push('/rooms/${room.id}'),
+              ),
+            ],
           );
         },
       ),
     );
   }
 
-  /// 홈 리스트 행 구조를 미리 계산.
-  /// - 카드 페어 행: 방 2개를 한 행으로 묶음 (홀수면 오른쪽 비움)
-  /// - 광고 행: 페어 3개째 뒤에 첫 광고, 그 뒤 페어 4개마다 광고 1행
-  List<_HomeRow> _buildHomeRows(int roomCount) {
-    final rows = <_HomeRow>[];
-    int pairsAdded = 0;
+  /// 목록 행 구조를 미리 계산한다.
+  /// - 날짜가 바뀌면 그룹 라벨을 한 줄 끼운다 (오늘 / 내일 / 이번 주 …).
+  /// - 광고는 방 6개 뒤 첫 행, 그 뒤로 8개마다 한 행 (2열 시절과 같은 간격).
+  List<_ListItem> _buildListItems(List<String> roomDates) {
+    final items = <_ListItem>[];
+    String? currentGroup;
     int adSlot = 0;
-    int i = 0;
-    while (i < roomCount) {
-      final left = i;
-      final right = i + 1 < roomCount ? i + 1 : null;
-      rows.add(_HomeRow.pair(left, right));
-      pairsAdded++;
-      i += 2;
-      if (pairsAdded == 3 ||
-          (pairsAdded > 3 && (pairsAdded - 3) % 4 == 0)) {
-        rows.add(_HomeRow.ad(adSlot++));
+
+    for (var i = 0; i < roomDates.length; i++) {
+      final date = DateTime.tryParse(roomDates[i]);
+      final group = date != null ? roomGroupLabel(date) : null;
+      if (group != null && group != currentGroup) {
+        items.add(_ListItem.group(group));
+        currentGroup = group;
+      }
+      final prev = items.isNotEmpty ? items.last : null;
+      items.add(_ListItem.room(i, showDivider: prev?.roomIndex != null));
+
+      final shown = i + 1;
+      if (shown == 6 || (shown > 6 && (shown - 6) % 8 == 0)) {
+        items.add(_ListItem.ad(adSlot++));
+        currentGroup = null; // 광고 뒤에는 그룹 라벨을 다시 세운다.
       }
     }
-    return rows;
+    return items;
   }
 }
 
-/// 홈 리스트의 한 행 — 카드 페어이거나 광고.
-class _HomeRow {
-  final bool isAd;
-  final int? leftRoomIndex;
-  final int? rightRoomIndex;
+/// 목록의 한 줄 — 그룹 라벨이거나 방 행이거나 광고.
+class _ListItem {
+  final String? groupLabel;
+  final int? roomIndex;
   final int? adSlot;
+  final bool showDivider;
 
-  const _HomeRow.pair(int left, int? right)
-      : isAd = false,
-        leftRoomIndex = left,
-        rightRoomIndex = right,
+  const _ListItem.group(String label)
+      : groupLabel = label,
+        roomIndex = null,
+        adSlot = null,
+        showDivider = false;
+
+  const _ListItem.room(int index, {required this.showDivider})
+      : groupLabel = null,
+        roomIndex = index,
         adSlot = null;
 
-  const _HomeRow.ad(int slot)
-      : isAd = true,
-        leftRoomIndex = null,
-        rightRoomIndex = null,
-        adSlot = slot;
+  const _ListItem.ad(int slot)
+      : groupLabel = null,
+        roomIndex = null,
+        adSlot = slot,
+        showDivider = false;
+}
+
+/// 앱바 오른쪽 노란 알약 — "＋ 만들기".
+class _CreatePill extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _CreatePill({super.key, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 13),
+        decoration: BoxDecoration(
+          color: AppColors.hi,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.add_rounded, size: 16, color: AppColors.ink),
+            const SizedBox(width: 3),
+            Text(
+              '만들기',
+              style: AppTextStyles.body2Bold.copyWith(color: AppColors.ink),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// "하율(26개월)이 참여할 수 있는 모임만 보여요" — 숫자만 손글씨.
+class _ChildFilterCaption extends StatelessWidget {
+  /// 지금 기준이 되는 아이. null 이면 개월수 조건 없이 보는 중.
+  final Child? child;
+  /// 다시 아이 기준으로 돌아갈 때 쓸 아이(첫째).
+  final Child fallback;
+  final VoidCallback onToggle;
+
+  const _ChildFilterCaption({
+    required this.child,
+    required this.fallback,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = child;
+    final link = AppTextStyles.caption.copyWith(
+      color: AppColors.link,
+      fontWeight: FontWeight.w600,
+    );
+    if (c == null) {
+      return Text.rich(
+        TextSpan(children: [
+          const TextSpan(text: '모든 개월수의 모임을 보고 있어요 · '),
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: GestureDetector(
+              onTap: onToggle,
+              child: Text('${fallback.nickname} 기준으로', style: link),
+            ),
+          ),
+        ]),
+        style: AppTextStyles.caption,
+      );
+    }
+    final months = AppDateUtils.calculateAgeMonths(c.birthYear, c.birthMonth);
+    return Text.rich(
+      TextSpan(children: [
+        TextSpan(text: '${c.nickname}('),
+        TextSpan(
+          text: '$months',
+          style: AppTextStyles.hand.copyWith(fontSize: 14, color: AppColors.skyInk),
+        ),
+        const TextSpan(text: '개월)이 참여할 수 있는 모임만 보여요 · '),
+        WidgetSpan(
+          alignment: PlaceholderAlignment.middle,
+          child: GestureDetector(
+            onTap: onToggle,
+            child: Text('전체 보기', style: link),
+          ),
+        ),
+      ]),
+      style: AppTextStyles.caption,
+    );
+  }
+}
+
+/// 시트의 체크 칸 한 줄 — 네모 칸 + 펜 ✓ + 라벨 + 오른쪽 짧은 메모.
+class _CheckRow extends StatelessWidget {
+  final String label;
+  final String? note;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _CheckRow({
+    required this.label,
+    this.note,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 11),
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: AppColors.line)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 22,
+              height: 22,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: selected ? AppColors.hi : Colors.transparent,
+                borderRadius: BorderRadius.circular(5),
+                border: Border.all(
+                  color: selected ? AppColors.ink : AppColors.ink3,
+                  width: 1.5,
+                ),
+              ),
+              child: selected
+                  ? Text('✓', style: AppTextStyles.stamp.copyWith(fontSize: 19, height: 1))
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Text(label,
+                style: selected ? AppTextStyles.body1Bold : AppTextStyles.body1),
+            const Spacer(),
+            if (note != null) Text(note!, style: AppTextStyles.caption),
+          ],
+        ),
+      ),
+    );
+  }
 }

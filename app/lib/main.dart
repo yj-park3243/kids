@@ -87,18 +87,6 @@ void main() async {
         onAuthFailed: (ex) => debugPrint('NaverMap auth failed: $ex'),
       );
 
-      // iOS App Tracking Transparency — IDFA 사용 광고 SDK 정책상
-      // notDetermined 상태일 때 권한을 요청한다. 응답 무관하게 진행.
-      if (Platform.isIOS) {
-        try {
-          final status =
-              await AppTrackingTransparency.trackingAuthorizationStatus;
-          if (status == TrackingStatus.notDetermined) {
-            await AppTrackingTransparency.requestTrackingAuthorization();
-          }
-        } catch (_) {}
-      }
-
       // AdMob — 광고 SDK는 백그라운드로 초기화 (UI 부트를 막지 않도록).
       unawaited(MobileAds.instance.initialize());
 
@@ -116,6 +104,17 @@ void main() async {
           child: KidsApp(),
         ),
       );
+
+      // iOS App Tracking Transparency — IDFA 사용 광고 SDK 정책상
+      // notDetermined 상태일 때 권한을 요청한다. 응답 무관하게 진행.
+      //
+      // runApp 전에 await 하면 안 된다: ATT 응답은 앱이 foreground-active 여야
+      // 오는데, 첫 프레임을 그리기 전에는 active 가 될 수 없어
+      // '프레임이 없어 active 불가 → 응답이 없어 runApp 불가' 교착이 생긴다.
+      // (실측: 런치 스토리보드에서 17분간 멈춤)
+      if (Platform.isIOS) {
+        unawaited(_requestTrackingPermission());
+      }
     },
     // 3) zone 내부에서 잡히지 않은 에러
     (error, stack) {
@@ -125,6 +124,19 @@ void main() async {
       ));
     },
   );
+}
+
+/// 첫 프레임이 올라온 뒤 ATT 권한을 요청한다(응답 무관하게 앱은 계속 동작).
+Future<void> _requestTrackingPermission() async {
+  // UI 테스트 빌드에서는 시스템 팝업이 화면을 가려 스크린샷 판정을 막으므로 건너뛴다.
+  if (const bool.fromEnvironment('UI_TEST_SKIP_ATT')) return;
+  try {
+    await WidgetsBinding.instance.endOfFrame;
+    final status = await AppTrackingTransparency.trackingAuthorizationStatus;
+    if (status == TrackingStatus.notDetermined) {
+      await AppTrackingTransparency.requestTrackingAuthorization();
+    }
+  } catch (_) {}
 }
 
 class KidsApp extends StatelessWidget {
@@ -169,14 +181,28 @@ class KidsApp extends StatelessWidget {
       themeMode: ThemeMode.light,
       theme: ThemeData(
         useMaterial3: true,
+        // 수첩안(docs/09_UI_수첩안.md): 종이 배경 + 잉크 주색. 형광펜은 위젯 단위로만.
         colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.primary,
-          surface: AppColors.surface,
+          seedColor: AppColors.ink,
           brightness: Brightness.light,
+        ).copyWith(
+          primary: AppColors.ink,
+          onPrimary: Colors.white,
+          secondary: AppColors.skyInk,
+          onSecondary: Colors.white,
+          surface: AppColors.surface,
+          onSurface: AppColors.ink,
+          error: AppColors.bad,
+          outline: AppColors.line2,
+          outlineVariant: AppColors.line,
         ),
-        scaffoldBackgroundColor: AppColors.background,
+        textTheme: GoogleFonts.ibmPlexSansKrTextTheme().apply(
+          bodyColor: AppColors.ink,
+          displayColor: AppColors.ink,
+        ),
+        scaffoldBackgroundColor: AppColors.paper,
         appBarTheme: const AppBarTheme(
-          backgroundColor: AppColors.background,
+          backgroundColor: AppColors.paper,
           elevation: 0,
           scrolledUnderElevation: 0,
           centerTitle: true,
@@ -196,8 +222,8 @@ class KidsApp extends StatelessWidget {
         ),
         outlinedButtonTheme: OutlinedButtonThemeData(
           style: OutlinedButton.styleFrom(
-            foregroundColor: AppColors.primary,
-            side: const BorderSide(color: AppColors.primary),
+            foregroundColor: AppColors.ink,
+            side: const BorderSide(color: AppColors.line2),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
@@ -206,9 +232,12 @@ class KidsApp extends StatelessWidget {
         ),
         textButtonTheme: TextButtonThemeData(
           style: TextButton.styleFrom(
-            foregroundColor: AppColors.primary,
+            foregroundColor: AppColors.link,
+            textStyle: AppTextStyles.buttonSmall,
           ),
         ),
+        progressIndicatorTheme:
+            const ProgressIndicatorThemeData(color: AppColors.ink),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: AppColors.surface,
@@ -254,8 +283,8 @@ class KidsApp extends StatelessWidget {
           color: AppColors.divider,
           thickness: 1,
         ),
-        splashColor: AppColors.primary.withValues(alpha: 0.1),
-        highlightColor: AppColors.primary.withValues(alpha: 0.05),
+        splashColor: AppColors.ink.withValues(alpha: 0.06),
+        highlightColor: AppColors.ink.withValues(alpha: 0.04),
       ),
     );
   }

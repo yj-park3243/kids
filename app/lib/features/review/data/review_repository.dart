@@ -79,6 +79,15 @@ class ReviewRepository {
     return Review.fromJson(data);
   }
 
+  /// 이 모임에서 내가 이미 쓴 후기 — GET /rooms/:roomId/reviews/mine
+  Future<List<Review>> getMyReviewsInRoom(String roomId) async {
+    final response = await _dio.get(ApiConstants.myRoomReviews(roomId));
+    final data = response.data['data'] ?? response.data;
+    return (data as List)
+        .map((e) => Review.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   /// 후기 수정 — PATCH /reviews/:reviewId
   Future<Review> updateReview(
     String reviewId,

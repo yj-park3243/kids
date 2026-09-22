@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/network/api_error.dart';
 import '../../../models/user.dart';
 import '../../../providers/selected_child_provider.dart';
 import '../../home/providers/dashboard_provider.dart';
@@ -16,9 +17,10 @@ enum AuthStatus {
   loading,
   authenticated,
   unauthenticated,
-  phoneVerification,
   profileSetup,
   childSetup,
+  // 토큰은 있는데 서버에 닿지 못함(오프라인/5xx). 로그인 화면으로 튕기지 않고 재시도.
+  unreachable,
 }
 
 class AuthState {
@@ -67,9 +69,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(status: AuthStatus.loading);
     try {
       final user = await _repository.getMyProfile();
-      if (!user.isPhoneVerified) {
-        state = state.copyWith(status: AuthStatus.phoneVerification, user: user);
-      } else if (!user.isProfileComplete) {
+      // 본인인증은 가입 관문이 아니라 모임 만들기·참여 시점의 게이트로 옮겼다
+      // (phone_verification_gate.dart) — 여기서는 확인하지 않는다.
+      if (!user.isProfileComplete) {
         state = state.copyWith(status: AuthStatus.profileSetup, user: user);
       } else if (user.children == null || user.children!.isEmpty) {
         state = state.copyWith(status: AuthStatus.childSetup, user: user);
@@ -77,7 +79,26 @@ class AuthNotifier extends StateNotifier<AuthState> {
         state = state.copyWith(status: AuthStatus.authenticated, user: user);
       }
     } catch (e) {
+      if (isUnreachableError(e)) {
+        // 네트워크 문제는 로그아웃 사유가 아니다. 이미 로그인된 상태(앱 내 재조회)면
+        // 그대로 두고, 콜드 스타트면 재시도 화면으로.
+        state = state.copyWith(
+          status: state.user != null ? AuthStatus.authenticated : AuthStatus.unreachable,
+        );
+        return;
+      }
       state = state.copyWith(status: AuthStatus.unauthenticated);
+    }
+  }
+
+  /// 로그인 응답의 user 에는 children 같은 관계가 빠져 있다(서버 sanitizeUser).
+  /// 그대로 쓰면 앱 재시작 전까지 마이페이지 '우리 아이'·아이 기준 필터가 비어 보이므로
+  /// 프로필을 한 번 더 받아 채운다. 실패하면 응답의 user 로 진행한다.
+  Future<User> _hydrate(User fromLogin) async {
+    try {
+      return await _repository.getMyProfile();
+    } catch (_) {
+      return fromLogin;
     }
   }
 
@@ -93,17 +114,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
         accessToken: accessToken,
         idToken: idToken,
       );
-      if (!result.user.isPhoneVerified) {
-        state = state.copyWith(
-          status: AuthStatus.phoneVerification,
-          user: result.user,
-        );
-      } else if (result.isNewUser || !result.user.isProfileComplete) {
+      if (result.isNewUser || !result.user.isProfileComplete) {
         state =
             state.copyWith(status: AuthStatus.profileSetup, user: result.user);
       } else {
-        state =
-            state.copyWith(status: AuthStatus.authenticated, user: result.user);
+        state = state.copyWith(
+          status: AuthStatus.authenticated,
+          user: await _hydrate(result.user),
+        );
       }
     } catch (e) {
       state = state.copyWith(
@@ -120,17 +138,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
         email: email,
         password: password,
       );
-      if (!result.user.isPhoneVerified) {
-        state = state.copyWith(
-          status: AuthStatus.phoneVerification,
-          user: result.user,
-        );
-      } else if (result.isNewUser || !result.user.isProfileComplete) {
+      if (result.isNewUser || !result.user.isProfileComplete) {
         state =
             state.copyWith(status: AuthStatus.profileSetup, user: result.user);
       } else {
-        state =
-            state.copyWith(status: AuthStatus.authenticated, user: result.user);
+        state = state.copyWith(
+          status: AuthStatus.authenticated,
+          user: await _hydrate(result.user),
+        );
       }
     } catch (e) {
       state = state.copyWith(
@@ -147,9 +162,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
         email: email,
         password: password,
       );
-      // 회원가입 직후 본인인증 단계로
+      // 회원가입 직후 프로필 설정으로 — 본인인증은 모임 만들기·참여 때 받는다.
       state = state.copyWith(
-        status: AuthStatus.phoneVerification,
+        status: AuthStatus.profileSetup,
         user: result.user,
       );
     } catch (e) {
@@ -250,6 +265,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
     );
     _replaceChildInState(childId, child);
     return child;
+  }
+
+  Future<void> deleteChild(String childId) async {
+    await _repository.deleteChild(childId);
+    final user = state.user;
+    if (user != null && user.children != null) {
+      final next = [
+        for (final c in user.children!)
+          if (c.id != childId) c,
+      ];
+      state = state.copyWith(user: user.copyWith(children: next));
+    }
   }
 
   void _replaceChildInState(String childId, Child child) {

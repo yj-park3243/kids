@@ -30,6 +30,8 @@ class ApiConstants {
   static const String refreshToken = '/auth/refresh';
   static const String logout = '/auth/logout';
   static const String kcpForm = '/auth/kcp/form';
+  static const String kcpResetForm = '/auth/kcp/reset-form';
+  static const String resetPassword = '/auth/reset-password';
 
   // User
   static const String userProfile = '/users/profile';
@@ -61,6 +63,7 @@ class ApiConstants {
   // Support
   static const String errorLogs = '/error-logs';
   static const String supportInquiry = '/support/inquiry';
+  static const String supportInquiries = '/support/inquiries';
   static const String supportReport = '/support/report';
 
   // Chat
@@ -73,6 +76,7 @@ class ApiConstants {
   static String blockTarget(String targetUserId) => '/blocks/$targetUserId';
 
   // Reviews
+  static String myRoomReviews(String roomId) => '/rooms/$roomId/reviews/mine';
   static String roomReviews(String roomId) => '/rooms/$roomId/reviews';
   static String reviewById(String reviewId) => '/reviews/$reviewId';
   static String userReviews(String userId) => '/users/$userId/reviews';
@@ -80,6 +84,7 @@ class ApiConstants {
   // Follows
   static const String follows = '/follows';
   static const String myFollows = '/follows/me';
+  static const String myFollowers = '/follows/followers';
   static String followByTarget(String targetUserId) =>
       '/follows/$targetUserId';
 

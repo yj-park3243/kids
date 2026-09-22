@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 
-/// 월령 pill (예: "12+", "13-18개월")
+/// 월령 pill (예: "12+", "13-18개월") — 아이 정보는 늘 하늘색. `solid` 는 호환용(무시).
 class AgeBadge extends StatelessWidget {
   final String label;
   final bool solid;
@@ -12,22 +12,16 @@ class AgeBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      height: 22,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      alignment: Alignment.center,
       decoration: BoxDecoration(
-        gradient: solid ? AppColors.primaryGradient : null,
-        color: solid ? null : AppColors.primary100.withValues(alpha: 0.8),
+        color: AppColors.sky,
         borderRadius: BorderRadius.circular(999),
-        border: solid
-            ? null
-            : Border.all(
-                color: AppColors.primary.withValues(alpha: 0.3),
-              ),
       ),
       child: Text(
         label,
-        style: AppTextStyles.chip.copyWith(
-          color: solid ? Colors.white : AppColors.primary700,
-        ),
+        style: AppTextStyles.chip.copyWith(color: AppColors.skyInk),
       ),
     );
   }

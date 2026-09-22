@@ -1,128 +1,152 @@
 import 'package:flutter/material.dart';
 
-/// 파스텔 키즈 팔레트. 흰 베이스 + 민트 primary + 5색 알록달록 보조.
+/// '우리 동네 육아 수첩' 팔레트 (docs/09_UI_수첩안.md).
+///
+/// 종이 한 장 위에 잉크로 쓰고, 형광펜(hi)으로 **지금·여기·오늘**만 표시한다.
+/// 색이 정보를 갖는다 — hi=모집중/오늘/활성, sky=아이·개월수, sage=쑥쑥 등급,
+/// berry=안읽음·알림 점. 그 밖의 강조는 굵기와 여백으로.
+///
+/// 아래 "Legacy" 이름들은 이전 팔레트(핑크·글래스) 시절 화면들이 깨지지 않도록
+/// 남겨둔 별칭이다. 새 코드는 위쪽 정식 이름만 쓴다.
 class AppColors {
   AppColors._();
 
-  // ===== Primary (핑크) =====
-  static const Color primary = Color(0xFFF26E96);
-  static const Color primaryLight = Color(0xFFF9A8BF);
-  static const Color primaryDark = Color(0xFFD14B73);
+  // ===== 종이 · 면 · 선 =====
+  static const Color paper = Color(0xFFFFFCF5); // 화면 배경 (조금 노란 종이)
+  static const Color surface = Color(0xFFFFFFFF); // 카드 · 바 · 입력창
+  static const Color line = Color(0xFFEAE4D8); // 헤어라인
+  static const Color line2 = Color(0xFFD9D1C2); // 점선 괘선 · 강한 선
+  static const Color fill = Color(0xFFF4EFE4); // 비활성 면 · 세그먼트 트랙
 
-  // Primary tonal scale (light → deep)
-  static const Color primary50 = Color(0xFFFDEDF1);
-  static const Color primary100 = Color(0xFFFAD2DD);
-  static const Color primary200 = Color(0xFFF5AFC2);
-  static const Color primary300 = Color(0xFFF08FA8);
-  static const Color primary400 = Color(0xFFEE7B98);
-  static const Color primary700 = Color(0xFFA63A5C);
+  // ===== 잉크 =====
+  static const Color ink = Color(0xFF221F1C); // 본문 · CTA 버튼 · 내 말풍선 · 활성 탭
+  static const Color ink2 = Color(0xFF625B54); // 보조 텍스트
+  static const Color ink3 = Color(0xFF9A928A); // 힌트 · 아이콘 · 비활성 탭
 
-  // ===== Accent palette (알록달록 보조) =====
-  static const Color accentYellow = Color(0xFFFFD96B);
-  static const Color accentSky = Color(0xFF6FB7FF);
-  static const Color accentLavender = Color(0xFFB89BE8);
-  static const Color accentCoral = Color(0xFFFF9476);
-  static const Color accentLime = Color(0xFFB8E186);
+  // ===== 형광펜 =====
+  static const Color hi = Color(0xFFFFD84D); // 모집중 · 오늘 · 활성 탭 자국 · D-day 도장
+  static const Color hiInk = Color(0xFF5A4600); // hi 위의 진한 글씨
 
-  // ===== Semantic aliases =====
-  static const Color secondary = accentLavender;
-  static const Color secondaryLight = Color(0xFFD9C6F2);
-  static const Color secondaryDark = Color(0xFF9176CC);
-  static const Color accent = accentCoral;
-  static const Color accentLightAlias = Color(0xFFFFC0AC);
-  static const Color accentDark = Color(0xFFE07560);
+  // ===== 아이 · 개월수 =====
+  static const Color sky = Color(0xFFE3EEFF);
+  static const Color skyInk = Color(0xFF2456B8); // 링크 · 토요일 날짜
 
-  // ===== Surfaces =====
-  static const Color background = Color(0xFFFFFFFF);
-  static const Color backgroundSoft = Color(0xFFFAFAF8);
-  static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceVariant = Color(0xFFF5F5F1);
-  static const Color bg = background;
-  static const Color bg2 = backgroundSoft;
+  // ===== 쑥쑥 등급 =====
+  static const Color sage = Color(0xFFE4F1E6);
+  static const Color sageInk = Color(0xFF2E6B4E);
 
-  // ===== Ink (text) =====
-  static const Color ink900 = Color(0xFF1A1A2E);
-  static const Color ink700 = Color(0xFF374151);
-  static const Color ink500 = Color(0xFF6B7280);
-  static const Color ink300 = Color(0xFF9CA3AF);
-  static const Color textPrimary = ink900;
-  static const Color textSecondary = ink500;
-  static const Color textHint = ink300;
-  static const Color textOnPrimary = Colors.white;
+  // ===== 스티커 점 (기존 브랜드 핑크의 흔적) =====
+  static const Color berry = Color(0xFFF26E96); // 안읽음 배지 · 알림 점
 
-  // ===== Status =====
-  static const Color error = Color(0xFFFF6B6B);
-  static const Color success = Color(0xFF4CAF50);
-  static const Color warning = accentYellow;
-  static const Color info = accentSky;
+  // ===== 상태 =====
+  static const Color link = skyInk;
+  static const Color ok = Color(0xFF2F9E6B);
+  static const Color warn = Color(0xFFD48A1E);
+  static const Color bad = Color(0xFFD64545);
 
-  // ===== Badge / Tag =====
-  static const Color recruiting = accentLime;
-  static const Color closed = Color(0xFFD1D5DB);
-  static const Color cancelled = accentCoral;
-
-  // ===== Social login (브랜드 색 보존) =====
+  // ===== 소셜 로그인 (브랜드 색 보존) =====
   static const Color kakao = Color(0xFFFEE500);
   static const Color kakaoText = Color(0xFF191919);
-  static const Color apple = ink900;
+  static const Color apple = ink;
   static const Color google = Colors.white;
-  static const Color googleBorder = Color(0xFFE5E7EB);
+  static const Color googleBorder = line2;
 
-  // ===== Misc =====
-  static const Color divider = Color(0xFFE5E7EB);
-  static const Color dividerStrong = Color(0xFFD1D5DB);
-  static const Color shimmerBase = Color(0xFFF5F5F1);
-  static const Color shimmerHighlight = Color(0xFFFAFAF8);
-  static const Color chatBubbleMine = primary;
-  static const Color chatBubbleOther = Color(0xFFF5F5F1);
-  static const Color unreadBadge = accentCoral;
+  // ─────────────────────────────────────────────────────────────
+  // Legacy aliases — 기존 화면 호환용. 새 코드에서 쓰지 말 것.
+  // ─────────────────────────────────────────────────────────────
 
-  // ===== Legacy aliases (non-primary 톤 — DesignChip/CategoryBadge에서 사용) =====
-  static const Color coral = accentCoral;
-  static const Color cream = backgroundSoft;
-  static const Color lilac = Color(0xFFE6DAF9);
+  // primary 계열 → 잉크. (CTA·활성 상태가 검정으로 통일된다)
+  static const Color primary = ink;
+  static const Color primaryLight = ink2;
+  static const Color primaryDark = ink;
+  static const Color primary50 = fill;
+  static const Color primary100 = line;
+  static const Color primary200 = line2;
+  static const Color primary300 = ink3;
+  static const Color primary400 = ink2;
+  static const Color primary700 = ink;
+
+  // 알록달록 보조 5색 → 역할별 1색으로 수렴
+  static const Color accentYellow = hi;
+  static const Color accentSky = skyInk;
+  static const Color accentLavender = skyInk;
+  static const Color accentCoral = berry;
+  static const Color accentLime = sageInk;
+
+  static const Color secondary = skyInk;
+  static const Color secondaryLight = sky;
+  static const Color secondaryDark = skyInk;
+  static const Color accent = berry;
+  static const Color accentLightAlias = Color(0xFFFBD3DF);
+  static const Color accentDark = Color(0xFFD14B73);
+
+  static const Color background = paper;
+  static const Color backgroundSoft = fill;
+  static const Color surfaceVariant = fill;
+  static const Color bg = paper;
+  static const Color bg2 = fill;
+
+  static const Color ink900 = ink;
+  static const Color ink700 = ink;
+  static const Color ink500 = ink2;
+  static const Color ink300 = ink3;
+  static const Color textPrimary = ink;
+  static const Color textSecondary = ink2;
+  static const Color textHint = ink3;
+  static const Color textOnPrimary = Colors.white;
+
+  static const Color error = bad;
+  static const Color success = ok;
+  static const Color warning = warn;
+  static const Color info = skyInk;
+
+  static const Color recruiting = hi;
+  static const Color closed = line2;
+  static const Color cancelled = berry;
+
+  static const Color divider = line;
+  static const Color dividerStrong = line2;
+  static const Color shimmerBase = fill;
+  static const Color shimmerHighlight = paper;
+  static const Color chatBubbleMine = ink;
+  static const Color chatBubbleOther = surface;
+  static const Color unreadBadge = berry;
+
+  static const Color coral = berry;
+  static const Color cream = paper;
+  static const Color lilac = sky;
   static const Color accentLight = accentLightAlias;
 
-  // ===== Gradients =====
+  // 그라데이션은 더 이상 쓰지 않는다 — 단색으로 평탄화 (API 호환용).
   static const LinearGradient primaryGradient = LinearGradient(
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
-    colors: [Color(0xFFF08FA8), primary],
+    colors: [ink, ink],
   );
   static const LinearGradient primaryTextGradient = LinearGradient(
-    colors: [primary, primary400],
+    colors: [ink, ink],
   );
 
-  // ===== Glass =====
-  static const Color glassWhite = Color(0xF2FFFFFF);
-  static const Color glassWhiteStrong = Colors.white;
-  static const Color glassBorder = Color(0xFFE5E7EB);
+  static const Color glassWhite = surface;
+  static const Color glassWhiteStrong = surface;
+  static const Color glassBorder = line;
 
-  // ===== Accent helpers (카테고리/카드별 좌측 보더용 순환) =====
-  static const List<Color> accentRotation = [
-    primary,
-    accentLavender,
-    accentCoral,
-  ];
+  static const List<Color> accentRotation = [ink, skyInk, sageInk];
 
   /// 문자열 키 → 액센트 색 (안정적 매핑)
   static Color accentFor(String key) {
-    if (key.isEmpty) return primary;
+    if (key.isEmpty) return ink;
     final hash = key.codeUnits.fold<int>(0, (a, b) => (a + b) & 0xffff);
     return accentRotation[hash % accentRotation.length];
   }
 
-  // ===== 장소 타입별 고정 색 (필터 칩 등 — 서로 뚜렷이 구분) =====
-  static const Color placeAll = Color(0xFF455A64); // 장소 전체 - 청회색
+  // 장소 타입은 더 이상 색으로 구분하지 않는다 (글자로 충분).
+  static const Color placeAll = ink2;
   static const Map<String, Color> placeTypeColor = {
-    'PLAYGROUND': Color(0xFFE0654A), // 놀이터 - 코랄
-    'KIDS_CAFE': Color(0xFFD81B60), // 키즈카페 - 핑크
-    'PARTY_ROOM': Color(0xFF8E24AA), // 파티룸 - 보라
-    'PARK': Color(0xFFAD3A6E), // 공원 - 플럼
-    'OTHER': Color(0xFF6D4C41), // 기타 - 갈색
+    'PLAYGROUND': ink,
+    'KIDS_CAFE': ink,
+    'PARTY_ROOM': ink,
+    'PARK': ink,
+    'OTHER': ink,
   };
 
-  /// 장소 타입 키 → 색 (미정의 키는 primary 폴백)
-  static Color placeColorFor(String key) =>
-      placeTypeColor[key] ?? primary;
+  static Color placeColorFor(String key) => placeTypeColor[key] ?? ink;
 }

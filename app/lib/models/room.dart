@@ -171,6 +171,8 @@ class RoomMember {
   // 부모 성별('MOM'|'DAD')과 출생연도 — "아빠 (92년생)" 표시용.
   final String? parentGender;
   final int? birthYear;
+  // 방장 출석 체크 결과. null=미체크, true=출석, false=노쇼.
+  final bool? attended;
 
   RoomMember({
     required this.id,
@@ -181,6 +183,7 @@ class RoomMember {
     this.isSingleParent,
     this.parentGender,
     this.birthYear,
+    this.attended,
   });
 
   factory RoomMember.fromJson(Map<String, dynamic> json) {
@@ -195,6 +198,7 @@ class RoomMember {
       isSingleParent: json['isSingleParent'],
       parentGender: json['parentGender'],
       birthYear: json['birthYear'],
+      attended: json['attended'],
     );
   }
 }

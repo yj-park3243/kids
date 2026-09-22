@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../../core/constants/api_constants.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/network/api_client.dart';
 import '../../../widgets/app_bar.dart';
@@ -65,13 +64,14 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.paper,
       appBar: const CustomAppBar(title: '알림 설정'),
       body: SafeArea(
         child: _loading
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(
+                child: CircularProgressIndicator(color: AppColors.ink))
             : ListView(
-                padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
                 children: [
                   _tile(
                     title: '광고·이벤트 알림',
@@ -86,6 +86,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
     );
   }
 
+  /// 토글 행 + 아래 헤어라인.
   Widget _tile({
     required String title,
     required String subtitle,
@@ -95,21 +96,37 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
   }) {
     return Opacity(
       opacity: enabled ? 1 : 0.4,
-      child: SwitchListTile(
-        contentPadding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.screen, vertical: AppSpacing.sm),
-        title: Padding(
-          padding: const EdgeInsets.only(bottom: AppSpacing.xxs),
-          child: Text(title, style: AppTextStyles.body1Bold),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: AppTextStyles.caption
-              .copyWith(color: AppColors.textSecondary, height: 1.5),
-        ),
-        value: value,
-        activeThumbColor: AppColors.primary,
-        onChanged: enabled ? onChanged : null,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title, style: AppTextStyles.body1Bold),
+                      const SizedBox(height: 2),
+                      Text(subtitle, style: AppTextStyles.body2),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Switch(
+                  value: value,
+                  activeThumbColor: Colors.white,
+                  activeTrackColor: AppColors.ink,
+                  inactiveThumbColor: Colors.white,
+                  inactiveTrackColor: AppColors.fill,
+                  onChanged: enabled ? onChanged : null,
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, thickness: 1, color: AppColors.line),
+        ],
       ),
     );
   }

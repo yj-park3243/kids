@@ -1,0 +1,245 @@
+<title>같이크자 필터 수첩안</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Gaegu:wght@400;700&display=swap">
+<style>
+:root{
+  --page-bg:#F1ECE2; --page-fg:#221F1C; --page-muted:#6B635B; --page-card:#FFFDF8; --page-line:#E2DACB;
+  --paper:#FFFCF5; --surface:#FFFFFF; --line:#EAE4D8; --line2:#D9D1C2; --fill:#F4EFE4;
+  --ink:#221F1C; --ink2:#625B54; --ink3:#9A928A;
+  --hi:#FFD84D; --hiInk:#5A4600; --sky:#E3EEFF; --skyInk:#2456B8; --sage:#E4F1E6; --sageInk:#2E6B4E; --berry:#F26E96;
+  --pink:#FFD6E0; --mint:#D9F1E6;
+  --sans:"IBM Plex Sans KR",-apple-system,"Apple SD Gothic Neo",sans-serif; --hand:"Gaegu","Apple SD Gothic Neo",cursive;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--page-bg:#181512;--page-fg:#F2EDE4;--page-muted:#A69E93;--page-card:#221E1A;--page-line:#352E27}}
+:root[data-theme="dark"]{--page-bg:#181512;--page-fg:#F2EDE4;--page-muted:#A69E93;--page-card:#221E1A;--page-line:#352E27}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page-bg);color:var(--page-fg);font-family:var(--sans);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+h1,h2,h3{margin:0;text-wrap:balance} p{margin:0}
+.wrap{max-width:1180px;margin:0 auto;padding:40px 24px 80px}
+.intro h1{font-family:var(--hand);font-weight:700;font-size:44px;line-height:1.1}
+.intro h1 mark{background:linear-gradient(transparent 55%,var(--hi) 55%);color:inherit;padding:0 2px}
+.intro p{margin-top:12px;color:var(--page-muted);max-width:60ch}
+.screens-scroll{overflow-x:auto;padding:6px 6px 22px;margin:24px -6px 0}
+.screens{display:flex;gap:28px;width:max-content;align-items:flex-start}
+.frame{width:375px;flex:0 0 375px}
+.frame>.label{margin:0 6px 10px}
+.frame>.label b{font-size:16px;font-weight:700;display:block}
+.frame>.label span{font-size:12.5px;color:var(--page-muted)}
+.phone{height:640px;background:var(--paper);border-radius:36px;border:1px solid var(--page-line);overflow:hidden;display:flex;flex-direction:column;color:var(--ink);box-shadow:0 20px 50px rgba(30,20,10,.12)}
+.statusbar{height:40px;flex:0 0 40px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:13px;font-weight:600}
+.appbar{height:52px;flex:0 0 52px;display:flex;align-items:center;gap:8px;padding:0 20px}
+.appbar .title{font-size:19px;font-weight:700;flex:1}
+.pillbtn{height:32px;padding:0 12px;border-radius:999px;background:var(--hi);display:inline-flex;align-items:center;gap:4px;font-size:13px;font-weight:600}
+.scroll{flex:1;overflow:auto;padding:0 20px 20px}
+.scroll::-webkit-scrollbar{width:0}
+.cap{font-size:12px;color:var(--ink3);margin-top:10px}
+.cap b{font-family:var(--hand);font-size:14px;color:var(--skyInk);font-weight:700}
+.cap a{color:var(--skyInk);font-weight:600;text-decoration:none}
+/* rows */
+.group{font-size:12.5px;font-weight:600;color:var(--ink3);margin:18px 0 2px}
+.rrow{display:grid;grid-template-columns:44px 1fr auto;gap:14px;padding:14px 0;border-bottom:1px dashed var(--line2)}
+.rrow .d{display:grid;justify-items:center}.rrow .d b{font-family:var(--hand);font-size:28px;font-weight:700;line-height:1}.rrow .d span{font-size:11.5px;color:var(--ink3)}
+.rrow .t{font-size:15.5px;font-weight:600}.rrow .m{font-size:13px;color:var(--ink2);margin-top:3px}
+.pill{display:inline-flex;height:22px;padding:0 8px;border-radius:999px;font-size:12px;font-weight:600;align-items:center;margin-top:8px}
+.pill.sky{background:var(--sky);color:var(--skyInk)}.pill.hi{background:var(--hi);color:var(--ink)}
+.rrow .r{display:grid;justify-items:end;gap:8px}.rrow .r small{font-size:12px;color:var(--ink3)}
+.pick{cursor:pointer;user-select:none}
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-top:8px}
+.note{background:var(--page-card);border:1px solid var(--page-line);border-radius:14px;padding:16px 18px;font-size:14px}
+.note h3{font-size:15px;font-weight:700;margin-bottom:8px}
+.note ul{margin:0;padding-left:18px;color:var(--page-muted)} .note li{margin:3px 0}
+.note .good{color:var(--sageInk)} .note .bad{color:#B54545}
+.verdict{margin-top:28px;padding:18px 20px;background:var(--page-card);border:1px dashed var(--page-line);border-radius:14px}
+.verdict b{font-weight:700}
+
+/* ── A. 색인 탭 ── */
+.tabs{display:flex;gap:4px;padding:0 4px;margin-top:6px}
+.tab{position:relative;flex:1;height:38px;display:grid;place-items:center;font-size:13.5px;font-weight:600;color:var(--ink2);background:var(--fill);border:1px solid var(--line2);border-bottom:0;border-radius:12px 12px 0 0;transform:translateY(1px)}
+.tab.on{background:var(--surface);color:var(--ink);border-color:var(--line2);z-index:2}
+.tab.on::before{content:"";position:absolute;left:10px;right:10px;top:7px;height:6px;background:var(--hi);border-radius:3px;transform:rotate(-1.5deg);z-index:-1}
+.tab.on b{font-family:var(--hand);font-size:17px;font-weight:700}
+.sheet{background:var(--surface);border:1px solid var(--line2);border-radius:14px;padding:14px 16px 4px;min-height:330px}
+.sheet .head{display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px dashed var(--line2);font-size:13px;color:var(--ink2)}
+.blank{display:inline-flex;align-items:baseline;gap:4px;border-bottom:1.5px dashed var(--ink3);padding:0 2px 1px;margin:0 3px;color:var(--ink)}
+.blank .v{font-family:var(--hand);font-size:17px;font-weight:700;line-height:1}
+.blank .v.empty{color:var(--ink3);font-family:var(--sans);font-size:13px;font-weight:600}
+.blank i{font-style:normal;font-size:10px;color:var(--ink3)}
+
+/* ── B. 포스트잇 ── */
+.board{display:flex;gap:10px;padding:14px 4px 6px;overflow:visible;flex-wrap:wrap}
+.postit{position:relative;width:74px;height:66px;padding:10px 8px 6px;border-radius:2px;background:var(--hi);box-shadow:0 4px 10px rgba(40,28,10,.12),0 1px 0 rgba(0,0,0,.05);font-family:var(--hand);font-weight:700;font-size:17px;line-height:1.1;color:var(--ink);display:grid;align-content:space-between;transition:transform .15s}
+.postit.pink{background:var(--pink)}.postit.sky{background:var(--sky)}.postit.mint{background:var(--mint)}.postit.plain{background:var(--surface);border:1px dashed var(--line2);box-shadow:none;color:var(--ink3);font-family:var(--sans);font-size:12px;font-weight:600;place-items:center}
+.postit small{font-family:var(--sans);font-size:10.5px;font-weight:500;color:var(--ink2)}
+.postit:nth-child(1){transform:rotate(-2.5deg)}.postit:nth-child(2){transform:rotate(1.5deg)}.postit:nth-child(3){transform:rotate(-1deg)}.postit:nth-child(4){transform:rotate(2deg)}.postit:nth-child(5){transform:rotate(-1.5deg)}
+.postit::before{content:"";position:absolute;top:-6px;left:50%;width:34px;height:12px;margin-left:-17px;background:rgba(255,255,255,.55);transform:rotate(-2deg);border-radius:1px;opacity:0}
+.postit.on{transform:rotate(0) scale(1.04);box-shadow:0 6px 14px rgba(40,28,10,.16)}
+.postit.on::before{opacity:1}
+.postit.on::after{content:"✓";position:absolute;right:6px;bottom:4px;font-family:var(--hand);font-size:22px;font-weight:700;color:var(--ink);transform:rotate(-8deg)}
+.nametag{position:absolute;right:-6px;top:-10px;transform:rotate(6deg);background:var(--sky);color:var(--skyInk);font-family:var(--hand);font-weight:700;font-size:15px;padding:4px 10px 2px;border-radius:2px;box-shadow:0 2px 6px rgba(0,0,0,.12)}
+
+/* ── C. 빈칸 채우기 ── */
+.formline{margin-top:10px;font-size:14px;color:var(--ink2);line-height:2.3}
+.formline .blank{border-bottom-color:var(--ink2);cursor:pointer}
+.formline .blank.on{border-bottom:2px solid transparent;background:linear-gradient(transparent 60%,var(--hi) 60%)}
+.formline .lbl{font-weight:600;color:var(--ink3);margin-right:2px}
+.formline .sep{color:var(--line2);margin:0 8px}
+.formline .pen{display:inline-block;width:14px;height:14px;vertical-align:-2px;margin-left:2px;color:var(--ink3)}
+/* bottom sheet (C) */
+.bsheet{position:absolute;left:0;right:0;bottom:0;background:var(--surface);border-radius:24px 24px 0 0;border-top:1px solid var(--line);padding:10px 20px 26px;box-shadow:0 -10px 30px rgba(40,28,10,.12)}
+.bsheet .handle{width:36px;height:4px;border-radius:2px;background:var(--line2);margin:0 auto 14px}
+.bsheet h4{margin:0 0 6px;font-size:17px;font-weight:700}
+.bsheet .q{font-family:var(--hand);font-weight:700;font-size:26px;line-height:1.1;margin-bottom:10px}
+.check{display:flex;align-items:center;gap:12px;padding:12px 2px;border-bottom:1px dashed var(--line2);font-size:15px;font-weight:500}
+.check:last-child{border-bottom:0}
+.check .box{width:22px;height:22px;border:1.5px solid var(--ink3);border-radius:5px;display:grid;place-items:center;font-family:var(--hand);font-size:22px;font-weight:700;color:var(--ink);line-height:1}
+.check.on .box{border-color:var(--ink);background:var(--hi)}
+.check small{margin-left:auto;font-size:12px;color:var(--ink3)}
+.dim{position:absolute;inset:0;background:rgba(34,31,28,.28)}
+.phone.rel{position:relative}
+</style>
+
+<div class="wrap">
+<header class="intro">
+  <h1>필터를 <mark>수첩</mark>처럼 고르기</h1>
+  <p>"옆으로 쭉 까는 칩"은 앱의 관성이지 수첩의 문법이 아닙니다. 수첩에서 뭔가를 고르는 방법은 세 가지 — <b>색인 탭을 넘기거나</b>, <b>포스트잇을 붙이거나</b>, <b>빈칸에 써넣거나</b>. 셋 다 그려봤고, 탭·포스트잇·빈칸을 눌러보면 상태가 바뀝니다.</p>
+</header>
+
+<div class="screens-scroll"><div class="screens">
+
+<!-- A -->
+<div class="frame">
+  <div class="label"><b>A. 색인 탭</b><span>목록이 '한 장의 종이', 기간은 그 위에 붙은 색인 탭. 장소·아이는 종이 머리글의 빈칸</span></div>
+  <div class="phone">
+    <div class="statusbar"><span>9:41</span><span>●●● ᯤ ▮</span></div>
+    <div class="appbar"><span class="title">모임 찾기</span><span class="pillbtn">＋ 만들기</span></div>
+    <div class="scroll">
+      <div class="tabs" id="tabsA">
+        <div class="tab pick on"><b>전체</b></div>
+        <div class="tab pick">오늘</div>
+        <div class="tab pick">내일</div>
+        <div class="tab pick">이번 주</div>
+      </div>
+      <div class="sheet">
+        <div class="head">
+          <span>장소 <span class="blank pick"><span class="v empty">전체</span><i>▾</i></span> · 누구 <span class="blank pick"><span class="v">두번</span><i>▾</i></span></span>
+          <span style="font-family:var(--hand);font-size:16px;font-weight:700;color:var(--ink)">4<span style="font-family:var(--sans);font-size:12px;color:var(--ink3);font-weight:500">개</span></span>
+        </div>
+        <div class="group">오늘 · 9월 12일 금요일</div>
+        <div class="rrow"><div class="d"><b>12</b><span>금</span></div><div><div class="t">망원동 키즈카페 오후 놀이</div><div class="m">15:00 · 플레이타임 · 망원동</div><span class="pill sky">18~30개월</span></div><div class="r"><span class="pill hi" style="margin:0">모집중</span><small>3/5명</small></div></div>
+        <div class="group">내일</div>
+        <div class="rrow"><div class="d" style="color:var(--skyInk)"><b>13</b><span>토</span></div><div><div class="t">성산동 놀이터 오전 모임</div><div class="m">10:30 · 성미산 어린이공원</div><span class="pill sky">18~30개월</span></div><div class="r"><span class="pill hi" style="margin:0">모집중</span><small>4/6명</small></div></div>
+        <div class="rrow"><div class="d" style="color:var(--skyInk)"><b>13</b><span>토</span></div><div><div class="t">연남동 공원 산책 + 비눗방울</div><div class="m">16:00 · 경의선숲길</div><span class="pill sky">24~36개월</span></div><div class="r"><span class="pill hi" style="margin:0">모집중</span><small>2/4명</small></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- B -->
+<div class="frame">
+  <div class="label"><b>B. 포스트잇 보드</b><span>자주 쓰는 조건을 포스트잇으로. 붙이면(선택) 테이프가 붙고 펜으로 ✓. 아이는 모서리 이름표</span></div>
+  <div class="phone">
+    <div class="statusbar"><span>9:41</span><span>●●● ᯤ ▮</span></div>
+    <div class="appbar" style="position:relative"><span class="title">모임 찾기</span><span class="pillbtn">＋ 만들기</span><span class="nametag">두번 33개월</span></div>
+    <div class="scroll">
+      <div class="board" id="boardB">
+        <div class="postit pick on">오늘<small>9/12 금</small></div>
+        <div class="postit pick pink">이번<br>주말<small>13·14</small></div>
+        <div class="postit pick sky">놀이터<small>야외</small></div>
+        <div class="postit pick mint">무료<small>비용 없음</small></div>
+        <div class="postit plain pick">＋ 조건<br>더보기</div>
+      </div>
+      <div class="cap" style="margin-top:6px">붙인 포스트잇: <b style="color:var(--ink);font-size:15px">오늘</b> · 두번이 참여할 수 있는 모임만</div>
+      <div class="group">오늘 · 9월 12일 금요일</div>
+      <div class="rrow"><div class="d"><b>12</b><span>금</span></div><div><div class="t">망원동 키즈카페 오후 놀이</div><div class="m">15:00 · 플레이타임 · 망원동</div><span class="pill sky">18~30개월</span></div><div class="r"><span class="pill hi" style="margin:0">모집중</span><small>3/5명</small></div></div>
+      <div class="rrow"><div class="d"><b>12</b><span>금</span></div><div><div class="t">홍대 앞 실내놀이터 저녁</div><div class="m">18:00 · 키즈카페 · 서교동</div><span class="pill sky">12~36개월</span></div><div class="r"><span class="pill hi" style="margin:0">모집중</span><small>1/6명</small></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- C -->
+<div class="frame">
+  <div class="label"><b>C. 빈칸 채우기</b><span>수첩 첫 줄에 "언제 · 어디 · 누구"를 써넣는다. 빈칸을 누르면 아래에서 체크리스트가 올라옴</span></div>
+  <div class="phone rel">
+    <div class="statusbar"><span>9:41</span><span>●●● ᯤ ▮</span></div>
+    <div class="appbar"><span class="title">모임 찾기</span><span class="pillbtn">＋ 만들기</span></div>
+    <div class="scroll">
+      <div class="formline">
+        <span class="lbl">언제</span><span class="blank on pick"><span class="v">오늘</span></span><span class="sep">·</span>
+        <span class="lbl">어디</span><span class="blank pick"><span class="v empty">어디든</span></span><span class="sep">·</span>
+        <span class="lbl">누구</span><span class="blank pick"><span class="v">두번</span></span>
+        <svg class="pen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10-4-4L4 16zM13 7l4 4"/></svg>
+      </div>
+      <div class="cap">두번(<b>33</b>개월)이 참여할 수 있는 모임만 보여요 · <a>전체 보기</a></div>
+      <div class="group">오늘 · 9월 12일 금요일</div>
+      <div class="rrow"><div class="d"><b>12</b><span>금</span></div><div><div class="t">망원동 키즈카페 오후 놀이</div><div class="m">15:00 · 플레이타임 · 망원동</div><span class="pill sky">18~30개월</span></div><div class="r"><span class="pill hi" style="margin:0">모집중</span><small>3/5명</small></div></div>
+      <div class="rrow"><div class="d"><b>12</b><span>금</span></div><div><div class="t">홍대 앞 실내놀이터 저녁</div><div class="m">18:00 · 키즈카페 · 서교동</div><span class="pill sky">12~36개월</span></div><div class="r"><span class="pill hi" style="margin:0">모집중</span><small>1/6명</small></div></div>
+      <div class="rrow"><div class="d"><b>12</b><span>금</span></div><div><div class="t">퇴근 후 놀이터 30분</div><div class="m">19:00 · 성미산 어린이공원</div><span class="pill sky">18~30개월</span></div><div class="r"><span class="pill hi" style="margin:0">모집중</span><small>2/4명</small></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- C sheet -->
+<div class="frame">
+  <div class="label"><b>C. 빈칸을 눌렀을 때</b><span>체크리스트 시트 — 손글씨 질문 + 네모 칸 + 펜 체크. 하나 고르면 닫힘</span></div>
+  <div class="phone rel">
+    <div class="statusbar"><span>9:41</span><span>●●● ᯤ ▮</span></div>
+    <div class="appbar"><span class="title">모임 찾기</span><span class="pillbtn">＋ 만들기</span></div>
+    <div class="scroll">
+      <div class="formline">
+        <span class="lbl">언제</span><span class="blank on"><span class="v">오늘</span></span><span class="sep">·</span>
+        <span class="lbl">어디</span><span class="blank"><span class="v empty">어디든</span></span><span class="sep">·</span>
+        <span class="lbl">누구</span><span class="blank"><span class="v">두번</span></span>
+      </div>
+      <div class="group">오늘 · 9월 12일 금요일</div>
+      <div class="rrow"><div class="d"><b>12</b><span>금</span></div><div><div class="t">망원동 키즈카페 오후 놀이</div><div class="m">15:00 · 플레이타임</div></div><div class="r"><span class="pill hi" style="margin:0">모집중</span></div></div>
+    </div>
+    <div class="dim"></div>
+    <div class="bsheet">
+      <div class="handle"></div>
+      <div class="q">어디서 놀까요?</div>
+      <div class="check pick on"><span class="box">✓</span>어디든<small>장소 안 가림</small></div>
+      <div class="check pick"><span class="box"></span>놀이터<small>야외</small></div>
+      <div class="check pick"><span class="box"></span>키즈카페<small>실내</small></div>
+      <div class="check pick"><span class="box"></span>공원<small>야외</small></div>
+      <div class="check pick"><span class="box"></span>파티룸</div>
+      <div class="check pick"><span class="box"></span>기타</div>
+    </div>
+  </div>
+</div>
+
+</div></div>
+
+<div class="notes">
+  <div class="note"><h3>A. 색인 탭</h3><ul>
+    <li class="good">기간 4개가 스크롤 없이 한눈에. "목록 = 종이 한 장" 은유가 강함</li>
+    <li class="good">구현 쉬움 — 탭바 + 카드. 상태도 탭 하나</li>
+    <li class="bad">장소·아이는 결국 빈칸/드롭다운이라 두 문법이 섞임</li>
+    <li class="bad">탭이 5개를 넘으면 무너짐(나중에 '주말' 같은 게 늘면)</li>
+  </ul></div>
+  <div class="note"><h3>B. 포스트잇 보드</h3><ul>
+    <li class="good">가장 '같이크자'다움. 자주 쓰는 조건 4~5개면 딱 좋음</li>
+    <li class="good">이름표(아이) 처리가 자연스러움 — 모서리에 붙은 스티커</li>
+    <li class="bad">세로 공간 90px 먹음. 목록이 그만큼 내려감</li>
+    <li class="bad">"오늘 + 이번 주말" 처럼 겹치는 조건의 규칙을 사용자가 알기 어려움 → 포스트잇은 <b>프리셋</b>으로만, 정밀 필터는 '더보기'</li>
+    <li class="bad">구현 비용 중간 — 회전·테이프·체크 애니메이션</li>
+  </ul></div>
+  <div class="note"><h3>C. 빈칸 채우기</h3><ul>
+    <li class="good">한 줄 40px. 스크롤 없음. 현재 상태가 늘 문장으로 읽힘("오늘 · 어디든 · 두번")</li>
+    <li class="good">조건이 늘어도 빈칸 하나 추가 — 비용·입장 방식·시간대까지 확장 가능</li>
+    <li class="good">아이 1명이면 '누구' 빈칸을 빼면 끝(지금 요구와 정확히 맞음)</li>
+    <li class="bad">칩보다 탭 1번 더 (빈칸 → 시트 → 선택). 눌러도 되는지 몰라볼 수 있어 연필 아이콘·점선 밑줄 필요</li>
+    <li class="good">구현 쉬움 — 한 줄 텍스트 + 바텀시트(이미 아이 선택 시트 있음)</li>
+  </ul></div>
+</div>
+
+<div class="verdict">
+  <b>추천: C(빈칸) 를 기본으로, B(포스트잇) 는 홈에.</b><br>
+  모임 찾기의 필터는 매번 만지는 게 아니라 "지금 조건이 뭔지"가 늘 보이는 게 중요해서 C 가 맞습니다. 포스트잇은 목록 위에 올리면 공간을 먹지만, <b>홈 화면</b>에 "오늘 놀이터 · 이번 주말 · 무료" 같은 <b>바로가기 3장</b>으로 붙이면 수첩 느낌도 살고 모임 찾기로 들어가는 문도 됩니다. 색인 탭(A)은 내 모임의 [예정 | 지난] 세그먼트에 쓰면 어울립니다 — 지금 회색 알약보다 수첩답습니다.
+</div>
+</div>
+
+<script>
+document.querySelectorAll('#tabsA .tab').forEach(t=>t.addEventListener('click',()=>{document.querySelectorAll('#tabsA .tab').forEach(x=>{x.classList.remove('on');x.innerHTML=x.textContent.trim();});t.classList.add('on');t.innerHTML='<b>'+t.textContent.trim()+'</b>';}));
+document.querySelectorAll('#boardB .postit').forEach(p=>p.addEventListener('click',()=>{if(p.classList.contains('plain'))return;p.classList.toggle('on');}));
+document.querySelectorAll('.formline .blank.pick').forEach(b=>b.addEventListener('click',()=>b.classList.toggle('on')));
+document.querySelectorAll('.check.pick').forEach(c=>c.addEventListener('click',()=>{c.parentElement.querySelectorAll('.check').forEach(x=>{x.classList.remove('on');x.querySelector('.box').textContent='';});c.classList.add('on');c.querySelector('.box').textContent='✓';}));
+</script>

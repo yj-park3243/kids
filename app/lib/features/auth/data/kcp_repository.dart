@@ -17,6 +17,14 @@ class KcpRepository {
     final data = response.data['data'] ?? response.data;
     return data['html'] as String;
   }
+
+  /// 비밀번호 재설정용 KCP 인증 Form (로그인 불필요)
+  /// GET /v1/auth/kcp/reset-form
+  Future<String> getResetForm() async {
+    final response = await _dio.get(ApiConstants.kcpResetForm);
+    final data = response.data['data'] ?? response.data;
+    return data['html'] as String;
+  }
 }
 
 final kcpRepositoryProvider = Provider<KcpRepository>((ref) {

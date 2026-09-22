@@ -5,6 +5,7 @@ import { Repository, In, LessThanOrEqual } from 'typeorm';
 import { Room } from './entities/room.entity';
 import { RoomMember } from './entities/room-member.entity';
 import { NotificationService } from '../notification/notification.service';
+import { kstDateString, kstDateTime, kstTimeString } from '../common/utils/kst';
 
 @Injectable()
 export class RoomSchedulerService {
@@ -23,8 +24,8 @@ export class RoomSchedulerService {
   @Cron('*/5 * * * *')
   async handleRoomStatusTransitions() {
     const now = new Date();
-    const currentDate = now.toISOString().split('T')[0];
-    const currentTime = now.toTimeString().split(' ')[0].substring(0, 5); // HH:mm
+    const currentDate = kstDateString(now);
+    const currentTime = kstTimeString(now); // HH:mm
 
     // RECRUITING/CLOSED -> IN_PROGRESS (start time reached)
     const toInProgress = await this.roomRepository
@@ -38,7 +39,7 @@ export class RoomSchedulerService {
 
     for (const room of toInProgress) {
       // Only if date has passed or same date and time has passed
-      const roomDate = new Date(room.date + 'T' + room.startTime);
+      const roomDate = kstDateTime(room.date, room.startTime);
       if (roomDate <= now) {
         room.status = 'IN_PROGRESS';
         await this.roomRepository.save(room);
@@ -55,11 +56,11 @@ export class RoomSchedulerService {
       let shouldComplete = false;
 
       if (room.endTime) {
-        const endDateTime = new Date(room.date + 'T' + room.endTime);
+        const endDateTime = kstDateTime(room.date, room.endTime);
         shouldComplete = endDateTime <= now;
       } else {
         // 3 hours after start
-        const startDateTime = new Date(room.date + 'T' + room.startTime);
+        const startDateTime = kstDateTime(room.date, room.startTime);
         const threeHoursLater = new Date(startDateTime.getTime() + 3 * 60 * 60 * 1000);
         shouldComplete = threeHoursLater <= now;
       }
@@ -94,10 +95,8 @@ export class RoomSchedulerService {
   @Cron('*/5 * * * *')
   async handleRoomReminders() {
     const now = new Date();
-    const today = now.toISOString().split('T')[0];
-    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000)
-      .toISOString()
-      .split('T')[0];
+    const today = kstDateString(now);
+    const tomorrow = kstDateString(new Date(now.getTime() + 24 * 60 * 60 * 1000));
     const rooms = await this.roomRepository
       .createQueryBuilder('room')
       .where('room.status IN (:...statuses)', {
@@ -106,7 +105,7 @@ export class RoomSchedulerService {
       .andWhere('room.date IN (:...dates)', { dates: [today, tomorrow] })
       .getMany();
     for (const room of rooms) {
-      const startDateTime = new Date(room.date + 'T' + room.startTime);
+      const startDateTime = kstDateTime(room.date, room.startTime);
       const diffMin = (startDateTime.getTime() - now.getTime()) / 60000;
       if (diffMin > 30 && diffMin <= 35) {
         void this.dispatchRoomReminder(

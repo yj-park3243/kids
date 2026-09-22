@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/constants/app_radius.dart';
+import '../../../../core/constants/app_text_styles.dart';
 import '../../../../core/version/version_check_service.dart';
 
 /// 홈 방 목록 피드에 끼워 넣는 네이티브 광고 카드.
@@ -28,15 +30,14 @@ class _NativeAdCardState extends State<NativeAdCard>
       request: const AdRequest(),
       nativeTemplateStyle: NativeTemplateStyle(
         templateType: TemplateType.small,
-        mainBackgroundColor: Colors.white,
-        cornerRadius: 22,
+        mainBackgroundColor: AppColors.surface,
+        cornerRadius: AppRadius.md,
         callToActionTextStyle: NativeTemplateTextStyle(
           textColor: Colors.white,
-          backgroundColor: AppColors.primary,
+          backgroundColor: AppColors.ink,
         ),
-        primaryTextStyle: NativeTemplateTextStyle(textColor: AppColors.ink700),
-        secondaryTextStyle:
-            NativeTemplateTextStyle(textColor: AppColors.ink500),
+        primaryTextStyle: NativeTemplateTextStyle(textColor: AppColors.ink),
+        secondaryTextStyle: NativeTemplateTextStyle(textColor: AppColors.ink2),
       ),
       listener: NativeAdListener(
         onAdLoaded: (ad) {
@@ -68,14 +69,27 @@ class _NativeAdCardState extends State<NativeAdCard>
     super.build(context);
     final ad = _ad;
     if (ad == null || !_loaded) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(22),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 90, maxHeight: 120),
-          child: AdWidget(ad: ad),
-        ),
+    // 흰 면 + 1px 헤어라인. 목록의 다른 행과 헷갈리지 않게 '광고' 라벨을 단다.
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: AppRadius.rMd,
+        border: Border.all(color: AppColors.line),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+            child: Text('광고', style: AppTextStyles.caption),
+          ),
+          ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 90, maxHeight: 120),
+            child: AdWidget(ad: ad),
+          ),
+        ],
       ),
     );
   }

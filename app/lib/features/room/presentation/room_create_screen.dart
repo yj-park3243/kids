@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/network/api_error.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../core/utils/validators.dart';
 import '../../../models/room.dart';
@@ -18,7 +19,8 @@ import '../../../widgets/address_search_sheet.dart';
 import '../../../widgets/cupertino_picker_sheet.dart';
 import '../../../widgets/location_picker_sheet.dart';
 import '../../../widgets/top_toast.dart';
-import '../../../widgets/design/accent_blobs.dart';
+import '../../../widgets/design/design_chip.dart';
+import '../../../widgets/design/notebook.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../home/providers/dashboard_provider.dart';
 import '../providers/room_detail_provider.dart';
@@ -65,6 +67,7 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
   String _genderFilter = 'ALL'; // 'ALL' | 'MOM_ONLY' | 'DAD_ONLY'
   bool _singleParentOnly = false;
   bool _parentAgeMatch = false;
+  static const bool _showParentAgeMatch = false;
   final List<String> _requiredItems = [];
 
   @override
@@ -120,6 +123,9 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
     if (h == null || m == null) return null;
     return TimeOfDay(hour: h, minute: m);
   }
+
+  /// 최대 인원 하한 — 수정 모드에선 이미 참여 중인 인원 아래로 줄일 수 없다(서버가 400).
+  int get _minMembers => max(2, widget.editRoom?.currentMembers ?? 2);
 
   /// 선택된 아이의 개월수 기준으로 범위 자동 설정 (±6개월)
   void _applyChildAgeRange(Child child) {
@@ -192,17 +198,23 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
         showTopToast(context, '지난 시간은 선택할 수 없어요');
         return;
       }
+      var clearedEnd = false;
       setState(() {
         if (isStart) {
           _startTime = time;
           // 시작시간이 변경되면 종료시간이 더 이른 경우 초기화
           if (_endTime != null && _toMinutes(_endTime!) <= _toMinutes(time)) {
             _endTime = null;
+            clearedEnd = true;
           }
         } else {
           _endTime = time;
         }
       });
+      // 조용히 지우면 안 된다 — 수정 모드는 비운 종료 시간을 그대로 저장한다.
+      if (clearedEnd && mounted) {
+        showTopToast(context, '시작 시간이 바뀌어 종료 시간을 다시 선택해 주세요');
+      }
     }
   }
 
@@ -290,11 +302,11 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('어떤 아이의 모임인가요?', style: AppTextStyles.body2Bold),
+        Text('어떤 아이의 모임인가요?', style: AppTextStyles.captionBold),
         const SizedBox(height: 4),
         Text(
           '아이를 선택하면 개월수 범위가 자동 설정됩니다',
-          style: AppTextStyles.caption.copyWith(color: AppColors.textHint),
+          style: AppTextStyles.caption,
         ),
         const SizedBox(height: 10),
         Wrap(
@@ -303,66 +315,11 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
           children: children.map((child) {
             final ageMonths = AppDateUtils.calculateAgeMonths(
                 child.birthYear, child.birthMonth);
-            final isSelected = _selectedChild?.id == child.id;
-
-            return GestureDetector(
+            return FilterChipButton(
+              label:
+                  '${child.nickname} ${AppDateUtils.formatAgeMonths(ageMonths)}',
+              selected: _selectedChild?.id == child.id,
               onTap: () => _applyChildAgeRange(child),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? AppColors.secondary.withValues(alpha: 0.12)
-                      : AppColors.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isSelected ? AppColors.secondary : AppColors.divider,
-                    width: isSelected ? 1.5 : 1,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.child_care_rounded,
-                      size: 18,
-                      color: isSelected
-                          ? AppColors.secondary
-                          : AppColors.textSecondary,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      child.nickname,
-                      style: AppTextStyles.body2.copyWith(
-                        color: isSelected
-                            ? AppColors.secondary
-                            : AppColors.textPrimary,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? AppColors.secondary.withValues(alpha: 0.15)
-                            : AppColors.background,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        AppDateUtils.formatAgeMonths(ageMonths),
-                        style: AppTextStyles.caption.copyWith(
-                          fontSize: 11,
-                          color: isSelected
-                              ? AppColors.secondary
-                              : AppColors.textHint,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             );
           }).toList(),
         ),
@@ -378,38 +335,30 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('참여 성별', style: AppTextStyles.body2Bold),
+        Text('참여 성별', style: AppTextStyles.captionBold),
         const SizedBox(height: 8),
-        Row(
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
           children: [
-            Expanded(
-              child: _GenderChip(
-                label: '전체',
-                isSelected: _genderFilter == 'ALL',
-                onTap: () => setState(() => _genderFilter = 'ALL'),
-              ),
+            FilterChipButton(
+              label: '전체',
+              selected: _genderFilter == 'ALL',
+              onTap: () => setState(() => _genderFilter = 'ALL'),
             ),
             // 본인 성별과 반대 옵션은 숨김 — 아빠는 '엄마만', 엄마는 '아빠만' 선택 불가.
-            if (me?.parentGender != 'DAD') ...[
-              const SizedBox(width: 8),
-              Expanded(
-                child: _GenderChip(
-                  label: '👩 엄마만',
-                  isSelected: _genderFilter == 'MOM_ONLY',
-                  onTap: () => setState(() => _genderFilter = 'MOM_ONLY'),
-                ),
+            if (me?.parentGender != 'DAD')
+              FilterChipButton(
+                label: '엄마만',
+                selected: _genderFilter == 'MOM_ONLY',
+                onTap: () => setState(() => _genderFilter = 'MOM_ONLY'),
               ),
-            ],
-            if (me?.parentGender != 'MOM') ...[
-              const SizedBox(width: 8),
-              Expanded(
-                child: _GenderChip(
-                  label: '👨 아빠만',
-                  isSelected: _genderFilter == 'DAD_ONLY',
-                  onTap: () => setState(() => _genderFilter = 'DAD_ONLY'),
-                ),
+            if (me?.parentGender != 'MOM')
+              FilterChipButton(
+                label: '아빠만',
+                selected: _genderFilter == 'DAD_ONLY',
+                onTap: () => setState(() => _genderFilter = 'DAD_ONLY'),
               ),
-            ],
           ],
         ),
         // 한부모 전용 방 옵션 — 한부모 가정 계정에만 노출.
@@ -418,34 +367,28 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
           Row(
             children: [
               Expanded(
-                child: Text(
-                  me?.parentGender == 'DAD'
-                      ? '싱글대디만 참여'
-                      : me?.parentGender == 'MOM'
-                          ? '싱글맘만 참여'
-                          : '싱글맘·싱글대디만 참여',
-                  style: AppTextStyles.body2Bold,
-                ),
+                // 방장 성별과 무관하게 한부모 전체가 대상이다.
+                child: Text('싱글맘·싱글대디만 참여', style: AppTextStyles.body1),
               ),
               Switch(
                 value: _singleParentOnly,
-                activeTrackColor: AppColors.primary,
+                activeTrackColor: AppColors.ink,
                 onChanged: (v) => setState(() => _singleParentOnly = v),
               ),
             ],
           ),
         ],
-        // 부모 또래 전용 방 옵션 — 본인인증(나이 정보)된 계정에만 노출.
-        if (canParentAge) ...[
+        // 부모 또래 전용 방 옵션 — 2026-09 일단 숨김(로직·필드는 유지). 다시 켜려면 플래그만.
+        if (_showParentAgeMatch && canParentAge) ...[
           const SizedBox(height: 16),
           Row(
             children: [
               Expanded(
-                child: Text('부모 또래만 참여 (±5세)', style: AppTextStyles.body2Bold),
+                child: Text('부모 또래만 참여 (±5세)', style: AppTextStyles.body1),
               ),
               Switch(
                 value: _parentAgeMatch,
-                activeTrackColor: AppColors.primary,
+                activeTrackColor: AppColors.ink,
                 onChanged: (v) => setState(() => _parentAgeMatch = v),
               ),
             ],
@@ -455,41 +398,310 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
     );
   }
 
+  /// 수정 모드 — 서버 UpdateRoomDto 가 받는 필드만 단일 스크롤 폼으로 보여준다.
+  Widget _buildEditForm() {
+    // ListView 는 화면 밖 필드를 언마운트해 Form.validate 가 건너뛴다 —
+    // 폼이 짧으니 전부 살려두는 SingleChildScrollView 를 쓴다.
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildEditNotice(),
+          const SizedBox(height: 20),
+          _buildTitleField(),
+          const SizedBox(height: 20),
+          _buildDescriptionField(),
+          const SizedBox(height: 20),
+          _buildTimeSection(),
+          const SizedBox(height: 20),
+          _buildMaxMembersSection(),
+          const SizedBox(height: 20),
+          _buildCostSection(),
+          const SizedBox(height: 20),
+          _buildTagsSection(),
+        ],
+      ),
+    );
+  }
+
+  /// 수정할 수 없는 항목 안내 — 날짜·장소·모집 조건은 서버가 받지 않는다.
+  Widget _buildEditNotice() {
+    return DashedBox(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.info_outline_rounded, size: 18, color: AppColors.ink3),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '날짜·지역·대상 개월수·참여 조건·준비물·입장 방식은 수정할 수 없어요.\n제목·설명·시간·최대 인원·비용·태그만 바꿀 수 있어요.',
+              style: AppTextStyles.caption,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTitleField() {
+    return CommonInput(
+      key: const Key('input-room-title'),
+      label: '제목 (5자 이상)',
+      hint: '모임 제목을 입력하세요',
+      controller: _titleController,
+      validator: Validators.roomTitle,
+      maxLength: 30,
+    );
+  }
+
+  Widget _buildDescriptionField() {
+    return CommonInput(
+      key: const Key('input-room-description'),
+      label: '설명 (선택)',
+      hint: '어떤 모임인지 적어 주세요',
+      controller: _descriptionController,
+      validator: Validators.roomDescription,
+      maxLines: 4,
+      maxLength: 500,
+    );
+  }
+
+  Widget _buildTimeSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('시간', style: AppTextStyles.captionBold),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _TimePickerCard(
+                key: const Key('btn-room-start-time'),
+                label: '시작',
+                time: _startTime,
+                placeholder: '시작 시간',
+                onTap: () => _selectTime(true),
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(Icons.arrow_forward_rounded,
+                size: 18, color: AppColors.ink3),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _TimePickerCard(
+                label: '종료 (선택)',
+                time: _endTime,
+                placeholder: '종료 시간',
+                onTap: () => _selectTime(false),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMaxMembersSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('최대 인원', style: AppTextStyles.captionBold),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            IconButton(
+              onPressed: _maxMembers > _minMembers
+                  ? () => setState(() => _maxMembers--)
+                  : null,
+              icon: const Icon(Icons.remove_circle_outline_rounded),
+              color: AppColors.ink,
+              disabledColor: AppColors.ink3,
+            ),
+            SizedBox(
+              width: 64,
+              child: Center(
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: '$_maxMembers',
+                        style: AppTextStyles.handLg,
+                      ),
+                      TextSpan(text: '명', style: AppTextStyles.body1),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            IconButton(
+              onPressed: _maxMembers < 10
+                  ? () => setState(() => _maxMembers++)
+                  : null,
+              icon: const Icon(Icons.add_circle_outline_rounded),
+              color: AppColors.ink,
+              disabledColor: AppColors.ink3,
+            ),
+          ],
+        ),
+        // 이미 참여 중인 인원 아래로는 줄일 수 없다 — 서버가 400 을 준다.
+        if (_maxMembers <= _minMembers && _minMembers > 2) ...[
+          const SizedBox(height: 4),
+          Text(
+            '이미 $_minMembers명이 참여 중이라 더 줄일 수 없어요',
+            style: AppTextStyles.caption,
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildCostSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text('비용', style: AppTextStyles.captionBold),
+            const Spacer(),
+            Text('무료', style: AppTextStyles.body2),
+            Switch(
+              value: _isFree,
+              activeTrackColor: AppColors.ink,
+              onChanged: (value) => setState(() => _isFree = value),
+            ),
+          ],
+        ),
+        if (!_isFree) ...[
+          const SizedBox(height: 8),
+          CommonInput(
+            hint: '금액 (원)',
+            controller: _costController,
+            keyboardType: TextInputType.number,
+          ),
+          const SizedBox(height: 8),
+          CommonInput(
+            hint: '비용 설명 (예: 키즈카페 입장료 더치페이)',
+            controller: _costDescController,
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildTagsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('태그 (최대 5개)', style: AppTextStyles.captionBold),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: CommonInput(
+                hint: '태그 입력 후 추가',
+                controller: _tagController,
+                maxLength: 10,
+                onSubmitted: (_) => _addTag(),
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton(
+              onPressed: _addTag,
+              icon: const Icon(Icons.add_circle_rounded, color: AppColors.ink),
+              iconSize: 36,
+            ),
+          ],
+        ),
+        if (_tags.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _tags
+                .map((tag) => Chip(
+                      label: Text('#$tag', style: AppTextStyles.tag),
+                      deleteIcon: const Icon(Icons.close, size: 16),
+                      deleteIconColor: AppColors.ink3,
+                      backgroundColor: AppColors.fill,
+                      side: BorderSide.none,
+                      shape: const StadiumBorder(),
+                      onDeleted: () => setState(() => _tags.remove(tag)),
+                    ))
+                .toList(),
+          ),
+        ],
+      ],
+    );
+  }
+
   /// 다음 단계로 — 단계별 필수 입력을 검증한 뒤 넘어간다.
+  /// 단계별 필수 입력 검사. 문제가 있으면 사유를 돌려준다(없으면 null).
+  /// '다음'과 최종 제출이 같은 규칙을 쓴다 — 어느 단계든 조건을 못 채우면 넘어가지 못한다.
+  String? _stepProblem(int step) {
+    switch (step) {
+      case 0:
+        return _basicInfoProblem();
+      case 1:
+        if (_selectedDate == null) return '날짜를 선택해 주세요';
+        if (_startTime == null) return '시작 시간을 선택해 주세요';
+        if (_endTime != null) {
+          final s = _startTime!.hour * 60 + _startTime!.minute;
+          final e = _endTime!.hour * 60 + _endTime!.minute;
+          if (e <= s) return '종료 시간은 시작 시간보다 늦어야 해요';
+        }
+        if (widget.editRoom == null &&
+            (_regionSido == null || _regionSigungu == null || _regionDong == null)) {
+          return '장소를 선택해 주세요';
+        }
+        return null;
+      case 2:
+        if (_ageMin > _ageMax) return '개월수 범위를 다시 확인해 주세요';
+        if (_maxMembers < 2) return '모집 인원은 2명 이상이어야 해요';
+        return null;
+      case 3:
+        if (!_isFree) {
+          final cost = int.tryParse(_costController.text.trim());
+          if (cost == null || cost <= 0) return '비용을 입력해 주세요';
+        }
+        return null;
+      default:
+        return null;
+    }
+  }
+
+  /// 다음 단계로 — 이 단계의 필수 입력을 못 채우면 넘어가지 않는다.
   void _onNext() {
-    if (_step == 0) {
-      if (_titleController.text.trim().isEmpty) {
-        showTopToast(context, '제목을 입력해 주세요', backgroundColor: AppColors.error);
-        return;
-      }
-    } else if (_step == 1) {
-      if (_selectedDate == null) {
-        showTopToast(context, '날짜를 선택해 주세요', backgroundColor: AppColors.error);
-        return;
-      }
-      if (_startTime == null) {
-        showTopToast(context, '시작 시간을 선택해 주세요',
-            backgroundColor: AppColors.error);
-        return;
-      }
-      if (_regionSido == null) {
-        showTopToast(context, '장소를 선택해 주세요', backgroundColor: AppColors.error);
-        return;
-      }
+    final problem = _stepProblem(_step);
+    if (problem != null) {
+      showTopToast(context, problem, backgroundColor: AppColors.error);
+      return;
     }
     setState(() => _step++);
   }
 
+  /// 1단계 필수 입력(제목·설명) 문제. 없으면 null.
+  String? _basicInfoProblem() {
+    return Validators.roomTitle(_titleController.text) ??
+        Validators.roomDescription(_descriptionController.text);
+  }
+
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    if (_selectedDate == null || _startTime == null) {
-      showTopToast(context, '날짜와 시작 시간을 선택해 주세요');
-      return;
+    // 모든 단계를 다시 훑어 첫 문제를 찾고, 그 단계로 데려간다 — 마지막 화면에서
+    // 버튼이 말없이 안 눌리는 일이 없게.
+    for (var step = 0; step < 4; step++) {
+      final problem = _stepProblem(step);
+      if (problem != null) {
+        showTopToast(context, problem, backgroundColor: AppColors.error);
+        if (widget.editRoom == null && _step != step) {
+          setState(() => _step = step);
+        }
+        return;
+      }
     }
-
-    if (_regionSido == null || _regionSigungu == null || _regionDong == null) {
-      showTopToast(context, '지역을 선택해 주세요');
+    if (!_formKey.currentState!.validate()) {
+      showTopToast(context, '입력 내용을 다시 확인해 주세요', backgroundColor: AppColors.error);
+      if (widget.editRoom == null && _step != 0) setState(() => _step = 0);
       return;
     }
 
@@ -534,7 +746,8 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
           'title': roomData['title'],
           'description': roomData['description'],
           'startTime': roomData['startTime'],
-          if (roomData['endTime'] != null) 'endTime': roomData['endTime'],
+          // 종료 시간을 비웠으면 null 로 지운다 — 생략하면 서버가 옛 값을 그대로 둔다.
+          'endTime': roomData['endTime'],
           if (roomData['placeAddress'] != null)
             'placeAddress': roomData['placeAddress'],
           'maxMembers': roomData['maxMembers'],
@@ -543,7 +756,9 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
           'tags': roomData['tags'],
         });
         if (mounted) {
-          ref.invalidate(roomDetailProvider(editRoom.id));
+          // invalidate 하면 상태만 비고 재조회하는 곳이 없어 상세가 빈 로딩
+          // 화면에 갇힌다 — 수정 결과가 바로 보이도록 직접 다시 불러온다.
+          ref.read(roomDetailProvider(editRoom.id).notifier).loadRoom();
           ref.invalidate(joinedRoomsProvider);
           context.pop();
         }
@@ -559,8 +774,14 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
       }
     } catch (e) {
       if (mounted) {
-        showTopToast(context,
-            widget.editRoom != null ? '수정에 실패했습니다' : '방 생성에 실패했습니다');
+        showTopToast(
+          context,
+          apiErrorMessage(e,
+              fallback: widget.editRoom != null
+                  ? '수정에 실패했습니다'
+                  : '방 생성에 실패했습니다'),
+          backgroundColor: AppColors.error,
+        );
       }
     }
 
@@ -569,22 +790,25 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isLast = _step == 3;
+    final isEdit = widget.editRoom != null;
+    // 수정 모드는 단일 폼이라 항상 마지막 단계처럼 동작한다('수정 완료' 버튼 하나).
+    final isLast = isEdit || _step == 3;
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppColors.paper,
       appBar: CustomAppBar(
           title: widget.editRoom != null
               ? '모임 수정'
               : '모임 만들기 (${_step + 1}/4)'),
-      extendBodyBehindAppBar: true,
-      body: AccentBlobsBackground(
-        child: SafeArea(
+      body: SafeArea(
         child: Form(
           key: _formKey,
           child: Column(
             children: [
+              if (!isEdit) _StepIndicator(step: _step, total: 4),
               Expanded(
-                child: IndexedStack(
+                child: isEdit
+                    ? _buildEditForm()
+                    : IndexedStack(
                   index: _step,
                   children: [
                     // ── 1단계: 기본 정보 ──
@@ -600,26 +824,11 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
               const SizedBox(height: 20),
 
               // Title
-              CommonInput(
-                key: const Key('input-room-title'),
-                label: '제목',
-                hint: '모임 제목을 입력하세요',
-                controller: _titleController,
-                validator: Validators.roomTitle,
-                maxLength: 30,
-              ),
+              _buildTitleField(),
               const SizedBox(height: 20),
 
               // Description
-              CommonInput(
-                key: const Key('input-room-description'),
-                label: '설명',
-                hint: '모임에 대한 설명을 입력하세요',
-                controller: _descriptionController,
-                validator: Validators.roomDescription,
-                maxLines: 4,
-                maxLength: 500,
-              ),
+              _buildDescriptionField(),
                       ],
                     ),
                     // ── 2단계: 일시·장소 ──
@@ -627,7 +836,7 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
                       padding: const EdgeInsets.all(20),
                       children: [
               // Date
-              Text('날짜', style: AppTextStyles.body2Bold),
+              Text('날짜', style: AppTextStyles.captionBold),
               const SizedBox(height: 8),
               GestureDetector(
                 key: const Key('btn-room-date'),
@@ -637,12 +846,12 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
                   decoration: BoxDecoration(
                     color: AppColors.surface,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.divider),
+                    border: Border.all(color: AppColors.line2),
                   ),
                   child: Row(
                     children: [
                       const Icon(Icons.calendar_today_rounded,
-                          size: 18, color: AppColors.textSecondary),
+                          size: 18, color: AppColors.ink3),
                       const SizedBox(width: 8),
                       Text(
                         _selectedDate != null
@@ -651,8 +860,8 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
                             : '날짜를 선택하세요',
                         style: AppTextStyles.body1.copyWith(
                           color: _selectedDate != null
-                              ? AppColors.textPrimary
-                              : AppColors.textHint,
+                              ? AppColors.ink
+                              : AppColors.ink3,
                         ),
                       ),
                     ],
@@ -662,37 +871,11 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
               const SizedBox(height: 20),
 
               // Time
-              Text('시간', style: AppTextStyles.body2Bold),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: _TimePickerCard(
-                      key: const Key('btn-room-start-time'),
-                      label: '시작',
-                      time: _startTime,
-                      placeholder: '시작 시간',
-                      onTap: () => _selectTime(true),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Icon(Icons.arrow_forward_rounded,
-                      size: 18, color: AppColors.textHint),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _TimePickerCard(
-                      label: '종료 (선택)',
-                      time: _endTime,
-                      placeholder: '종료 시간',
-                      onTap: () => _selectTime(false),
-                    ),
-                  ),
-                ],
-              ),
+              _buildTimeSection(),
               const SizedBox(height: 20),
 
               // Region — 주소 검색 (Daum 우편번호)
-              Text('지역 / 장소', style: AppTextStyles.body2Bold),
+              Text('지역 / 장소', style: AppTextStyles.captionBold),
               const SizedBox(height: 8),
               GestureDetector(
                 key: const Key('btn-room-address'),
@@ -703,18 +886,16 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
                   decoration: BoxDecoration(
                     color: AppColors.surface,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.divider),
+                    border: Border.all(color: AppColors.line2),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.search_rounded, color: AppColors.textHint, size: 20),
+                      const Icon(Icons.search_rounded, color: AppColors.ink3, size: 20),
                       const SizedBox(width: 8),
                       Expanded(
                         child: _regionSido == null
-                            ? Text(
-                                '주소 검색',
-                                style: AppTextStyles.body2.copyWith(color: AppColors.textHint),
-                              )
+                            ? Text('주소 검색', style: AppTextStyles.body1
+                                .copyWith(color: AppColors.ink3))
                             : Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -724,17 +905,12 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
                                   ),
                                   if (_fullAddress != null && _fullAddress!.isNotEmpty) ...[
                                     const SizedBox(height: 2),
-                                    Text(
-                                      _fullAddress!,
-                                      style: AppTextStyles.caption.copyWith(
-                                        color: AppColors.textSecondary,
-                                      ),
-                                    ),
+                                    Text(_fullAddress!, style: AppTextStyles.caption),
                                   ],
                                 ],
                               ),
                       ),
-                      const Icon(Icons.chevron_right_rounded, color: AppColors.textHint),
+                      const Icon(Icons.chevron_right_rounded, color: AppColors.line2),
                     ],
                   ),
                 ),
@@ -742,16 +918,15 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
               const SizedBox(height: 20),
 
               // Place Type
-              Text('장소 유형', style: AppTextStyles.body2Bold),
+              Text('장소 유형', style: AppTextStyles.captionBold),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: AppConstants.placeTypes.entries
-                    .map((e) => _PlaceTypeChip(
-                          type: e.key,
+                    .map((e) => FilterChipButton(
                           label: e.value,
-                          isSelected: _placeType == e.key,
+                          selected: _placeType == e.key,
                           onTap: () => setState(() => _placeType = e.key),
                         ))
                     .toList(),
@@ -765,22 +940,13 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
               // Age range
               Row(
                 children: [
-                  Text('대상 개월수', style: AppTextStyles.body2Bold),
+                  Text('대상 개월수', style: AppTextStyles.captionBold),
                   if (_selectedChild != null) ...[
                     const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppColors.secondary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '${_selectedChild!.nickname} 기준',
-                        style: AppTextStyles.caption.copyWith(
-                          color: AppColors.secondary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                    Pill(
+                      label: '${_selectedChild!.nickname} 기준',
+                      tone: PillTone.sky,
+                      height: 20,
                     ),
                   ],
                 ],
@@ -807,7 +973,7 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  const Icon(Icons.arrow_forward_rounded, size: 18, color: AppColors.textHint),
+                  const Icon(Icons.arrow_forward_rounded, size: 18, color: AppColors.ink3),
                   const SizedBox(width: 8),
                   Expanded(
                     child: _AgePickerCard(
@@ -830,60 +996,32 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
               const SizedBox(height: 20),
 
               // Max members
-              Text('최대 인원', style: AppTextStyles.body2Bold),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: _maxMembers > 2
-                        ? () => setState(() => _maxMembers--)
-                        : null,
-                    icon: const Icon(Icons.remove_circle_outline_rounded),
-                    color: AppColors.primary,
-                  ),
-                  Container(
-                    width: 60,
-                    alignment: Alignment.center,
-                    child: Text(
-                      '$_maxMembers명',
-                      style: AppTextStyles.heading3,
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: _maxMembers < 10
-                        ? () => setState(() => _maxMembers++)
-                        : null,
-                    icon: const Icon(Icons.add_circle_outline_rounded),
-                    color: AppColors.primary,
-                  ),
-                ],
-              ),
+              _buildMaxMembersSection(),
               const SizedBox(height: 20),
 
               // Join type — 생성 시에만 선택. 수정 시엔 변경 불가라 숨긴다.
               if (widget.editRoom == null) ...[
-                Text('입장 방식', style: AppTextStyles.body2Bold),
+                Text('입장 방식', style: AppTextStyles.captionBold),
                 const SizedBox(height: 8),
-                Row(
+                Wrap(
+                  spacing: 8,
                   children: [
-                    Expanded(
-                      child: _OptionChip(
-                        label: '자유 입장',
-                        subtitle: '누구나 바로 참여',
-                        isSelected: _joinType == 'FREE',
-                        onTap: () => setState(() => _joinType = 'FREE'),
-                      ),
+                    FilterChipButton(
+                      label: '자유 입장',
+                      selected: _joinType == 'FREE',
+                      onTap: () => setState(() => _joinType = 'FREE'),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _OptionChip(
-                        label: '승인 필요',
-                        subtitle: '방장 수락 후 참여',
-                        isSelected: _joinType == 'APPROVAL',
-                        onTap: () => setState(() => _joinType = 'APPROVAL'),
-                      ),
+                    FilterChipButton(
+                      label: '승인 필요',
+                      selected: _joinType == 'APPROVAL',
+                      onTap: () => setState(() => _joinType = 'APPROVAL'),
                     ),
                   ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  _joinType == 'FREE' ? '누구나 바로 참여할 수 있어요' : '방장이 수락해야 참여할 수 있어요',
+                  style: AppTextStyles.caption,
                 ),
                 const SizedBox(height: 20),
               ],
@@ -894,31 +1032,7 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
                       padding: const EdgeInsets.all(20),
                       children: [
               // Cost
-              Row(
-                children: [
-                  Text('비용', style: AppTextStyles.body2Bold),
-                  const Spacer(),
-                  Text('무료', style: AppTextStyles.body2),
-                  Switch(
-                    value: _isFree,
-                    activeTrackColor: AppColors.primary,
-                    onChanged: (value) => setState(() => _isFree = value),
-                  ),
-                ],
-              ),
-              if (!_isFree) ...[
-                const SizedBox(height: 8),
-                CommonInput(
-                  hint: '금액 (원)',
-                  controller: _costController,
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 8),
-                CommonInput(
-                  hint: '비용 설명 (예: 키즈카페 입장료 더치페이)',
-                  controller: _costDescController,
-                ),
-              ],
+              _buildCostSection(),
               const SizedBox(height: 20),
 
               // Required items
@@ -933,49 +1047,7 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
               const SizedBox(height: 20),
 
               // Tags
-              Text('태그 (최대 5개)', style: AppTextStyles.body2Bold),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: CommonInput(
-                      hint: '태그 입력 후 추가',
-                      controller: _tagController,
-                      maxLength: 10,
-                      onSubmitted: (_) => _addTag(),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    onPressed: _addTag,
-                    icon:
-                        const Icon(Icons.add_circle_rounded, color: AppColors.primary),
-                    iconSize: 36,
-                  ),
-                ],
-              ),
-              if (_tags.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _tags
-                      .map((tag) => Chip(
-                            label: Text('#$tag', style: AppTextStyles.tag),
-                            deleteIcon: const Icon(Icons.close, size: 16),
-                            deleteIconColor: AppColors.primary,
-                            backgroundColor:
-                                AppColors.primary.withValues(alpha: 0.08),
-                            side: BorderSide.none,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            onDeleted: () =>
-                                setState(() => _tags.remove(tag)),
-                          ))
-                      .toList(),
-                ),
-              ],
+              _buildTagsSection(),
                       ],
                     ),
                   ],
@@ -988,30 +1060,21 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
                   children: [
                     if (_step > 0) ...[
                       Expanded(
-                        child: OutlinedButton(
+                        child: SecondaryButton(
+                          text: '이전',
                           onPressed: () => setState(() => _step--),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            side: const BorderSide(color: AppColors.divider),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: const Text('이전'),
                         ),
                       ),
                       const SizedBox(width: 12),
                     ],
                     Expanded(
+                      flex: _step > 0 ? 2 : 1,
                       child: PrimaryButton(
                         key: const Key('btn-room-create-submit'),
                         text: isLast
                             ? (widget.editRoom != null ? '수정 완료' : '모임 만들기')
                             : '다음',
                         isLoading: _isLoading,
-                        icon: isLast
-                            ? Icons.celebration_rounded
-                            : Icons.arrow_forward_rounded,
                         onPressed: isLast ? _submit : _onNext,
                       ),
                     ),
@@ -1022,160 +1085,46 @@ class _RoomCreateScreenState extends ConsumerState<RoomCreateScreen> {
           ),
         ),
       ),
-      ),
     );
   }
 }
 
-class _PlaceTypeChip extends StatelessWidget {
-  final String type;
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
+/// 스텝 표시 — 손글씨 "1/4" + 얇은 진행바. (docs/09_UI_수첩안.md)
+class _StepIndicator extends StatelessWidget {
+  final int step;
+  final int total;
 
-  const _PlaceTypeChip({
-    required this.type,
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  static const Map<String, IconData> _icons = {
-    'PLAYGROUND': Icons.park_rounded,
-    'KIDS_CAFE': Icons.local_cafe_rounded,
-    'PARTY_ROOM': Icons.celebration_rounded,
-    'PARK': Icons.nature_people_rounded,
-    'OTHER': Icons.place_rounded,
-  };
+  const _StepIndicator({required this.step, required this.total});
 
   @override
   Widget build(BuildContext context) {
-    final icon = _icons[type] ?? Icons.place_rounded;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? AppColors.primary.withValues(alpha: 0.1)
-              : AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.divider,
-            width: isSelected ? 1.5 : 1,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 18,
-              color: isSelected ? AppColors.primary : AppColors.textSecondary,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(text: '${step + 1}', style: AppTextStyles.handLg),
+                TextSpan(
+                  text: '/$total',
+                  style: AppTextStyles.handLg.copyWith(color: AppColors.ink3),
+                ),
+              ],
             ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: AppTextStyles.body2.copyWith(
-                color: isSelected ? AppColors.primary : AppColors.textSecondary,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _OptionChip extends StatelessWidget {
-  final String label;
-  final String subtitle;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _OptionChip({
-    required this.label,
-    required this.subtitle,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? AppColors.primary.withValues(alpha: 0.08)
-              : AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.divider,
-            width: isSelected ? 1.5 : 1,
           ),
-        ),
-        child: Column(
-          children: [
-            Text(
-              label,
-              style: AppTextStyles.body2Bold.copyWith(
-                color: isSelected ? AppColors.primary : AppColors.textPrimary,
-              ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: (step + 1) / total,
+              minHeight: 4,
+              backgroundColor: AppColors.fill,
+              valueColor: const AlwaysStoppedAnimation(AppColors.ink),
             ),
-            const SizedBox(height: 2),
-            Text(
-              subtitle,
-              style: AppTextStyles.caption.copyWith(
-                fontSize: 11,
-                color: isSelected ? AppColors.primary : AppColors.textHint,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _GenderChip extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _GenderChip({
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: isSelected
-              ? AppColors.primary.withValues(alpha: 0.1)
-              : AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.divider,
-            width: isSelected ? 1.5 : 1,
           ),
-        ),
-        child: Text(
-          label,
-          style: AppTextStyles.body2.copyWith(
-            color: isSelected ? AppColors.primary : AppColors.textSecondary,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-          ),
-        ),
+        ],
       ),
     );
   }
@@ -1205,15 +1154,12 @@ class _TimePickerCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+          border: Border.all(color: AppColors.line2),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              label,
-              style: AppTextStyles.caption.copyWith(color: AppColors.textHint),
-            ),
+            Text(label, style: AppTextStyles.caption),
             const SizedBox(height: 4),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1222,7 +1168,7 @@ class _TimePickerCard extends StatelessWidget {
                   child: Text(
                     hasValue ? time!.format(context) : placeholder,
                     style: AppTextStyles.body1Bold.copyWith(
-                      color: hasValue ? AppColors.primary : AppColors.textHint,
+                      color: hasValue ? AppColors.ink : AppColors.ink3,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -1230,8 +1176,7 @@ class _TimePickerCard extends StatelessWidget {
                 Icon(
                   Icons.access_time_rounded,
                   size: 18,
-                  color:
-                      hasValue ? AppColors.primary : AppColors.textHint,
+                  color: hasValue ? AppColors.ink : AppColors.ink3,
                 ),
               ],
             ),
@@ -1262,24 +1207,25 @@ class _AgePickerCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+          border: Border.all(color: AppColors.line2),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              label,
-              style: AppTextStyles.caption.copyWith(color: AppColors.textHint),
-            ),
+            Text(label, style: AppTextStyles.caption),
             const SizedBox(height: 4),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  '$months개월',
-                  style: AppTextStyles.body1Bold.copyWith(color: AppColors.primary),
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(text: '$months', style: AppTextStyles.handLg),
+                      TextSpan(text: '개월', style: AppTextStyles.body1),
+                    ],
+                  ),
                 ),
-                const Icon(Icons.unfold_more_rounded, size: 18, color: AppColors.textHint),
+                const Icon(Icons.unfold_more_rounded, size: 18, color: AppColors.ink3),
               ],
             ),
           ],

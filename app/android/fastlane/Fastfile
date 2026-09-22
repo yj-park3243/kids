@@ -36,7 +36,10 @@ platform :android do
       json_key: JSON_KEY,
       package_name: 'kr.kids.app',
       release_status: 'completed',
-      skip_upload_metadata: true,
+      # metadata 디렉터리에는 changelogs 만 있어(제목/설명 파일 없음) 릴리스
+      # 노트만 올라가고 스토어 설명은 건드리지 않는다.
+      skip_upload_metadata: false,
+      skip_upload_changelogs: false,
       skip_upload_images: true,
       skip_upload_screenshots: true,
     )

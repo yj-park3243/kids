@@ -2,6 +2,7 @@ import '../../../widgets/top_toast.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_radius.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../widgets/common_button.dart';
 import '../../../widgets/common_input.dart';
@@ -147,7 +148,8 @@ class _ReportSheetState extends ConsumerState<_ReportSheet> {
       child: Container(
         decoration: const BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          borderRadius:
+              BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
         ),
         padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
         child: Column(
@@ -159,22 +161,21 @@ class _ReportSheetState extends ConsumerState<_ReportSheet> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: AppColors.divider,
+                  color: AppColors.line2,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
             const SizedBox(height: 16),
-            Text('신고하기', style: AppTextStyles.heading3),
+            Text('신고하기', style: AppTextStyles.display),
             const SizedBox(height: 4),
             Text(
               '신고 사유를 선택해주세요. 검토 후 처리됩니다.',
-              style:
-                  AppTextStyles.body2.copyWith(color: AppColors.textSecondary),
+              style: AppTextStyles.caption,
             ),
             const SizedBox(height: 20),
             if (widget.targets.isNotEmpty) ...[
-              Text('신고 대상', style: AppTextStyles.body2Bold),
+              Text('신고 대상', style: AppTextStyles.captionBold),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
@@ -187,35 +188,31 @@ class _ReportSheetState extends ConsumerState<_ReportSheet> {
                     borderRadius: BorderRadius.circular(999),
                     onTap: () => setState(() => _selectedTargetIdx = i),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 8),
+                      height: 34,
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: sel ? AppColors.primary50 : AppColors.bg2,
+                        color: sel ? AppColors.ink : AppColors.surface,
                         borderRadius: BorderRadius.circular(999),
                         border: Border.all(
-                          color: sel
-                              ? AppColors.primary400
-                              : Colors.transparent,
-                          width: 1.5,
+                          color: sel ? AppColors.ink : AppColors.line2,
                         ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           if (t.isHost)
-                            const Padding(
-                              padding: EdgeInsets.only(right: 4),
+                            Padding(
+                              padding: const EdgeInsets.only(right: 4),
                               child: Icon(Icons.star_rounded,
-                                  size: 14, color: AppColors.primary),
+                                  size: 14,
+                                  color: sel ? Colors.white : AppColors.ink3),
                             ),
                           Text(
                             t.label,
                             style: AppTextStyles.body2.copyWith(
-                              color: sel
-                                  ? AppColors.primary
-                                  : AppColors.ink700,
-                              fontWeight:
-                                  sel ? FontWeight.w600 : FontWeight.w400,
+                              color: sel ? Colors.white : AppColors.ink,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ],
@@ -225,50 +222,48 @@ class _ReportSheetState extends ConsumerState<_ReportSheet> {
                 }),
               ),
               const SizedBox(height: 20),
-              Text('신고 사유', style: AppTextStyles.body2Bold),
+              Text('신고 사유', style: AppTextStyles.captionBold),
               const SizedBox(height: 8),
             ],
+            // 사유 — 라디오 행 + 헤어라인. 선택된 줄만 굵게.
             ...List.generate(_reasons.length, (i) {
               final r = _reasons[i];
               final isSel = _selected == r['code'];
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: InkWell(
-                  key: Key('report-reason-${r['code']}'),
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: () => setState(() => _selected = r['code']),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 14),
-                    decoration: BoxDecoration(
-                      color: isSel ? AppColors.primary50 : AppColors.bg2,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color:
-                            isSel ? AppColors.primary400 : Colors.transparent,
-                        width: 1.5,
+              return Column(
+                children: [
+                  if (i > 0)
+                    const Divider(
+                        height: 1, thickness: 1, color: AppColors.line),
+                  InkWell(
+                    key: Key('report-reason-${r['code']}'),
+                    onTap: () => setState(() => _selected = r['code']),
+                    child: SizedBox(
+                      height: 52,
+                      child: Row(
+                        children: [
+                          Icon(
+                            isSel
+                                ? Icons.radio_button_checked
+                                : Icons.radio_button_unchecked,
+                            color: isSel ? AppColors.ink : AppColors.ink3,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            r['label']!,
+                            style: AppTextStyles.body1.copyWith(
+                              fontWeight:
+                                  isSel ? FontWeight.w600 : FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          isSel
-                              ? Icons.radio_button_checked
-                              : Icons.radio_button_unchecked,
-                          color: isSel
-                              ? AppColors.primary
-                              : AppColors.textHint,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 12),
-                        Text(r['label']!, style: AppTextStyles.body1),
-                      ],
-                    ),
                   ),
-                ),
+                ],
               );
             }),
-            const SizedBox(height: 12),
+            const SizedBox(height: 20),
             CommonInput(
               label: '상세 내용 (선택)',
               hint: '추가로 알리고 싶은 내용을 적어주세요',

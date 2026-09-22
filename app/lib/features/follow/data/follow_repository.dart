@@ -20,6 +20,15 @@ class FollowRepository {
     await _dio.delete(ApiConstants.followByTarget(targetUserId));
   }
 
+  /// 나를 팔로우하는 사람 — GET /follows/followers
+  Future<List<Follow>> getMyFollowers() async {
+    final response = await _dio.get(ApiConstants.myFollowers);
+    final data = response.data['data'] ?? response.data;
+    return extractItems(data)
+        .map((e) => Follow.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   /// 내 팔로잉 목록 — GET /follows/me
   Future<List<Follow>> getMyFollowing() async {
     final response = await _dio.get(ApiConstants.myFollows);

@@ -9,7 +9,7 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { In, Repository, DataSource } from 'typeorm';
 import { Room } from './entities/room.entity';
 import { RoomMember } from './entities/room-member.entity';
 import { JoinRequest } from './entities/join-request.entity';
@@ -19,6 +19,7 @@ import { ChatService } from '../chat/chat.service';
 import { NotificationService } from '../notification/notification.service';
 import { BlockService } from '../block/block.service';
 import { NoShowService } from '../user/no-show.service';
+import { kstDateTime } from '../common/utils/kst';
 
 @Injectable()
 export class RoomParticipationService {
@@ -72,6 +73,17 @@ export class RoomParticipationService {
         });
       }
 
+      // 본인인증은 가입 관문이 아니라 모임 만들기·참여 시점에 받는다(앱 게이트).
+      // 클라이언트 게이트만으로는 API 직접 호출을 막지 못해 서버에서도 확인한다.
+      // 앱 심사 모드(bypass_phone_verification)에서는 가입 시 isPhoneVerified 가
+      // 더미로 채워지므로 리뷰어는 그대로 통과한다.
+      if (joiningUser && !joiningUser.isPhoneVerified) {
+        throw new ForbiddenException({
+          code: 'PHONE_VERIFICATION_REQUIRED',
+          message: '모임에 참여하려면 휴대폰 본인 인증이 필요합니다.',
+        });
+      }
+
       if (room.status !== 'RECRUITING') {
         throw new ForbiddenException({
           code: 'ROOM_NOT_RECRUITING',
@@ -80,7 +92,7 @@ export class RoomParticipationService {
       }
 
       // 모임 종료 시각까지만 입장 가능 (종료시간 없으면 당일 자정까지).
-      const endAt = new Date(`${room.date}T${room.endTime ?? '23:59'}`);
+      const endAt = kstDateTime(room.date, room.endTime ?? '23:59');
       if (!Number.isNaN(endAt.getTime()) && Date.now() > endAt.getTime()) {
         throw new ForbiddenException({
           code: 'ROOM_ENDED',
@@ -113,6 +125,16 @@ export class RoomParticipationService {
         throw new ConflictException({
           code: 'ALREADY_JOINED',
           message: '이미 참여를 신청했습니다.',
+        });
+      }
+
+      const kicked = await manager
+        .getRepository(JoinRequest)
+        .findOne({ where: { roomId, userId, status: 'KICKED' } });
+      if (kicked) {
+        throw new ForbiddenException({
+          code: 'KICKED',
+          message: '방장이 내보낸 모임에는 다시 참여할 수 없습니다.',
         });
       }
 
@@ -252,6 +274,7 @@ export class RoomParticipationService {
           .sendSystemMessage(
             result.chatRoomId!,
             `${result.userNickname}님이 참여했습니다.`,
+            userId,
           )
           .catch((e) =>
             this.logger.warn(`join chat side-effect 실패: ${e?.message}`),
@@ -286,6 +309,9 @@ export class RoomParticipationService {
   }
 
   async cancelJoin(userId: string, roomId: string) {
+    // 채팅방 정리는 아래에서 모아 처리한다 — 참여자였을 때만 값이 채워진다.
+    let chatRoomId: string | null = null;
+
     // Remove from members if exists
     const member = await this.roomMemberRepository.findOne({
       where: { roomId, userId },
@@ -311,31 +337,43 @@ export class RoomParticipationService {
         await this.roomRepository.save(room);
 
         // 시작 24시간 이내 본인 취소 → 노쇼 +0.5
-        const startDt = new Date(`${room.date}T${room.startTime}`);
+        const startDt = kstDateTime(room.date, room.startTime);
         const hoursBeforeStart = (startDt.getTime() - Date.now()) / (60 * 60 * 1000);
         void this.noShowService
           .incrementForCancellation(userId, hoursBeforeStart)
           .catch(() => undefined);
 
-        // Remove from chat room
-        await this.chatService.removeMember(room.chatRoomId, userId);
-
-        // System message
-        const user = await this.userRepository.findOne({ where: { id: userId } });
-        await this.chatService.sendSystemMessage(
-          room.chatRoomId,
-          `${user?.nickname || '알 수 없음'}님이 나갔습니다.`,
-        );
+        chatRoomId = room.chatRoomId;
       }
     }
 
-    // Cancel pending request
-    const request = await this.joinRequestRepository.findOne({
-      where: { roomId, userId, status: 'PENDING' },
-    });
-    if (request) {
-      request.status = 'CANCELLED';
-      await this.joinRequestRepository.save(request);
+    // 신청 이력도 함께 취소 처리한다. member 행만 지우면 getDetail 이 가장 최근
+    // JoinRequest(status='ACCEPTED')를 myStatus 로 읽어, 나간 뒤에도 앱이 계속
+    // 참여자 화면을 보여준다. 승인 대기(PENDING) 취소도 같은 쿼리로 처리한다.
+    // 채팅 정리보다 먼저 끝내야 채팅 실패가 이 정합성을 깨지 않는다.
+    await this.joinRequestRepository.update(
+      { roomId, userId, status: In(['PENDING', 'ACCEPTED']) },
+      { status: 'CANCELLED' },
+    );
+
+    // 채팅 정리는 fire-and-forget — 실패해도 나가기 자체가 실패로 보이면 안 된다.
+    // (join()/handleJoinRequest 와 같은 패턴)
+    if (chatRoomId) {
+      const id = chatRoomId;
+      void this.chatService
+        .removeMember(id, userId)
+        .then(async () => {
+          const user = await this.userRepository.findOne({
+            where: { id: userId },
+          });
+          await this.chatService.sendSystemMessage(
+            id,
+            `${user?.nickname || '알 수 없음'}님이 나갔습니다.`,
+          );
+        })
+        .catch((e) =>
+          this.logger.warn(`cancelJoin chat side-effect 실패: ${e?.message}`),
+        );
     }
 
     return { success: true };
@@ -472,6 +510,7 @@ export class RoomParticipationService {
         .sendSystemMessage(
           result.chatRoomId,
           `${result.targetNickname}님이 참여했습니다.`,
+          result.targetUserId,
         )
         .catch((e) =>
           this.logger.warn(`handleJoinRequest chat sys msg 실패: ${e?.message}`),
@@ -524,6 +563,12 @@ export class RoomParticipationService {
     }
 
     await this.roomMemberRepository.remove(member);
+    // ACCEPTED 로 남은 신청 이력을 KICKED 로 — 안 바꾸면 강퇴당한 쪽 방 상세가
+    // 여전히 '참여 중'으로 보이고, 이 이력이 재참여 차단 근거가 된다.
+    await this.joinRequestRepository.update(
+      { roomId, userId: targetUserId, status: In(['PENDING', 'ACCEPTED']) },
+      { status: 'KICKED' },
+    );
 
     // Update current members
     room.currentMembers = Math.max(0, room.currentMembers - 1);
@@ -577,6 +622,7 @@ export class RoomParticipationService {
     await this.chatService.sendSystemMessage(
       room.chatRoomId,
       `${user?.nickname || '알 수 없음'}님이 참여했습니다.`,
+      userId,
     );
 
     // Auto close if full

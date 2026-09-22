@@ -6,9 +6,10 @@ import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../models/notification.dart';
 import '../../../widgets/app_bar.dart';
-import '../../../widgets/design/accent_blobs.dart';
+import '../../../widgets/design/notebook.dart';
 import '../../../widgets/empty_state.dart';
 import '../../../widgets/loading.dart';
+import '../../share/deeplink/fcm_tap_handler.dart';
 import '../data/notification_repository.dart';
 
 final notificationRepositoryProvider = Provider<NotificationRepository>((ref) {
@@ -79,31 +80,17 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
         return Icons.chat_bubble_rounded;
       case 'NEW_ROOM':
         return Icons.celebration_rounded;
+      case 'INQUIRY_REPLIED':
+        return Icons.mark_email_read_rounded;
       default:
         return Icons.notifications_rounded;
-    }
-  }
-
-  Color _getNotificationIconColor(String type) {
-    switch (type) {
-      case 'JOIN_ACCEPTED':
-        return AppColors.primary;
-      case 'JOIN_REJECTED':
-      case 'ROOM_CANCELLED':
-        return AppColors.error;
-      case 'ROOM_REMINDER':
-        return AppColors.accentCoral;
-      case 'NEW_CHAT':
-        return AppColors.secondary;
-      default:
-        return AppColors.primary;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppColors.paper,
       appBar: CustomAppBar(
         title: '알림',
         actions: [
@@ -111,13 +98,12 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
             onPressed: _markAllAsRead,
             child: Text(
               '모두 읽음',
-              style: AppTextStyles.caption.copyWith(color: AppColors.primary),
+              style: AppTextStyles.body2.copyWith(color: AppColors.ink2),
             ),
           ),
         ],
       ),
-      extendBodyBehindAppBar: true,
-      body: AccentBlobsBackground(child: SafeArea(child: _buildBody())),
+      body: SafeArea(child: _buildBody()),
     );
   }
 
@@ -137,27 +123,29 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
 
     return RefreshIndicator(
       onRefresh: _loadNotifications,
-      color: AppColors.primary,
+      color: AppColors.ink,
       child: ListView.separated(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
         itemCount: _notifications!.length,
-        separatorBuilder: (_, __) =>
-            const Divider(height: 1, color: AppColors.divider, indent: 72),
+        separatorBuilder: (_, __) => const DashedDivider(),
         itemBuilder: (context, index) {
           final notification = _notifications![index];
-          return _NotificationTile(
+          return _NotificationRow(
             notification: notification,
             icon: _getNotificationIcon(notification.type),
-            iconColor: _getNotificationIconColor(notification.type),
             onTap: () {
               // Mark as read
               ref
                   .read(notificationRepositoryProvider)
                   .markAsRead(notification.id);
 
-              // Navigate
-              if (notification.roomId != null) {
-                context.push('/rooms/${notification.roomId}');
+              // Navigate — 푸시 탭과 같은 규칙(사진 댓글은 사진으로, 문의 답변은 문의함으로).
+              final route = FcmTapHandler.resolveRoute({
+                ...?notification.data,
+                'type': notification.type,
+              });
+              if (route != null && route != '/notifications') {
+                context.push(route);
               }
             },
           );
@@ -167,80 +155,71 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
   }
 }
 
-class _NotificationTile extends StatelessWidget {
+/// 알림 한 줄 — 왼쪽 미읽음 점(berry) · 아이콘(ink3) · 제목/본문 · 시간.
+class _NotificationRow extends StatelessWidget {
   final AppNotification notification;
   final IconData icon;
-  final Color iconColor;
   final VoidCallback onTap;
 
-  const _NotificationTile({
+  const _NotificationRow({
     required this.notification,
     required this.icon,
-    required this.iconColor,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        color: notification.isRead
-            ? Colors.transparent
-            : AppColors.primary.withValues(alpha: 0.03),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
+    final unread = !notification.isRead;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 15),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 10,
+                child: unread
+                    ? Container(
+                        width: 6,
+                        height: 6,
+                        margin: const EdgeInsets.only(top: 7),
+                        decoration: const BoxDecoration(
+                          color: AppColors.berry,
+                          shape: BoxShape.circle,
+                        ),
+                      )
+                    : null,
               ),
-              child: Icon(icon, size: 20, color: iconColor),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    notification.title,
-                    style: AppTextStyles.body2Bold.copyWith(
-                      fontWeight: notification.isRead
-                          ? FontWeight.w400
-                          : FontWeight.w600,
+              Padding(
+                padding: const EdgeInsets.only(top: 1, right: 12),
+                child: Icon(icon, size: 19, color: AppColors.ink3),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(notification.title, style: AppTextStyles.body1Bold),
+                    const SizedBox(height: 2),
+                    Text(
+                      notification.body,
+                      style: AppTextStyles.body2,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    notification.body,
-                    style: AppTextStyles.caption,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    AppDateUtils.formatRelativeTime(
-                        DateTime.parse(notification.createdAt)),
-                    style: AppTextStyles.caption.copyWith(fontSize: 11),
-                  ),
-                ],
-              ),
-            ),
-            if (!notification.isRead)
-              Container(
-                width: 8,
-                height: 8,
-                margin: const EdgeInsets.only(top: 6),
-                decoration: const BoxDecoration(
-                  color: AppColors.primary,
-                  shape: BoxShape.circle,
+                    const SizedBox(height: 5),
+                    Text(
+                      AppDateUtils.formatRelativeTime(
+                          DateTime.parse(notification.createdAt)),
+                      style: AppTextStyles.caption,
+                    ),
+                  ],
                 ),
               ),
-          ],
+            ],
+          ),
         ),
       ),
     );

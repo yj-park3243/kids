@@ -58,34 +58,32 @@ class _EmailRegisterScreenState extends ConsumerState<EmailRegisterScreen> {
     final authState = ref.watch(authProvider);
 
     ref.listen<AuthState>(authProvider, (previous, next) {
-      if (next.status == AuthStatus.phoneVerification) {
-        context.go('/phone-verification');
-      } else if (next.status == AuthStatus.profileSetup) {
+      if (next.status == AuthStatus.profileSetup) {
         context.go('/profile-setup');
       } else if (next.errorMessage != null) {
-        showTopToast(context, next.errorMessage!, backgroundColor: AppColors.error);
+        showTopToast(context, next.errorMessage!,
+            backgroundColor: AppColors.bad);
       }
     });
 
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: const CustomAppBar(title: '회원가입'),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 20),
-                Text('회원가입', style: AppTextStyles.heading1),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
+                Text('회원가입', style: AppTextStyles.display),
+                const SizedBox(height: 6),
                 Text(
                   '이메일과 비밀번호를 설정해 주세요',
-                  style: AppTextStyles.body2.copyWith(color: AppColors.textSecondary),
+                  style: AppTextStyles.body2,
                 ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 32),
 
                 CommonInput(
                   key: const Key('input-register-email'),
@@ -108,8 +106,11 @@ class _EmailRegisterScreenState extends ConsumerState<EmailRegisterScreen> {
                   textInputAction: TextInputAction.next,
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                      color: AppColors.textHint,
+                      _obscurePassword
+                          ? Icons.visibility_off_rounded
+                          : Icons.visibility_rounded,
+                      color: AppColors.ink3,
+                      size: 20,
                     ),
                     onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                   ),
@@ -132,8 +133,11 @@ class _EmailRegisterScreenState extends ConsumerState<EmailRegisterScreen> {
                   onSubmitted: (_) => _register(),
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscureConfirm ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                      color: AppColors.textHint,
+                      _obscureConfirm
+                          ? Icons.visibility_off_rounded
+                          : Icons.visibility_rounded,
+                      color: AppColors.ink3,
+                      size: 20,
                     ),
                     onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
                   ),
@@ -150,7 +154,7 @@ class _EmailRegisterScreenState extends ConsumerState<EmailRegisterScreen> {
                       value: _agreedToTerms,
                       onChanged: (v) =>
                           setState(() => _agreedToTerms = v ?? false),
-                      activeColor: AppColors.primary,
+                      activeColor: AppColors.ink,
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       visualDensity: VisualDensity.compact,
                     ),
@@ -160,27 +164,20 @@ class _EmailRegisterScreenState extends ConsumerState<EmailRegisterScreen> {
                         padding: const EdgeInsets.only(top: 12),
                         child: RichText(
                           text: TextSpan(
-                            style: AppTextStyles.body2.copyWith(
-                              color: AppColors.textSecondary,
-                              height: 1.4,
-                            ),
+                            style: AppTextStyles.body2.copyWith(height: 1.5),
                             children: [
                               TextSpan(
                                 text: '이용약관',
-                                style: AppTextStyles.body2Bold.copyWith(
-                                  color: AppColors.primary,
-                                  decoration: TextDecoration.underline,
-                                ),
+                                style: AppTextStyles.body2Bold
+                                    .copyWith(color: AppColors.link),
                                 recognizer: TapGestureRecognizer()
                                   ..onTap = () => _openUrl(_termsUrl),
                               ),
                               const TextSpan(text: ' 및 '),
                               TextSpan(
                                 text: '개인정보 처리방침',
-                                style: AppTextStyles.body2Bold.copyWith(
-                                  color: AppColors.primary,
-                                  decoration: TextDecoration.underline,
-                                ),
+                                style: AppTextStyles.body2Bold
+                                    .copyWith(color: AppColors.link),
                                 recognizer: TapGestureRecognizer()
                                   ..onTap = () => _openUrl(_privacyUrl),
                               ),
@@ -212,15 +209,13 @@ class _EmailRegisterScreenState extends ConsumerState<EmailRegisterScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        '이미 계정이 있으신가요? ',
-                        style: AppTextStyles.body2.copyWith(color: AppColors.textSecondary),
-                      ),
+                      Text('이미 계정이 있으신가요? ', style: AppTextStyles.body2),
                       GestureDetector(
                         onTap: () => context.pushReplacement('/email-login'),
                         child: Text(
                           '로그인',
-                          style: AppTextStyles.body2Bold.copyWith(color: AppColors.primary),
+                          style: AppTextStyles.body2Bold
+                              .copyWith(color: AppColors.link),
                         ),
                       ),
                     ],

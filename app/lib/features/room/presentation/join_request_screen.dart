@@ -6,6 +6,8 @@ import '../../../core/constants/app_text_styles.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../models/room.dart';
 import '../../../widgets/app_bar.dart';
+import '../../../widgets/design/avatar.dart';
+import '../../../widgets/design/notebook.dart';
 import '../../../widgets/empty_state.dart';
 import '../../../widgets/loading.dart';
 import '../providers/room_detail_provider.dart';
@@ -74,7 +76,7 @@ class _JoinRequestScreenState extends ConsumerState<JoinRequestScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.paper,
       appBar: const CustomAppBar(title: '참여 관리'),
       body: SafeArea(child: _buildBody()),
     );
@@ -101,7 +103,7 @@ class _JoinRequestScreenState extends ConsumerState<JoinRequestScreen> {
 
     return RefreshIndicator(
       onRefresh: _loadRequests,
-      color: AppColors.primary,
+      color: AppColors.ink,
       child: ListView.builder(
         padding: const EdgeInsets.all(20),
         itemCount: _requests!.length,
@@ -135,37 +137,20 @@ class _RequestCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = request.user;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 15),
+          child: Row(
             children: [
-              CircleAvatar(
-                radius: 24,
-                backgroundColor: AppColors.surfaceVariant,
-                backgroundImage: user.profileImageUrl != null
-                    ? NetworkImage(user.profileImageUrl!)
-                    : null,
-                child: user.profileImageUrl == null
-                    ? const Icon(Icons.person_rounded,
-                        color: AppColors.textHint, size: 24)
-                    : null,
+              InitialAvatar(
+                label: user.nickname,
+                size: 40,
+                tone: InitialAvatar.toneFor(user.id),
+                imageUrl: user.profileImageUrl,
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -182,46 +167,34 @@ class _RequestCard extends StatelessWidget {
                   ],
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: onReject,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.textSecondary,
-                    side: const BorderSide(color: AppColors.divider),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  child: const Text('거절'),
+              GestureDetector(
+                onTap: onReject,
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  child: Text('거절', style: AppTextStyles.body2),
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  key: Key('btn-accept-${request.user.id}'),
-                  onPressed: onAccept,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+              GestureDetector(
+                key: Key('btn-accept-${request.user.id}'),
+                onTap: onAccept,
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  child: Text(
+                    '수락',
+                    style:
+                        AppTextStyles.body2Bold.copyWith(color: AppColors.ink),
                   ),
-                  child: const Text('수락'),
                 ),
               ),
             ],
           ),
-        ],
-      ),
+        ),
+        const DashedDivider(),
+      ],
     );
   }
 }

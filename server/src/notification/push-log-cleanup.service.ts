@@ -17,7 +17,7 @@ export class PushLogCleanupService {
     private pushLogRepository: Repository<PushLog>,
   ) {}
 
-  @Cron('0 0 4 * * *')
+  @Cron('0 0 4 * * *', { timeZone: 'Asia/Seoul' })
   async cleanupOldLogs() {
     const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const result = await this.pushLogRepository.delete({

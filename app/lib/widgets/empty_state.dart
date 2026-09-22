@@ -29,14 +29,15 @@ class EmptyState extends StatelessWidget {
             Container(
               width: 80,
               height: 80,
+              // 빈 상태 아이콘 — 형광펜 자국 위에 잉크 아이콘 (스티커 느낌, 색은 hi 한 곳).
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
+                color: AppColors.hi.withValues(alpha: 0.55),
+                borderRadius: BorderRadius.circular(28),
               ),
               child: Icon(
                 icon,
-                size: 40,
-                color: AppColors.primary.withValues(alpha: 0.5),
+                size: 36,
+                color: AppColors.ink,
               ),
             ),
             const SizedBox(height: 20),
@@ -70,7 +71,8 @@ class EmptyState extends StatelessWidget {
                     vertical: 12,
                   ),
                 ),
-                child: Text(buttonText!, style: AppTextStyles.buttonSmall),
+                child: Text(buttonText!,
+                    style: AppTextStyles.buttonSmall.copyWith(color: Colors.white)),
               ),
             ],
           ],

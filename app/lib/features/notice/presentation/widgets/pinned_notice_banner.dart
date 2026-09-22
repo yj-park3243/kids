@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_text_styles.dart';
+import '../../../../widgets/design/notebook.dart';
 import '../../providers/notice_provider.dart';
 
 /// 홈 화면 앱바 아래에 노출되는 고정 공지 배너.
@@ -18,35 +20,26 @@ class PinnedNoticeBanner extends ConsumerWidget {
       data: (notices) {
         if (notices.isEmpty) return const SizedBox.shrink();
         final first = notices.first;
-        return GestureDetector(
-          onTap: () => context.push('/notices/${first.id}'),
-          child: Container(
-            margin: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+          child: DashedBox(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-            decoration: BoxDecoration(
-              color: AppColors.primary50,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.primary300),
-            ),
+            onTap: () => context.push('/notices/${first.id}'),
             child: Row(
               children: [
-                const Icon(Icons.campaign_rounded,
-                    size: 20, color: AppColors.primary700),
+                const Icon(Icons.push_pin_rounded,
+                    size: 16, color: AppColors.ink),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     '[공지] ${first.title}',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary700,
-                    ),
+                    style: AppTextStyles.body2Bold,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 const SizedBox(width: 6),
-                const Icon(Icons.arrow_forward_ios_rounded,
-                    size: 12, color: AppColors.primary700),
+                const Icon(Icons.chevron_right_rounded,
+                    size: 18, color: AppColors.line2),
               ],
             ),
           ),

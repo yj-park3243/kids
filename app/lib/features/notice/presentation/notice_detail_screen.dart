@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../widgets/app_bar.dart';
+import '../../../widgets/design/design_chip.dart';
+import '../../../widgets/design/notebook.dart';
 import '../providers/notice_provider.dart';
 
 class NoticeDetailScreen extends ConsumerWidget {
@@ -16,55 +18,35 @@ class NoticeDetailScreen extends ConsumerWidget {
     final asyncNotice = ref.watch(noticeDetailProvider(noticeId));
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.paper,
       appBar: const CustomAppBar(title: '공지사항'),
       body: asyncNotice.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
-          child: Text(
-            '공지사항을 불러올 수 없습니다.',
-            style:
-                AppTextStyles.body2.copyWith(color: AppColors.textSecondary),
-          ),
+          child: Text('공지사항을 불러올 수 없습니다.', style: AppTextStyles.body2),
         ),
         data: (n) => SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (n.isPinned) ...[
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary50,
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: AppColors.primary300),
-                  ),
-                  child: const Text(
-                    '중요 공지',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary700,
-                    ),
-                  ),
+                const Pill(
+                  label: '중요 공지',
+                  tone: PillTone.hi,
+                  icon: Icons.push_pin_rounded,
                 ),
                 const SizedBox(height: 12),
               ],
-              Text(n.title, style: AppTextStyles.sectionHead),
-              const SizedBox(height: 8),
-              Text(
-                _formatDate(n.createdAt),
-                style:
-                    AppTextStyles.caption.copyWith(color: AppColors.textHint),
-              ),
-              const SizedBox(height: 20),
-              const Divider(height: 1, color: AppColors.divider),
-              const SizedBox(height: 20),
+              Text(n.title, style: AppTextStyles.display),
+              const SizedBox(height: 6),
+              Text(_formatDate(n.createdAt), style: AppTextStyles.caption),
+              const SizedBox(height: 18),
+              const DashedDivider(),
+              const SizedBox(height: 18),
               Text(
                 n.content.replaceAll('\\n', '\n'),
-                style: AppTextStyles.body1.copyWith(height: 1.6),
+                style: AppTextStyles.paragraph,
               ),
             ],
           ),

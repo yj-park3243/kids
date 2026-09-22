@@ -24,14 +24,10 @@ class NapTimeSelector extends StatelessWidget {
           children: [
             Text('낮잠 시간대', style: AppTextStyles.body2Bold),
             const SizedBox(width: 6),
-            Text(
-              '(선택)',
-              style:
-                  AppTextStyles.caption.copyWith(color: AppColors.textHint),
-            ),
+            Text('(선택)', style: AppTextStyles.caption),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         Wrap(
           spacing: 8,
           runSpacing: 8,
@@ -68,25 +64,22 @@ class TemperamentTagSelector extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
           children: [
             Text('기질 태그', style: AppTextStyles.body2Bold),
             const SizedBox(width: 6),
-            Text(
-              '(선택, 최대 $maxTemperamentTags개)',
-              style:
-                  AppTextStyles.caption.copyWith(color: AppColors.textHint),
-            ),
+            Text('(선택, 최대 $maxTemperamentTags개)', style: AppTextStyles.caption),
             const Spacer(),
             Text(
               '${selectedKeys.length}/$maxTemperamentTags',
-              style: AppTextStyles.caption.copyWith(
-                color: atMax ? AppColors.primary : AppColors.textHint,
-                fontWeight: atMax ? FontWeight.w600 : FontWeight.w400,
+              style: AppTextStyles.hand.copyWith(
+                color: atMax ? AppColors.ink : AppColors.ink3,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         Wrap(
           spacing: 8,
           runSpacing: 8,
@@ -94,8 +87,6 @@ class TemperamentTagSelector extends StatelessWidget {
             for (final tag in temperamentTags)
               _TraitChip(
                 label: tag.label,
-                emoji: tag.emoji,
-                accent: _traitCategoryColor(tag.category),
                 isSelected: selectedKeys.contains(tag.key),
                 isDimmed: atMax && !selectedKeys.contains(tag.key),
                 onTap: () => onToggle(tag.key),
@@ -107,36 +98,17 @@ class TemperamentTagSelector extends StatelessWidget {
   }
 }
 
-/// 카테고리 → 액센트 색. 모델에 디자인 의존성을 끌어들이지 않으려 위젯 쪽에서 매핑한다.
-Color _traitCategoryColor(TraitCategory c) {
-  switch (c) {
-    case TraitCategory.energetic:
-      return AppColors.accentCoral;
-    case TraitCategory.composed:
-      return AppColors.accentLavender;
-    case TraitCategory.warm:
-      return AppColors.primary;
-    case TraitCategory.hobby:
-      return AppColors.accentLime;
-    case TraitCategory.assertive:
-      return AppColors.accentYellow;
-  }
-}
-
+/// 선택 칩 — 목록 필터(`FilterChipButton`)와 같은 규칙. 선택되면 잉크로 채운다.
 class _TraitChip extends StatelessWidget {
   final String label;
-  final String? emoji;
-  // 선택 시 적용할 액센트 색. null 이면 primary 로 폴백 — NapTimeSelector 처럼
-  // 카테고리 분리가 없는 칩에 그대로 쓰인다.
-  final Color? accent;
   final bool isSelected;
+
+  /// 최대 개수를 채워 더 고를 수 없는 상태 — 회색 면으로 물러난다.
   final bool isDimmed;
   final VoidCallback onTap;
 
   const _TraitChip({
     required this.label,
-    this.emoji,
-    this.accent,
     required this.isSelected,
     this.isDimmed = false,
     required this.onTap,
@@ -144,57 +116,41 @@ class _TraitChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color tone = accent ?? AppColors.primary;
     final Color bg;
     final Color border;
     final Color fg;
     if (isSelected) {
-      bg = tone.withValues(alpha: 0.12);
-      border = tone;
-      fg = tone;
+      bg = AppColors.ink;
+      border = AppColors.ink;
+      fg = Colors.white;
     } else if (isDimmed) {
-      bg = AppColors.surface;
-      border = AppColors.divider;
-      fg = AppColors.textHint;
+      bg = AppColors.fill;
+      border = AppColors.line;
+      fg = AppColors.ink3;
     } else {
       bg = AppColors.surface;
-      border = AppColors.divider;
-      fg = AppColors.textSecondary;
+      border = AppColors.line2;
+      fg = AppColors.ink;
     }
     return GestureDetector(
       onTap: onTap,
+      behavior: HitTestBehavior.opaque,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        height: 34,
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
           color: bg,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: border,
-            width: isSelected ? 1.5 : 1,
-          ),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: border),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (emoji != null) ...[
-              // 이모지는 비선택/dim 상태에서 살짝 덜 강조 — 라벨 정렬에 영향 없게 고정 폭.
-              Opacity(
-                opacity: isDimmed ? 0.5 : 1,
-                child: Text(
-                  emoji!,
-                  style: const TextStyle(fontSize: 14),
-                ),
-              ),
-              const SizedBox(width: 6),
-            ],
-            Text(
-              label,
-              style: AppTextStyles.body2.copyWith(
-                color: fg,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-              ),
-            ),
-          ],
+        child: Text(
+          label,
+          style: AppTextStyles.body2.copyWith(
+            color: fg,
+            fontSize: 13.5,
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ),
     );

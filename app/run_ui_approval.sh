@@ -14,8 +14,37 @@ cd "$SCRIPT_DIR"
 API_URL="${TEST_API_BASE_URL:-https://api.growtogether.kr/v1}"
 SSH_KEY="${KIDS_SSH_KEY:-$SCRIPT_DIR/../kids-key.pem}"
 SSH_HOST="${KIDS_SSH_HOST:-ubuntu@43.201.221.240}"
-SIM_A="${SIM_A:-1CCE8E44-C182-4137-8E1A-CB67CBD1CC0B}"
-SIM_B="${SIM_B:-973A77C8-1724-4105-8197-7E1B60CEA4AF}"
+# ─── 시뮬레이터 해석 ────────────────────────────────────────────────────
+# 기본값/환경변수 UDID 가 이 머신에 없으면 flutter drive 가 디바이스를 못 찾고
+# 그냥 끝난다. 실존하면 그대로 쓰고, 없을 때만 사용 가능한 iPhone 시뮬을
+# 목록 순서대로 대신 고른다. SDKROOT 가 stale 하면 xcrun 이 simctl 조차 못
+# 찾으므로 조회할 때만 벗긴다.
+SIM_AVAILABLE="$( (unset SDKROOT; xcrun simctl list devices available) 2>/dev/null || true )"
+SIM_NAMES="$(sed -nE 's/^[[:space:]]+(.*) \([0-9A-Fa-f-]{36}\) \(.*/\1/p' <<<"$SIM_AVAILABLE")"
+SIM_IPHONES="$(sed -nE 's/^[[:space:]]+iPhone[^(]*\(([0-9A-Fa-f-]{36})\).*/\1/p' <<<"$SIM_AVAILABLE")"
+
+sim_exists() {   # UDID 든 기기 이름이든 (flutter drive 는 둘 다 받는다)
+  [ -n "${1:-}" ] || return 1
+  if grep -qF "($1)" <<<"$SIM_AVAILABLE"; then return 0; fi
+  grep -qxF "$1" <<<"$SIM_NAMES"
+}
+
+# resolve_sim <원하는값> <라벨> [이미_배정된_UDID...] — 없으면 대체 UDID 를 출력.
+resolve_sim() {
+  local want="${1:-}" label="$2"; shift 2
+  local taken=" $* " udid
+  if sim_exists "$want"; then printf '%s' "$want"; return 0; fi
+  for udid in $SIM_IPHONES; do
+    case "$taken" in *" $udid "*) continue ;; esac   # 2대 이상 쓸 때 중복 배정 방지
+    echo "  ⚠️  $label: '$want' 가 이 머신에 없어 $udid 로 대체" >&2
+    printf '%s' "$udid"; return 0
+  done
+  echo "❌ $label 로 쓸 iPhone 시뮬레이터가 없다 — 'xcrun simctl list devices available' 확인 후 $label 환경변수로 지정하라." >&2
+  return 1
+}
+
+SIM_A="$(resolve_sim "${SIM_A:-447803FE-BD81-4025-A533-BB4099269D6E}" SIM_A)" || exit 1            # iPhone 17 Pro
+SIM_B="$(resolve_sim "${SIM_B:-72277065-7CE6-4908-82AE-3C6DBE39FF4C}" SIM_B "$SIM_A")" || exit 1   # iPhone 17
 PASSWORD="${E2E_PASSWORD:-Test1234!}"
 RESULTS_DIR="${TEST_RESULTS_DIR:-$SCRIPT_DIR/test_results}"
 

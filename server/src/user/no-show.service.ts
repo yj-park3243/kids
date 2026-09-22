@@ -36,6 +36,17 @@ export class NoShowService {
     await this.applyRestriction(userId);
   }
 
+  // 출석 정정(불참→출석) → −1.0. 이번 정정으로 제한 기준 아래로 내려가면 제한도 푼다.
+  async revertAbsence(userId: string) {
+    await this.bump(userId, -1.0);
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) return;
+    if (Number(user.noShowCount ?? 0) < RESTRICT_THRESHOLD && user.canJoinAt) {
+      user.canJoinAt = null as unknown as Date;
+      await this.userRepository.save(user);
+    }
+  }
+
   async applyRestriction(userId: string) {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) return;
@@ -68,7 +79,7 @@ export class NoShowService {
   }
 
   // 매일 새벽 4시 — canJoinAt 만료 유저의 제한 해제 (count 는 유지)
-  @Cron('0 0 4 * * *')
+  @Cron('0 0 4 * * *', { timeZone: 'Asia/Seoul' })
   async releaseExpired() {
     const now = new Date();
     const expired = await this.userRepository.find({
@@ -85,7 +96,7 @@ export class NoShowService {
   private async bump(userId: string, delta: number) {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) return;
-    const next = Math.round((Number(user.noShowCount ?? 0) + delta) * 10) / 10;
+    const next = Math.max(0, Math.round((Number(user.noShowCount ?? 0) + delta) * 10) / 10);
     user.noShowCount = next;
     await this.userRepository.save(user);
 

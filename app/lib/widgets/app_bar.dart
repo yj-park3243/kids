@@ -25,6 +25,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     return AppBar(
+      // 종이 위에 그대로 — 앱바도 배경과 같은 색이라 경계가 없다.
       backgroundColor: backgroundColor ?? Colors.transparent,
       surfaceTintColor: Colors.transparent,
       elevation: elevation,
@@ -42,7 +43,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           (title != null
               ? Text(
                   title!,
-                  style: AppTextStyles.sectionHead,
+                  style: AppTextStyles.screenTitle,
                 )
               : null),
       actions: actions,

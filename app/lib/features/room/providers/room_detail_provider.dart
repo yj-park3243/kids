@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/network/api_error.dart';
 import '../../../models/room.dart';
 import '../data/room_repository.dart';
 
@@ -49,7 +50,7 @@ class RoomDetailNotifier extends StateNotifier<RoomDetailState> {
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        error: '방 정보를 불러올 수 없습니다',
+        error: apiErrorMessage(e, fallback: '방 정보를 불러올 수 없습니다'),
       );
     }
   }
@@ -67,13 +68,18 @@ class RoomDetailNotifier extends StateNotifier<RoomDetailState> {
     }
   }
 
-  Future<void> leaveRoom() async {
-    try {
-      await _repository.leaveRoom(roomId);
-      await loadRoom();
-    } catch (e) {
-      rethrow;
-    }
+  /// 나가기 성공 후 재조회까지 됐는지 돌려준다 — 재조회가 실패하면 화면이
+  /// 참여자 상태로 남아 사용자가 '나가기가 안 됐다'고 오해한다.
+  Future<bool> leaveRoom() async {
+    await _repository.leaveRoom(roomId);
+    await loadRoom();
+    return state.error == null;
+  }
+
+  /// 방장이 참여자를 내보낸다. 성공 후 방을 다시 불러온다.
+  Future<void> kickMember(String userId) async {
+    await _repository.kickMember(roomId, userId);
+    await loadRoom();
   }
 }
 

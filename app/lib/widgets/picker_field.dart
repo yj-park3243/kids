@@ -5,10 +5,10 @@ import '../core/constants/app_text_styles.dart';
 
 /// 탭하면 휠 시트가 올라오는 "선택" 필드. DropdownButton 대체용.
 ///
-/// 룩: 라벨(작게, 위) / 값(primary 굵게) / 우측 chevron 아이콘.
+/// 룩: 라벨(작게, 위) / 값(잉크 굵게) / 우측 chevron 아이콘.
 /// — room_create_screen 의 `_AgePickerCard` 패턴을 표준화한 것.
 ///
-/// 값이 없을 때는 hint 가 textHint 색으로 표시된다.
+/// 값이 없을 때는 hint 가 힌트색(ink3)으로 표시된다.
 class PickerField extends StatelessWidget {
   /// 위쪽 작은 라벨. null/빈 문자열이면 라벨 줄을 생략하고 값만 표시한다.
   final String? label;
@@ -48,18 +48,14 @@ class PickerField extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+          border: Border.all(color: AppColors.line2),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
             if (showLabel) ...[
-              Text(
-                label!,
-                style:
-                    AppTextStyles.caption.copyWith(color: AppColors.textHint),
-              ),
+              Text(label!, style: AppTextStyles.caption),
               const SizedBox(height: 4),
             ],
             Row(
@@ -69,13 +65,13 @@ class PickerField extends StatelessWidget {
                   child: Text(
                     hasValue ? value! : hint,
                     style: AppTextStyles.body1Bold.copyWith(
-                      color: hasValue ? AppColors.primary : AppColors.textHint,
+                      color: hasValue ? AppColors.ink : AppColors.ink3,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                Icon(trailingIcon, size: 18, color: AppColors.textHint),
+                Icon(trailingIcon, size: 18, color: AppColors.ink3),
               ],
             ),
           ],

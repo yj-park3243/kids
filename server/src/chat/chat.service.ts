@@ -104,14 +104,20 @@ export class ChatService {
     const roomIds = rows.map((r) => r.id);
     if (roomIds.length === 0) return [];
 
-    const lastMessages = await this.chatMessageRepository
-      .createQueryBuilder('m')
-      .where('m.roomId IN (:...roomIds)', { roomIds })
-      .orderBy('m.createdAt', 'DESC')
-      .getMany();
-    const lastByRoom = new Map<string, ChatMessage>();
-    for (const m of lastMessages) {
-      if (!lastByRoom.has(m.roomId)) lastByRoom.set(m.roomId, m);
+    // 방별 마지막 1건만 가져온다. 예전엔 내가 속한 모든 방의 메시지를 LIMIT 없이
+    // 전부 읽어와 JS 에서 골라서, 채팅이 쌓일수록 이 엔드포인트가 선형으로
+    // 무거워졌다. @Index(['roomId','createdAt']) 를 그대로 타는 쿼리다.
+    const lastRows: Array<{ room_id: string; content: string; created_at: Date }> =
+      await this.chatMessageRepository.query(
+        `SELECT DISTINCT ON (m.room_id) m.room_id, m.content, m.created_at
+         FROM chat_message m
+         WHERE m.room_id = ANY($1::uuid[])
+         ORDER BY m.room_id, m.created_at DESC`,
+        [roomIds],
+      );
+    const lastByRoom = new Map<string, { content: string; createdAt: Date }>();
+    for (const r of lastRows) {
+      lastByRoom.set(r.room_id, { content: r.content, createdAt: r.created_at });
     }
 
     // 내 멤버 행만 모아서 lastReadAt 확인 후 unread 메시지 수 카운트.
@@ -274,7 +280,13 @@ export class ChatService {
   /**
    * Called by room-participation service for join/leave/kick events.
    */
-  async sendSystemMessage(roomId: string, content: string): Promise<void> {
+  async sendSystemMessage(
+    roomId: string,
+    content: string,
+    // 이 메시지의 당사자(예: 방금 참여한 사람). 자기 참여 안내가 자기에게
+    // 안읽음 1로 잡히지 않도록 곧바로 읽음 처리한다.
+    readBy?: string,
+  ): Promise<void> {
     const saved = await this.chatMessageRepository.save(
       this.chatMessageRepository.create({
         roomId,
@@ -284,6 +296,12 @@ export class ChatService {
         type: 'SYSTEM',
       }),
     );
+    if (readBy) {
+      await this.roomMemberRepository.update(
+        { roomId, userId: readBy },
+        { lastReadAt: saved.createdAt },
+      );
+    }
     const members = await this.roomMemberRepository.find({ where: { roomId } });
     const view = this.toView(saved, this.computeUnreadCount(saved, members));
     this.chatGateway.broadcastMessage(roomId, view);

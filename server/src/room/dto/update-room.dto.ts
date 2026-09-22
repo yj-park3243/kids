@@ -15,14 +15,13 @@ export class UpdateRoomDto {
   @ApiProperty({ required: false })
   @IsString()
   @IsOptional()
-  @MinLength(2)
+  @MinLength(5)
   @MaxLength(30)
   title?: string;
 
   @ApiProperty({ required: false })
   @IsString()
   @IsOptional()
-  @MinLength(10)
   @MaxLength(500)
   description?: string;
 

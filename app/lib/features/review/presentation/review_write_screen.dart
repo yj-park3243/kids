@@ -7,7 +7,7 @@ import '../../../core/constants/app_text_styles.dart';
 import '../../../widgets/app_bar.dart';
 import '../../../widgets/design/avatar.dart';
 import '../../../widgets/design/glass_card.dart';
-import '../../../widgets/design/accent_blobs.dart';
+import '../../../widgets/design/notebook.dart';
 import '../../../widgets/design/primary_button.dart';
 import '../providers/review_provider.dart';
 import 'widgets/tag_picker.dart';
@@ -47,52 +47,63 @@ class ReviewWriteScreen extends ConsumerWidget {
     final state = ref.watch(reviewWriteProvider(providerArgs));
     final notifier = ref.read(reviewWriteProvider(providerArgs).notifier);
 
+    // 기존 후기를 채우기 전엔 폼을 그리지 않는다 (댓글 initialValue 는 첫 빌드에만 먹는다).
+    if (state.isLoading) {
+      return const Scaffold(
+        backgroundColor: AppColors.paper,
+        appBar: CustomAppBar(title: '모임 후기'),
+        body: Center(
+          child: CircularProgressIndicator(color: AppColors.ink),
+        ),
+      );
+    }
+
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppColors.paper,
       appBar: const CustomAppBar(title: '모임 후기'),
-      extendBodyBehindAppBar: true,
-      body: AccentBlobsBackground(
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _NoticeBanner(),
-                const SizedBox(height: 14),
-                ...args.members.map((m) {
-                  final draft = state.drafts[m.id] ?? const ReviewDraft();
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 14),
-                    child: _MemberReviewCard(
-                      member: m,
-                      draft: draft,
-                      onScoreChanged: (s) => notifier.setScore(m.id, s),
-                      onTagToggle: (t) => notifier.toggleTag(m.id, t),
-                      onCommentChanged: (c) => notifier.setComment(m.id, c),
-                    ),
-                  );
-                }),
-                const SizedBox(height: 8),
-                if (state.globalError != null) ...[
-                  Text(
-                    state.globalError!,
-                    style: AppTextStyles.caption
-                        .copyWith(color: AppColors.error),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const _NoticeBanner(),
+              const SizedBox(height: 16),
+              ...args.members.map((m) {
+                final draft = state.drafts[m.id] ?? const ReviewDraft();
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: _MemberReviewCard(
+                    member: m,
+                    draft: draft,
+                    onScoreChanged: (s) => notifier.setScore(m.id, s),
+                    onTagToggle: (t) => notifier.toggleTag(m.id, t),
+                    onCommentChanged: (c) => notifier.setComment(m.id, c),
                   ),
-                  const SizedBox(height: 8),
-                ],
-                PrimaryButton(
-                  key: const Key('btn-review-submit'),
-                  text: state.allSubmitted ? '제출 완료' : '제출',
-                  isLoading: state.isSubmitting,
-                  isEnabled: !state.allSubmitted,
-                  onPressed: state.allSubmitted
-                      ? null
-                      : () => _onSubmit(context, notifier),
+                );
+              }),
+              const SizedBox(height: 8),
+              if (state.globalError != null) ...[
+                Text(
+                  state.globalError!,
+                  style: AppTextStyles.caption.copyWith(color: AppColors.bad),
                 ),
+                const SizedBox(height: 8),
               ],
-            ),
+              PrimaryButton(
+                key: const Key('btn-review-submit'),
+                text: state.allSaved
+                    ? '저장됨'
+                    : state.anySaved
+                        ? '수정 저장'
+                        : '제출',
+                isLoading: state.isSubmitting,
+                isEnabled: !state.allSaved,
+                onPressed: state.allSaved
+                    ? null
+                    : () => _onSubmit(context, notifier),
+              ),
+            ],
           ),
         ),
       ),
@@ -105,7 +116,8 @@ class ReviewWriteScreen extends ConsumerWidget {
   ) async {
     final ok = await notifier.submitAll();
     if (!context.mounted) return;
-    showTopToast(context, ok ? '후기를 제출했어요' : '일부 후기 제출에 실패했어요', backgroundColor: ok ? AppColors.primary : AppColors.error);
+    showTopToast(context, ok ? '후기를 저장했어요' : '일부 후기 저장에 실패했어요',
+        backgroundColor: ok ? AppColors.ink : AppColors.error);
     if (ok) {
       // 마이페이지 또는 홈으로 이동. router 미통합이라 단순 pop.
       Navigator.of(context).maybePop();
@@ -113,22 +125,22 @@ class ReviewWriteScreen extends ConsumerWidget {
   }
 }
 
+/// 작성 기한 안내 — 점선 상자(약속).
 class _NoticeBanner extends StatelessWidget {
+  const _NoticeBanner();
+
   @override
   Widget build(BuildContext context) {
-    return GlassCard(
-      tone: GlassTone.white,
-      radius: 18,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    return DashedBox(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         children: [
-          const Icon(Icons.info_outline_rounded,
-              size: 18, color: AppColors.primary700),
+          const Icon(Icons.info_outline_rounded, size: 18, color: AppColors.ink3),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               '모임 종료 후 7일 이내만 작성/수정 가능합니다.',
-              style: AppTextStyles.caption.copyWith(color: AppColors.primary700),
+              style: AppTextStyles.caption.copyWith(color: AppColors.ink2),
             ),
           ),
         ],
@@ -154,8 +166,7 @@ class _MemberReviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GlassCard(
-      radius: 22,
+    return AppCard(
       padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -165,7 +176,7 @@ class _MemberReviewCard extends StatelessWidget {
               InitialAvatar(
                 label: member.nickname,
                 size: 44,
-                tone: AvatarTone.primary,
+                tone: InitialAvatar.toneFor(member.id),
                 imageUrl: member.profileImageUrl,
               ),
               const SizedBox(width: 12),
@@ -175,57 +186,64 @@ class _MemberReviewCard extends StatelessWidget {
                   style: AppTextStyles.cardTitle.copyWith(fontSize: 16),
                 ),
               ),
-              if (draft.submitted)
-                const Icon(Icons.check_circle_rounded,
-                    color: AppColors.primary, size: 22),
+              // 서버에 저장된 후기 — 7일 이내면 그대로 고쳐서 다시 저장할 수 있다.
+              if (draft.reviewId != null)
+                Icon(
+                  draft.dirty
+                      ? Icons.edit_note_rounded
+                      : Icons.check_circle_rounded,
+                  color: draft.dirty ? AppColors.ink3 : AppColors.ink,
+                  size: 22,
+                ),
             ],
           ),
           const SizedBox(height: 14),
-          Text('쑥쑥 점수', style: AppTextStyles.body2Bold),
+          Text('쑥쑥 점수', style: AppTextStyles.captionBold),
           const SizedBox(height: 6),
           _ScoreSlider(
             score: draft.score,
-            enabled: !draft.submitted,
+            enabled: true,
             onChanged: onScoreChanged,
           ),
           const SizedBox(height: 14),
-          Text('정성 태그', style: AppTextStyles.body2Bold),
+          Text('정성 태그', style: AppTextStyles.captionBold),
           const SizedBox(height: 8),
           TagPicker(
             options: kReviewTags,
             selected: draft.tags,
-            onToggle: draft.submitted ? (_) {} : onTagToggle,
+            onToggle: onTagToggle,
           ),
           const SizedBox(height: 14),
-          Text('후기 (선택)', style: AppTextStyles.body2Bold),
+          Text('후기 (선택)', style: AppTextStyles.captionBold),
           const SizedBox(height: 6),
-          TextField(
+          TextFormField(
             key: Key('input-review-comment-${member.id}'),
-            enabled: !draft.submitted,
+            initialValue: draft.comment,
             maxLength: 200,
             maxLines: 3,
+            style: AppTextStyles.body1,
+            cursorColor: AppColors.ink,
             inputFormatters: [LengthLimitingTextInputFormatter(200)],
             onChanged: onCommentChanged,
             decoration: InputDecoration(
               hintText: '함께한 시간에 대한 후기를 남겨주세요',
-              hintStyle: AppTextStyles.body2
-                  .copyWith(color: AppColors.textHint),
+              hintStyle:
+                  AppTextStyles.body2.copyWith(color: AppColors.ink3),
               filled: true,
-              fillColor: Colors.white.withValues(alpha: 0.7),
+              fillColor: AppColors.surface,
+              counterStyle: AppTextStyles.caption,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide:
-                    const BorderSide(color: AppColors.primary200, width: 0.8),
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.line2),
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide:
-                    const BorderSide(color: AppColors.primary200, width: 0.8),
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.line2),
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(12),
                 borderSide:
-                    const BorderSide(color: AppColors.primary, width: 1.2),
+                    const BorderSide(color: AppColors.ink, width: 1.5),
               ),
             ),
           ),
@@ -234,8 +252,7 @@ class _MemberReviewCard extends StatelessWidget {
               padding: const EdgeInsets.only(top: 6),
               child: Text(
                 draft.error!,
-                style:
-                    AppTextStyles.caption.copyWith(color: AppColors.error),
+                style: AppTextStyles.caption.copyWith(color: AppColors.bad),
               ),
             ),
         ],
@@ -262,10 +279,13 @@ class _ScoreSlider extends StatelessWidget {
         Expanded(
           child: SliderTheme(
             data: SliderTheme.of(context).copyWith(
-              activeTrackColor: AppColors.primary,
-              inactiveTrackColor: AppColors.primary100,
-              thumbColor: AppColors.primary,
-              overlayColor: AppColors.primary200,
+              activeTrackColor: AppColors.ink,
+              inactiveTrackColor: AppColors.fill,
+              thumbColor: AppColors.ink,
+              overlayColor: AppColors.line,
+              activeTickMarkColor: AppColors.surface,
+              inactiveTickMarkColor: AppColors.line2,
+              valueIndicatorColor: AppColors.ink,
               trackHeight: 4,
             ),
             child: Slider(
@@ -285,7 +305,7 @@ class _ScoreSlider extends StatelessWidget {
           child: Text(
             '$score',
             textAlign: TextAlign.center,
-            style: AppTextStyles.body1Bold.copyWith(color: AppColors.primary700),
+            style: AppTextStyles.handLg,
           ),
         ),
       ],

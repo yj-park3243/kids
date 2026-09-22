@@ -16,8 +16,11 @@ class User {
   final String? noShowLevel; // 'NONE' | 'OCCASIONAL' | 'FREQUENT'
   final bool? isFollowing; // 타 유저 프로필 조회 시만
   final bool? isBlocked; // 타 유저 프로필 조회 시만
+  final String? regionSido;
   final String? regionSigungu; // 타 유저 프로필 조회 시
+  final String? regionDong;
   final int? roomCount; // 타 유저 프로필 조회 시 — 참여한 모임 수
+  final int? followerCount; // 타 유저 프로필 조회 시
   final String status; // ACTIVE | SUSPENDED | BANNED | WITHDRAWN
 
   User({
@@ -38,8 +41,11 @@ class User {
     this.noShowLevel,
     this.isFollowing,
     this.isBlocked,
+    this.regionSido,
     this.regionSigungu,
+    this.regionDong,
     this.roomCount,
+    this.followerCount,
     this.status = 'ACTIVE',
   });
 
@@ -67,8 +73,11 @@ class User {
       noShowLevel: json['noShowLevel'],
       isFollowing: json['isFollowing'],
       isBlocked: json['isBlocked'],
+      regionSido: json['regionSido'],
       regionSigungu: json['regionSigungu'],
+      regionDong: json['regionDong'],
       roomCount: int.tryParse('${json['roomCount'] ?? ''}'),
+      followerCount: int.tryParse('${json['followerCount'] ?? ''}'),
       status: json['status'] ?? 'ACTIVE',
     );
   }
@@ -89,7 +98,9 @@ class User {
         'noShowLevel': noShowLevel,
         'isFollowing': isFollowing,
         'isBlocked': isBlocked,
+        'regionSido': regionSido,
         'regionSigungu': regionSigungu,
+        'regionDong': regionDong,
         'roomCount': roomCount,
         'status': status,
       };
@@ -112,8 +123,11 @@ class User {
     String? noShowLevel,
     bool? isFollowing,
     bool? isBlocked,
+    String? regionSido,
     String? regionSigungu,
+    String? regionDong,
     int? roomCount,
+    int? followerCount,
     String? status,
   }) {
     return User(
@@ -134,8 +148,11 @@ class User {
       noShowLevel: noShowLevel ?? this.noShowLevel,
       isFollowing: isFollowing ?? this.isFollowing,
       isBlocked: isBlocked ?? this.isBlocked,
+      regionSido: regionSido ?? this.regionSido,
       regionSigungu: regionSigungu ?? this.regionSigungu,
+      regionDong: regionDong ?? this.regionDong,
       roomCount: roomCount ?? this.roomCount,
+      followerCount: followerCount ?? this.followerCount,
       status: status ?? this.status,
     );
   }

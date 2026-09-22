@@ -13,6 +13,7 @@ import { RoomMember } from './entities/room-member.entity';
 import { User } from '../user/entities/user.entity';
 import { NoShowService } from '../user/no-show.service';
 import { MannerScoreService } from '../user/manner-score.service';
+import { kstDateTime } from '../common/utils/kst';
 
 interface AttendanceRecord {
   userId: string;
@@ -46,9 +47,9 @@ export class RoomAttendanceService {
     }
 
     // 허용 시간대: 시작 +30분 ~ 종료(또는 시작+3h) +24h
-    const startDt = new Date(`${room.date}T${room.startTime}`);
+    const startDt = kstDateTime(room.date, room.startTime);
     const endDt = room.endTime
-      ? new Date(`${room.date}T${room.endTime}`)
+      ? kstDateTime(room.date, room.endTime)
       : new Date(startDt.getTime() + 3 * 60 * 60 * 1000);
     const opens = startDt.getTime() + 30 * 60 * 1000;
     const closes = endDt.getTime() + 24 * 60 * 60 * 1000;
@@ -69,12 +70,19 @@ export class RoomAttendanceService {
     for (const r of records) {
       const m = memberMap.get(r.userId);
       if (!m || m.isHost) continue;
+      // 재제출 멱등성 — 이전 기록과 비교해 상태가 바뀔 때만 노쇼를 가감한다.
+      // (같은 불참을 두 번 저장해도 벌점이 중복되지 않고, 불참→출석 정정은 벌점을 되돌린다)
+      const prev = m.attended;
       m.attended = r.attended;
       m.attendanceRecordedAt = new Date();
       await this.roomMemberRepository.save(m);
       updated += 1;
 
-      if (r.attended === false) {
+      if (r.attended === true && prev === false) {
+        await this.noShowService.revertAbsence(r.userId);
+        continue;
+      }
+      if (r.attended === false && prev !== false) {
         await this.noShowService.incrementForAbsence(r.userId);
         await this.mannerScoreService.recalc(r.userId);
         const fresh = await this.userRepository.findOne({ where: { id: r.userId } });

@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/storage/secure_storage.dart';
-import '../../../widgets/design/accent_blobs.dart';
+import '../../../widgets/design/primary_button.dart';
 import '../../auth/providers/auth_provider.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -19,6 +19,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
+  // 서버에 닿지 못했을 때만 켜지는 재시도 UI.
+  bool _unreachable = false;
 
   @override
   void initState() {
@@ -53,12 +55,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       return;
     }
 
-    // Try to get user profile
-    try {
-      await ref.read(authProvider.notifier).checkAuth();
-    } catch (_) {
-      if (mounted) context.go('/login');
-    }
+    await _checkAuth();
+  }
+
+  Future<void> _checkAuth() async {
+    if (mounted) setState(() => _unreachable = false);
+    // 결과는 build 의 authProvider 리스너가 받아 화면을 옮긴다.
+    await ref.read(authProvider.notifier).checkAuth();
   }
 
   @override
@@ -77,14 +80,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         case AuthStatus.unauthenticated:
           context.go('/login');
           break;
-        case AuthStatus.phoneVerification:
-          context.go('/phone-verification');
-          break;
         case AuthStatus.profileSetup:
           context.go('/profile-setup');
           break;
         case AuthStatus.childSetup:
           context.go('/child-setup');
+          break;
+        case AuthStatus.unreachable:
+          setState(() => _unreachable = true);
           break;
         default:
           break;
@@ -92,41 +95,53 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     });
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: AccentBlobsBackground(
-        strong: true,
-        child: Center(
-          child: FadeTransition(
-            opacity: _fadeAnimation,
-            child: ScaleTransition(
-              scale: _scaleAnimation,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Image.asset(
-                    'assets/icon/logo.png',
-                    height: 160,
-                    fit: BoxFit.contain,
+      body: Center(
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: ScaleTransition(
+            scale: _scaleAnimation,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Image.asset(
+                  'assets/icon/logo.png',
+                  height: 140,
+                  fit: BoxFit.contain,
+                ),
+                const SizedBox(height: 18),
+                Text('같이크자', style: AppTextStyles.greeting),
+                const SizedBox(height: 6),
+                Text(
+                  '우리 아이 또래 친구를 만나요',
+                  style: AppTextStyles.body2,
+                ),
+                if (_unreachable) ...[
+                  const SizedBox(height: 30),
+                  Text(
+                    '서버에 연결할 수 없어요\n네트워크를 확인하고 다시 시도해 주세요',
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.body2,
                   ),
-                  const SizedBox(height: 20),
-                  ShaderMask(
-                    shaderCallback: (bounds) =>
-                        AppColors.primaryTextGradient.createShader(bounds),
-                    child: Text(
-                      '같이크자',
-                      style: AppTextStyles.display.copyWith(
-                        color: Colors.white,
-                        fontSize: 34,
-                      ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: 200,
+                    child: GlassButton(
+                      text: '다시 시도',
+                      onPressed: _checkAuth,
+                      height: 46,
+                      textColor: AppColors.ink,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '우리 아이 또래 친구를 만나요',
-                    style: AppTextStyles.body1.copyWith(color: AppColors.ink500),
+                  const SizedBox(height: 4),
+                  TextButton(
+                    onPressed: () => context.go('/login'),
+                    child: Text(
+                      '다른 계정으로 로그인',
+                      style: AppTextStyles.body2.copyWith(color: AppColors.link),
+                    ),
                   ),
                 ],
-              ),
+              ],
             ),
           ),
         ),

@@ -5,7 +5,6 @@ import '../../../core/constants/app_text_styles.dart';
 import '../../../widgets/app_bar.dart';
 import '../../../widgets/design/design_chip.dart';
 import '../../../widgets/design/glass_card.dart';
-import '../../../widgets/design/accent_blobs.dart';
 import '../../../widgets/empty_state.dart';
 import '../../../widgets/loading.dart';
 import '../data/review_repository.dart';
@@ -22,19 +21,16 @@ class ReviewSummaryScreen extends ConsumerWidget {
     final aggregateAsync = ref.watch(userReviewAggregateProvider(userId));
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppColors.paper,
       appBar: const CustomAppBar(title: '받은 후기'),
-      extendBodyBehindAppBar: true,
-      body: AccentBlobsBackground(
-        child: SafeArea(
-          child: aggregateAsync.when(
-            loading: () => const AppLoadingIndicator(),
-            error: (e, _) => ErrorState(
-              message: '후기를 불러올 수 없어요',
-              onRetry: () => ref.invalidate(userReviewAggregateProvider(userId)),
-            ),
-            data: (agg) => _Body(agg: agg),
+      body: SafeArea(
+        child: aggregateAsync.when(
+          loading: () => const AppLoadingIndicator(),
+          error: (e, _) => ErrorState(
+            message: '후기를 불러올 수 없어요',
+            onRetry: () => ref.invalidate(userReviewAggregateProvider(userId)),
           ),
+          data: (agg) => _Body(agg: agg),
         ),
       ),
     );
@@ -54,18 +50,25 @@ class _Body extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // 쑥쑥 등급 게이지
-          GlassCard(
-            tone: GlassTone.white,
-            radius: 24,
+          AppCard(
             padding: const EdgeInsets.symmetric(vertical: 24),
             child: Column(
               children: [
                 GrowthGrade(score: agg.mannerScore, size: 140),
                 const SizedBox(height: 12),
-                Text(
-                  '받은 후기 ${agg.reviewCount}개',
-                  style: AppTextStyles.body1Bold
-                      .copyWith(color: AppColors.primary700),
+                // 숫자만 손글씨 (docs/09_UI_수첩안.md).
+                Text.rich(
+                  TextSpan(
+                    style: AppTextStyles.body1,
+                    children: [
+                      const TextSpan(text: '받은 후기 '),
+                      TextSpan(
+                        text: '${agg.reviewCount}',
+                        style: AppTextStyles.hand,
+                      ),
+                      const TextSpan(text: '개'),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -74,8 +77,7 @@ class _Body extends StatelessWidget {
 
           // Top tags
           if (agg.topTags.isNotEmpty) ...[
-            GlassCard(
-              radius: 22,
+            AppCard(
               padding: const EdgeInsets.all(18),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -86,10 +88,10 @@ class _Body extends StatelessWidget {
                     spacing: 8,
                     runSpacing: 8,
                     children: agg.topTags.take(3).map((t) {
-                      return DesignChip(
+                      return Pill(
                         label: '${t.tag} · ${t.count}',
-                        tone: ChipTone.primaryGhost,
-                        height: 30,
+                        tone: PillTone.sage,
+                        height: 28,
                       );
                     }).toList(),
                   ),
@@ -101,8 +103,7 @@ class _Body extends StatelessWidget {
 
           // 점수 분포
           if (agg.scoreDistribution.isNotEmpty)
-            GlassCard(
-              radius: 22,
+            AppCard(
               padding: const EdgeInsets.all(18),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -132,7 +133,7 @@ class _Body extends StatelessWidget {
               width: 24,
               child: Text(
                 '$k점',
-                style: AppTextStyles.caption.copyWith(color: AppColors.ink700),
+                style: AppTextStyles.caption.copyWith(color: AppColors.ink2),
               ),
             ),
             const SizedBox(width: 8),
@@ -142,9 +143,8 @@ class _Body extends StatelessWidget {
                 child: LinearProgressIndicator(
                   value: ratio,
                   minHeight: 8,
-                  backgroundColor: AppColors.primary100,
-                  valueColor:
-                      const AlwaysStoppedAnimation(AppColors.primary),
+                  backgroundColor: AppColors.fill,
+                  valueColor: const AlwaysStoppedAnimation(AppColors.ink),
                 ),
               ),
             ),
@@ -154,7 +154,7 @@ class _Body extends StatelessWidget {
               child: Text(
                 '$count',
                 textAlign: TextAlign.right,
-                style: AppTextStyles.caption.copyWith(color: AppColors.ink500),
+                style: AppTextStyles.caption.copyWith(color: AppColors.ink2),
               ),
             ),
           ],

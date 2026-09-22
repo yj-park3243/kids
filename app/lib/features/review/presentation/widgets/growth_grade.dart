@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_shadows.dart';
 import '../../../../core/constants/app_text_styles.dart';
 
 /// 쑥쑥 등급 — 같이크자 컨셉의 신뢰 지표.
@@ -33,26 +32,28 @@ class GrowthGradeInfo {
     required this.nextThreshold,
   });
 
+  /// 강등 단계인지 — 색을 죽여서(ink3) 경고로 읽히게 한다.
+  bool get isDemoted => stage == GrowthStage.seedling;
+
   static GrowthGradeInfo fromScore(double score) {
     final s = score < 0 ? 0.0 : score;
     if (s < 10) {
-      // 강등 단계 — 흐린 회분홍 톤으로 경고 의미 표시.
+      // 강등 단계 — 초록을 빼고 회색으로 표시한다.
       return GrowthGradeInfo(
         stage: GrowthStage.seedling,
         label: '새싹',
         emoji: '🌱',
-        color: const Color(0xFFC9A9B0),
+        color: AppColors.ink3,
         progressToNext: s / 10,
         nextThreshold: 10,
       );
     }
     if (s < 30) {
-      // 시작 단계 — 가장 밝은 분홍으로 "막 자라기 시작" 느낌.
       return GrowthGradeInfo(
         stage: GrowthStage.sprout,
         label: '떡잎',
         emoji: '🪴',
-        color: AppColors.primary200,
+        color: AppColors.sageInk,
         progressToNext: (s - 10) / 20,
         nextThreshold: 30,
       );
@@ -62,7 +63,7 @@ class GrowthGradeInfo {
         stage: GrowthStage.sapling,
         label: '어린나무',
         emoji: '🌿',
-        color: AppColors.primary,
+        color: AppColors.sageInk,
         progressToNext: (s - 30) / 30,
         nextThreshold: 60,
       );
@@ -72,7 +73,7 @@ class GrowthGradeInfo {
         stage: GrowthStage.tree,
         label: '큰나무',
         emoji: '🌳',
-        color: AppColors.primaryDark,
+        color: AppColors.sageInk,
         progressToNext: (s - 60) / 40,
         nextThreshold: 100,
       );
@@ -81,7 +82,7 @@ class GrowthGradeInfo {
       stage: GrowthStage.forest,
       label: '숲',
       emoji: '🌲',
-      color: AppColors.primary700,
+      color: AppColors.sageInk,
       progressToNext: 1.0,
       nextThreshold: 100,
     );
@@ -119,17 +120,16 @@ class GrowthGrade extends StatelessWidget {
                 child: CircularProgressIndicator(
                   value: info.progressToNext,
                   strokeWidth: size * 0.085,
-                  backgroundColor: AppColors.primary100,
+                  backgroundColor: AppColors.fill,
                   valueColor: AlwaysStoppedAnimation(info.color),
                 ),
               ),
               Container(
                 width: size * 0.7,
                 height: size * 0.7,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.9),
-                  boxShadow: AppShadows.glass,
+                  color: AppColors.surface,
                 ),
                 child: Center(
                   child: Column(
@@ -159,7 +159,7 @@ class GrowthGrade extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             '쑥쑥 등급',
-            style: AppTextStyles.caption.copyWith(color: AppColors.ink700),
+            style: AppTextStyles.caption.copyWith(color: AppColors.ink2),
           ),
         ],
       ],
@@ -177,9 +177,10 @@ class GrowthGradeChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final info = GrowthGradeInfo.fromScore(score);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      height: 22,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: info.color.withValues(alpha: 0.12),
+        color: info.isDemoted ? AppColors.fill : AppColors.sage,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
@@ -189,10 +190,7 @@ class GrowthGradeChip extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             info.label,
-            style: AppTextStyles.caption.copyWith(
-              color: info.color,
-              fontWeight: FontWeight.w600,
-            ),
+            style: AppTextStyles.chip.copyWith(color: info.color),
           ),
         ],
       ),

@@ -11,6 +11,7 @@ import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { User } from '../../user/entities/user.entity';
 import { UserVisit } from '../../user/entities/user-visit.entity';
+import { kstDateString } from '../utils/kst';
 
 /**
  * 인증된 요청에 대해 lastSeenAt + user_visit 갱신.
@@ -58,7 +59,7 @@ export class ActivityTrackerInterceptor implements NestInterceptor {
       }
     }
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = kstDateString();
 
     await Promise.all([
       this.userRepo.update(userId, { lastSeenAt: new Date() }),

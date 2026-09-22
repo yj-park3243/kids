@@ -1,6 +1,5 @@
 import '../../../widgets/top_toast.dart';
 import 'dart:convert';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,13 +7,14 @@ import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/network/api_error.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../models/chat_message.dart';
-import '../../../widgets/app_bar.dart';
 import '../../../widgets/design/avatar.dart';
-import '../../../widgets/design/accent_blobs.dart';
+import '../../../widgets/empty_state.dart';
 import '../../../widgets/location_picker_sheet.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../room/providers/room_detail_provider.dart';
 import '../data/chat_repository.dart';
 import '../providers/chat_provider.dart';
 
@@ -33,6 +33,8 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen>
   final _scrollController = ScrollController();
 
   final List<ChatMessage> _messages = [];
+  // 기록 로드 실패 — 빈 방("첫 메시지를 보내보세요")과 구분해 재시도를 보여준다.
+  String? _historyError;
   // messageId -> userIds who've read it. 같은 유저 중복 차감을 방지.
   final Map<String, Set<String>> _readers = {};
   bool _loadingHistory = true;
@@ -55,11 +57,19 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen>
           ..addAll(page.items);
         _readers.clear();
         _loadingHistory = false;
+        _historyError = null;
       });
       _markReadIfAny();
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
-      setState(() => _loadingHistory = false);
+      setState(() {
+        _loadingHistory = false;
+        // 이미 메시지가 떠 있으면(재진입 보충 실패) 조용히 유지한다.
+        if (_messages.isEmpty) {
+          _historyError =
+              apiErrorMessage(e, fallback: '대화 내용을 불러오지 못했어요');
+        }
+      });
     }
   }
 
@@ -106,7 +116,14 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen>
           .sendMessage(widget.chatRoomId, content: content);
     } catch (e) {
       if (!mounted) return;
-      showTopToast(context, '메시지 전송 실패: $e');
+      // 실패한 원문을 입력창에 되돌려 다시 타이핑하지 않게 한다.
+      if (_messageController.text.trim().isEmpty) {
+        _messageController.text = content;
+        _messageController.selection =
+            TextSelection.collapsed(offset: content.length);
+      }
+      showTopToast(context, apiErrorMessage(e, fallback: '메시지를 보내지 못했어요'),
+          backgroundColor: AppColors.error);
     }
   }
 
@@ -128,9 +145,9 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen>
   Future<void> _showLocationSheet() async {
     final choice = await showModalBottomSheet<String>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (_) => SafeArea(
         child: Column(
@@ -138,21 +155,18 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen>
           children: [
             ListTile(
               leading: const Icon(Icons.my_location_rounded,
-                  color: AppColors.primary),
+                  color: AppColors.ink),
               title: Text('내 위치 전송', style: AppTextStyles.body1Bold),
               subtitle: Text('현재 있는 곳을 즉시 공유',
-                  style: AppTextStyles.caption
-                      .copyWith(color: AppColors.ink500)),
+                  style: AppTextStyles.caption),
               onTap: () => Navigator.pop(context, 'CURRENT'),
             ),
-            const Divider(height: 1, color: AppColors.divider),
+            const Divider(height: 1, color: AppColors.line),
             ListTile(
-              leading:
-                  const Icon(Icons.map_rounded, color: AppColors.primary),
+              leading: const Icon(Icons.map_rounded, color: AppColors.ink),
               title: Text('지도에서 선택', style: AppTextStyles.body1Bold),
               subtitle: Text('원하는 위치를 핀으로 정확히 지정',
-                  style: AppTextStyles.caption
-                      .copyWith(color: AppColors.ink500)),
+                  style: AppTextStyles.caption),
               onTap: () => Navigator.pop(context, 'MAP'),
             ),
             const SizedBox(height: 8),
@@ -278,47 +292,95 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen>
     // 바로 진입해 목록이 아직 없으면 '채팅' 폴백.
     final chatRooms = ref.watch(chatRoomsProvider).valueOrNull;
     var appBarTitle = '채팅';
+    String? roomId;
     if (chatRooms != null) {
       for (final r in chatRooms) {
         if (r.id == widget.chatRoomId) {
           appBarTitle = r.roomTitle ?? appBarTitle;
+          roomId = r.roomId;
           break;
         }
       }
     }
+    // 채팅 목록 캐시가 아직 없어도(방 상세 → 채팅 경로) 방 상세 캐시엔 제목이 있다.
+    // chatRoomId 는 roomId 와 같다(서버 createChatRoom 이 roomId 를 돌려준다).
+    final cachedRoom = ref.watch(roomDetailProvider(roomId ?? widget.chatRoomId)).room;
+    if (appBarTitle == '채팅' && cachedRoom != null) {
+      appBarTitle = cachedRoom.title;
+    }
+    // 인원수는 이미 불러와 둔 방 상세에서만 읽는다. 이 화면이 새로 조회하지는 않는다.
+    final memberCount = cachedRoom?.currentMembers;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: CustomAppBar(title: appBarTitle),
-      extendBodyBehindAppBar: true,
-      body: AccentBlobsBackground(
-        child: SafeArea(
-          top: false,
-          child: Column(
-            children: [
-              Expanded(
-                child: _loadingHistory
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                            color: AppColors.primary),
-                      )
-                    : _messages.isEmpty
-                        ? Center(
-                            child: Text(
-                              '첫 번째 메시지를 보내보세요!',
-                              style: AppTextStyles.body2
-                                  .copyWith(color: AppColors.ink300),
-                            ),
-                          )
-                        : _buildMessageList(userId),
-              ),
-              _InputBar(
-                controller: _messageController,
-                onSend: _sendMessage,
-                onAddLocation: _showLocationSheet,
-              ),
-            ],
+      backgroundColor: AppColors.paper,
+      appBar: AppBar(
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          color: AppColors.ink,
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              appBarTitle,
+              style: AppTextStyles.screenTitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (memberCount != null)
+              Text('$memberCount명', style: AppTextStyles.caption),
+          ],
+        ),
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: SizedBox(
+            height: 1,
+            child: ColoredBox(color: AppColors.line),
           ),
+        ),
+      ),
+      // 입력바가 홈 인디케이터 영역까지 흰 면으로 이어지도록 bottom SafeArea 는
+      // 입력바가 직접 처리한다.
+      body: SafeArea(
+        top: false,
+        bottom: false,
+        child: Column(
+          children: [
+            Expanded(
+              child: _loadingHistory
+                  ? const Center(
+                      child: CircularProgressIndicator(color: AppColors.ink),
+                    )
+                  : _historyError != null && _messages.isEmpty
+                      ? ErrorState(
+                          message: _historyError!,
+                          onRetry: () {
+                            setState(() => _loadingHistory = true);
+                            _loadHistory();
+                          },
+                        )
+                      : _messages.isEmpty
+                          ? Center(
+                              child: Text(
+                                '첫 번째 메시지를 보내보세요!',
+                                style: AppTextStyles.body2
+                                    .copyWith(color: AppColors.ink3),
+                              ),
+                            )
+                          : _buildMessageList(userId),
+            ),
+            _InputBar(
+              controller: _messageController,
+              onSend: _sendMessage,
+              onAddLocation: _showLocationSheet,
+            ),
+          ],
         ),
       ),
     );
@@ -381,6 +443,7 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen>
       _sameDay(a, b) && a.hour == b.hour && a.minute == b.minute;
 }
 
+/// 날짜 구분 — 손글씨 한 줄 아래 형광펜 밑줄.
 class _DateHeader extends StatelessWidget {
   final DateTime date;
   const _DateHeader({required this.date});
@@ -388,21 +451,18 @@ class _DateHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.symmetric(vertical: 14),
       child: Center(
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.18),
-            borderRadius: BorderRadius.circular(999),
+          padding: const EdgeInsets.only(bottom: 2),
+          decoration: const BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: AppColors.hi, width: 2),
+            ),
           ),
           child: Text(
             AppDateUtils.formatChatDateHeader(date),
-            style: AppTextStyles.caption.copyWith(
-              color: Colors.white,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ),
+            style: AppTextStyles.stamp.copyWith(color: AppColors.ink2),
           ),
         ),
       ),
@@ -410,6 +470,7 @@ class _DateHeader extends StatelessWidget {
   }
 }
 
+/// 입력바 — 흰 면 + 상단 헤어라인. ＋ / 입력 / 전송.
 class _InputBar extends StatelessWidget {
   final TextEditingController controller;
   final VoidCallback onSend;
@@ -423,91 +484,78 @@ class _InputBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        border: Border(top: BorderSide(color: AppColors.line)),
+      ),
       padding: EdgeInsets.fromLTRB(
         12,
         8,
         12,
-        MediaQuery.of(context).padding.bottom + 12,
+        MediaQuery.of(context).padding.bottom + 8,
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(28),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(8, 7, 7, 7),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.7),
-              borderRadius: BorderRadius.circular(28),
-              border: Border.all(
-                color: AppColors.glassBorder,
-                width: 0.5,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          GestureDetector(
+            key: const Key('btn-chat-add-location'),
+            onTap: onAddLocation,
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: const BoxDecoration(
+                color: AppColors.fill,
+                shape: BoxShape.circle,
               ),
-            ),
-            child: Row(
-              children: [
-                GestureDetector(
-                  key: const Key('btn-chat-add-location'),
-                  onTap: onAddLocation,
-                  child: Container(
-                    width: 36,
-                    height: 36,
-                    margin: const EdgeInsets.only(right: 2),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(Icons.add_location_alt_outlined,
-                        color: AppColors.primary700, size: 20),
-                  ),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: TextField(
-                      key: const Key('input-chat-message'),
-                      controller: controller,
-                      style: AppTextStyles.body1,
-                      cursorColor: AppColors.primary,
-                      decoration: InputDecoration(
-                        hintText: '메시지 보내기...',
-                        hintStyle: AppTextStyles.body1
-                            .copyWith(color: AppColors.ink300),
-                        border: InputBorder.none,
-                        isCollapsed: true,
-                        contentPadding:
-                            const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => onSend(),
-                    ),
-                  ),
-                ),
-                GestureDetector(
-                  key: const Key('btn-chat-send'),
-                  onTap: onSend,
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      gradient: AppColors.primaryGradient,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.35),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(Icons.send_rounded,
-                        color: Colors.white, size: 18),
-                  ),
-                ),
-              ],
+              child: const Icon(Icons.add_location_alt_outlined,
+                  color: AppColors.ink2, size: 20),
             ),
           ),
-        ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 40),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppColors.fill,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: TextField(
+                key: const Key('input-chat-message'),
+                controller: controller,
+                style: AppTextStyles.body1,
+                cursorColor: AppColors.ink,
+                decoration: InputDecoration(
+                  hintText: '메시지 보내기',
+                  hintStyle:
+                      AppTextStyles.body1.copyWith(color: AppColors.ink3),
+                  border: InputBorder.none,
+                  isCollapsed: true,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 11),
+                ),
+                textInputAction: TextInputAction.send,
+                onSubmitted: (_) => onSend(),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            key: const Key('btn-chat-send'),
+            onTap: onSend,
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: const BoxDecoration(
+                color: AppColors.ink,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.send_rounded,
+                  color: Colors.white, size: 17),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -526,6 +574,14 @@ class _ChatBubble extends StatelessWidget {
     required this.showTimeFooter,
   });
 
+  /// 남 말풍선은 좌상단, 내 말풍선은 우상단이 꼬리(6).
+  static BorderRadius radiusFor(bool isMine) => BorderRadius.only(
+        topLeft: Radius.circular(isMine ? 16 : 6),
+        topRight: Radius.circular(isMine ? 6 : 16),
+        bottomLeft: const Radius.circular(16),
+        bottomRight: const Radius.circular(16),
+      );
+
   @override
   Widget build(BuildContext context) {
     final timeLabel =
@@ -537,7 +593,7 @@ class _ChatBubble extends StatelessWidget {
     );
 
     return Padding(
-      padding: EdgeInsets.only(top: showSenderHeader ? 10 : 2, bottom: 2),
+      padding: EdgeInsets.only(top: showSenderHeader ? 12 : 3, bottom: 3),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         mainAxisAlignment:
@@ -545,14 +601,12 @@ class _ChatBubble extends StatelessWidget {
         children: [
           if (!isMine) ...[
             SizedBox(
-              width: 30,
+              width: 32,
               child: showSenderHeader
                   ? InitialAvatar(
                       label: message.senderNickname,
-                      size: 30,
-                      tone: AvatarTone.values[
-                          message.senderId.hashCode.abs() %
-                              AvatarTone.values.length],
+                      size: 32,
+                      tone: InitialAvatar.toneFor(message.senderId),
                     )
                   : const SizedBox.shrink(),
             ),
@@ -565,12 +619,12 @@ class _ChatBubble extends StatelessWidget {
               children: [
                 if (showSenderHeader)
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 4, left: 4),
+                    padding: const EdgeInsets.only(bottom: 5, left: 2),
                     child: Text(
                       message.senderNickname,
                       style: AppTextStyles.caption.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.ink700,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.ink2,
                       ),
                     ),
                   ),
@@ -596,38 +650,19 @@ class _ChatBubble extends StatelessWidget {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 14, vertical: 10),
                               decoration: BoxDecoration(
-                                gradient:
-                                    isMine ? AppColors.primaryGradient : null,
                                 color: isMine
-                                    ? null
-                                    : Colors.white.withValues(alpha: 0.85),
-                                borderRadius: BorderRadius.only(
-                                  topLeft: const Radius.circular(20),
-                                  topRight: const Radius.circular(20),
-                                  bottomLeft: Radius.circular(isMine ? 20 : 6),
-                                  bottomRight: Radius.circular(isMine ? 6 : 20),
-                                ),
+                                    ? AppColors.ink
+                                    : AppColors.surface,
+                                borderRadius: radiusFor(isMine),
                                 border: isMine
                                     ? null
-                                    : Border.all(
-                                        color: AppColors.primary100
-                                            .withValues(alpha: 0.8),
-                                        width: 0.5,
-                                      ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppColors.primary
-                                        .withValues(alpha: 0.08),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
+                                    : Border.all(color: AppColors.line),
                               ),
                               child: Text(
                                 message.content,
                                 style: AppTextStyles.body1.copyWith(
                                   color:
-                                      isMine ? Colors.white : AppColors.ink900,
+                                      isMine ? Colors.white : AppColors.ink,
                                 ),
                               ),
                             ),
@@ -662,8 +697,8 @@ class _BubbleMeta extends StatelessWidget {
       if (unreadCount > 0)
         Text(
           '$unreadCount',
-          style: const TextStyle(
-            color: AppColors.primary,
+          style: AppTextStyles.caption.copyWith(
+            color: AppColors.hiInk,
             fontSize: 11,
             fontWeight: FontWeight.w700,
             height: 1.0,
@@ -676,7 +711,7 @@ class _BubbleMeta extends StatelessWidget {
             timeLabel!,
             style: AppTextStyles.caption.copyWith(
               fontSize: 10,
-              color: AppColors.ink300,
+              color: AppColors.ink3,
               height: 1.0,
             ),
           ),
@@ -697,7 +732,7 @@ class _BubbleMeta extends StatelessWidget {
   }
 }
 
-/// LOCATION 메시지 — 미니 지도 카드. 탭하면 풀스크린 지도.
+/// LOCATION 메시지 — 흰 카드 안 지도 썸네일 + 라벨. 탭하면 풀스크린 지도.
 class _LocationBubble extends StatelessWidget {
   final ChatMessage message;
   final bool isMine;
@@ -710,8 +745,9 @@ class _LocationBubble extends StatelessWidget {
       // 잘못된 payload — 텍스트로 fallback.
       return Text('[위치]',
           style: AppTextStyles.body2
-              .copyWith(color: isMine ? Colors.white : AppColors.ink700));
+              .copyWith(color: isMine ? Colors.white : AppColors.ink2));
     }
+    final radius = _ChatBubble.radiusFor(isMine);
     return GestureDetector(
       onTap: () => Navigator.of(context, rootNavigator: true).push(
         MaterialPageRoute(
@@ -725,58 +761,53 @@ class _LocationBubble extends StatelessWidget {
       child: Container(
         width: MediaQuery.of(context).size.width * 0.6,
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(20),
-            topRight: const Radius.circular(20),
-            bottomLeft: Radius.circular(isMine ? 20 : 6),
-            bottomRight: Radius.circular(isMine ? 6 : 20),
-          ),
-          border: Border.all(
-              color: AppColors.primary100.withValues(alpha: 0.8), width: 0.5),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.08),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          color: AppColors.surface,
+          borderRadius: radius,
+          border: Border.all(color: AppColors.line),
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(20),
-            topRight: const Radius.circular(20),
-            bottomLeft: Radius.circular(isMine ? 20 : 6),
-            bottomRight: Radius.circular(isMine ? 6 : 20),
-          ),
+          borderRadius: radius,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               SizedBox(
-                height: 140,
-                child: AbsorbPointer(
-                  child: NaverMap(
-                    options: NaverMapViewOptions(
-                      initialCameraPosition: NCameraPosition(
-                        target: NLatLng(loc.lat, loc.lng),
-                        zoom: 15,
+                height: 130,
+                child: ColoredBox(
+                  color: AppColors.sky,
+                  child: AbsorbPointer(
+                    child: NaverMap(
+                      options: NaverMapViewOptions(
+                        initialCameraPosition: NCameraPosition(
+                          target: NLatLng(loc.lat, loc.lng),
+                          zoom: 15,
+                        ),
+                        scrollGesturesEnable: false,
+                        zoomGesturesEnable: false,
+                        tiltGesturesEnable: false,
+                        rotationGesturesEnable: false,
+                        logoClickEnable: false,
                       ),
-                      scrollGesturesEnable: false,
-                      zoomGesturesEnable: false,
-                      tiltGesturesEnable: false,
-                      rotationGesturesEnable: false,
-                      logoClickEnable: false,
+                      onMapReady: (controller) {
+                        controller.addOverlay(
+                          NMarker(
+                              id: 'msg_${message.id}',
+                              position: NLatLng(loc.lat, loc.lng)),
+                        );
+                      },
                     ),
-                    onMapReady: (controller) {
-                      controller.addOverlay(
-                        NMarker(
-                            id: 'msg_${message.id}',
-                            position: NLatLng(loc.lat, loc.lng)),
-                      );
-                    },
                   ),
                 ),
               ),
+              if (loc.label.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 9),
+                  child: Text(
+                    loc.label,
+                    style: AppTextStyles.body1.copyWith(fontSize: 13),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
             ],
           ),
         ),
@@ -795,14 +826,15 @@ class _LocationFullscreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.surface,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: Text(label.isNotEmpty ? label : '위치',
             style: AppTextStyles.sectionHead),
         leading: IconButton(
-          icon: const Icon(Icons.close_rounded, color: AppColors.ink900),
+          icon: const Icon(Icons.close_rounded, color: AppColors.ink),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -821,6 +853,7 @@ class _LocationFullscreen extends StatelessWidget {
   }
 }
 
+/// 시스템 메시지 — 배경 없이 캡션 한 줄 가운데.
 class _SystemMessage extends StatelessWidget {
   final ChatMessage message;
   const _SystemMessage({required this.message});
@@ -828,20 +861,11 @@ class _SystemMessage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Center(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.6),
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: AppColors.divider),
-          ),
-          child: Text(
-            message.content,
-            style: AppTextStyles.caption.copyWith(fontSize: 11),
-          ),
-        ),
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 24),
+      child: Text(
+        message.content,
+        textAlign: TextAlign.center,
+        style: AppTextStyles.caption,
       ),
     );
   }

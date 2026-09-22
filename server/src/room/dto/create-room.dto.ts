@@ -36,7 +36,7 @@ export enum GenderFilter {
 export class CreateRoomDto {
   @ApiProperty({ example: '역삼동 산책 모임' })
   @IsString()
-  @MinLength(2)
+  @MinLength(5)
   @MaxLength(30)
   title: string;
 

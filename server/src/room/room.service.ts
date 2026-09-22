@@ -28,6 +28,7 @@ import {
 import { GeocodingService } from '../common/services/geocoding.service';
 import { ProfanityFilterService } from '../common/services/profanity-filter.service';
 import { fallbackCoord } from '../common/services/region-coords';
+import { kstDateTime } from '../common/utils/kst';
 
 @Injectable()
 export class RoomService {
@@ -61,6 +62,17 @@ export class RoomService {
         code: 'USER_SUSPENDED',
         message:
           '정지된 계정은 모임을 만들 수 없습니다. 증거 사진을 제출해 정지 해제를 요청해 주세요.',
+      });
+    }
+
+    // 본인인증은 가입 관문이 아니라 모임 만들기·참여 시점에 받는다(앱 게이트).
+    // 클라이언트 게이트만으로는 API 직접 호출을 막지 못해 서버에서도 확인한다.
+    // 앱 심사 모드(bypass_phone_verification)에서는 가입 시 isPhoneVerified 가
+    // 더미로 채워지므로 리뷰어는 그대로 통과한다.
+    if (!host.isPhoneVerified) {
+      throw new ForbiddenException({
+        code: 'PHONE_VERIFICATION_REQUIRED',
+        message: '모임을 만들려면 휴대폰 본인 인증이 필요합니다.',
       });
     }
 
@@ -353,10 +365,18 @@ export class RoomService {
     if (query.cursor) {
       const cursorRoom = await this.roomRepository.findOne({ where: { id: query.cursor } });
       if (cursorRoom) {
-        qb.andWhere('(room.date > :cursorDate OR (room.date = :cursorDate AND room.id > :cursorId))', {
-          cursorDate: cursorRoom.date,
-          cursorId: cursorRoom.id,
-        });
+        // 커서 비교는 정렬 키(date, startTime, id)와 같은 튜플이어야
+        // 같은 날짜에 방이 여러 개일 때 페이지 경계에서 중복/누락이 없다.
+        qb.andWhere(
+          `(room.date > :cursorDate
+            OR (room.date = :cursorDate AND room.startTime > :cursorTime)
+            OR (room.date = :cursorDate AND room.startTime = :cursorTime AND room.id > :cursorId))`,
+          {
+            cursorDate: cursorRoom.date,
+            cursorTime: cursorRoom.startTime,
+            cursorId: cursorRoom.id,
+          },
+        );
       }
     }
 
@@ -493,6 +513,9 @@ export class RoomService {
     if (myStatus === 'ACCEPTED' || myStatus === 'PENDING') {
       canJoin = false;
       canJoinReason = '이미 참여 중이거나 신청 중입니다.';
+    } else if (myStatus === 'KICKED') {
+      canJoin = false;
+      canJoinReason = '방장이 내보낸 모임에는 다시 참여할 수 없어요.';
     } else if (room.status !== 'RECRUITING') {
       canJoin = false;
       canJoinReason = '모집이 종료되었습니다.';
@@ -501,7 +524,7 @@ export class RoomService {
       canJoinReason = '인원이 가득 찼습니다.';
     } else {
       // 모임 종료 시각까지만 입장 가능 (종료시간 없으면 당일 자정까지).
-      const endAt = new Date(`${room.date}T${room.endTime ?? '23:59'}`);
+      const endAt = kstDateTime(room.date, room.endTime ?? '23:59');
       if (!Number.isNaN(endAt.getTime()) && Date.now() > endAt.getTime()) {
         canJoin = false;
         canJoinReason = '이미 종료된 모임입니다.';
@@ -524,6 +547,7 @@ export class RoomService {
         gender: c.gender,
       })),
       isHost: m.isHost,
+      attended: m.attended ?? null,
     }));
 
     const isMember = myStatus === 'ACCEPTED';

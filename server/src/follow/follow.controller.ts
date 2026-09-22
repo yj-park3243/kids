@@ -43,4 +43,10 @@ export class FollowController {
   async getMyFollowing(@CurrentUser('id') userId: string) {
     return this.followService.getMyFollowing(userId);
   }
+
+  @Get('followers')
+  @ApiOperation({ summary: '나를 팔로우하는 사람 목록' })
+  async getMyFollowers(@CurrentUser('id') userId: string) {
+    return this.followService.getMyFollowers(userId);
+  }
 }

@@ -1,12 +1,14 @@
 import '../../../widgets/top_toast.dart';
 import 'dart:io';
 
+import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/network/api_error.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../models/user.dart';
 import '../../../widgets/app_bar.dart';
@@ -15,6 +17,7 @@ import '../../../widgets/common_button.dart';
 import '../../../widgets/common_input.dart';
 import '../../../widgets/cupertino_picker_sheet.dart';
 import '../../../widgets/design/baby_avatar.dart';
+import '../../../widgets/design/design_chip.dart';
 import '../../../widgets/picker_field.dart';
 import '../../auth/providers/auth_provider.dart';
 
@@ -62,6 +65,35 @@ class _ChildEditScreenState extends ConsumerState<ChildEditScreen> {
   void dispose() {
     _nicknameController.dispose();
     super.dispose();
+  }
+
+  Future<void> _delete(Child child) async {
+    var ok = false;
+    await AwesomeDialog(
+      context: context,
+      dialogType: DialogType.warning,
+      animType: AnimType.scale,
+      title: '아이 삭제',
+      desc: '${child.nickname} 정보를 삭제할까요?\n삭제하면 되돌릴 수 없어요.',
+      btnCancelText: '취소',
+      btnOkText: '삭제',
+      btnOkColor: AppColors.error,
+      btnCancelOnPress: () {},
+      btnOkOnPress: () => ok = true,
+    ).show();
+    if (!ok || !mounted) return;
+    setState(() => _isLoading = true);
+    try {
+      await ref.read(authProvider.notifier).deleteChild(child.id);
+      if (!mounted) return;
+      showTopToast(context, '아이 정보를 삭제했어요', backgroundColor: AppColors.success);
+      context.pop();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      showTopToast(context, apiErrorMessage(e, fallback: '삭제에 실패했어요'),
+          backgroundColor: AppColors.error);
+    }
   }
 
   Future<void> _pickPhoto() async {
@@ -132,13 +164,17 @@ class _ChildEditScreenState extends ConsumerState<ChildEditScreen> {
 
     if (child == null) {
       return Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: AppColors.paper,
         appBar: const CustomAppBar(title: '아이 정보 수정'),
-        body: const Center(child: Text('아이 정보를 찾을 수 없습니다.')),
+        // 삭제 직후 pop 되기 전 한 프레임은 빈 화면으로.
+        body: _isLoading
+            ? const SizedBox.shrink()
+            : const Center(child: Text('아이 정보를 찾을 수 없습니다.')),
       );
     }
 
-    _hydrateOnce(child);
+    final target = child;
+    _hydrateOnce(target);
 
     final currentYear = DateTime.now().year;
     final ageMonths = _birthYear != null && _birthMonth != null
@@ -146,14 +182,23 @@ class _ChildEditScreenState extends ConsumerState<ChildEditScreen> {
         : null;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: const CustomAppBar(title: '아이 정보 수정'),
+      backgroundColor: AppColors.paper,
+      appBar: CustomAppBar(
+        title: '아이 정보 수정',
+        actions: [
+          TextButton(
+            onPressed: _isLoading ? null : () => _delete(target),
+            child: Text('삭제',
+                style: AppTextStyles.body2.copyWith(color: AppColors.bad)),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Column(
           children: [
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -182,10 +227,10 @@ class _ChildEditScreenState extends ConsumerState<ChildEditScreen> {
                               child: Container(
                                 padding: const EdgeInsets.all(6),
                                 decoration: BoxDecoration(
-                                  color: AppColors.primary,
+                                  color: AppColors.ink,
                                   shape: BoxShape.circle,
                                   border: Border.all(
-                                      color: Colors.white, width: 2),
+                                      color: AppColors.paper, width: 2),
                                 ),
                                 child: const Icon(
                                   Icons.camera_alt_rounded,
@@ -201,10 +246,9 @@ class _ChildEditScreenState extends ConsumerState<ChildEditScreen> {
                     if (ageMonths != null) ...[
                       const SizedBox(height: 10),
                       Center(
-                        child: Text(
-                          AppDateUtils.formatAgeMonths(ageMonths),
-                          style: AppTextStyles.caption
-                              .copyWith(color: AppColors.primary700),
+                        child: Pill(
+                          label: AppDateUtils.formatAgeMonths(ageMonths),
+                          tone: PillTone.sky,
                         ),
                       ),
                     ],
@@ -218,7 +262,7 @@ class _ChildEditScreenState extends ConsumerState<ChildEditScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    Text('생년월', style: AppTextStyles.body2Bold),
+                    Text('생년월', style: AppTextStyles.captionBold),
                     const SizedBox(height: 8),
                     Row(
                       children: [
@@ -229,14 +273,13 @@ class _ChildEditScreenState extends ConsumerState<ChildEditScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    Text('성별', style: AppTextStyles.body2Bold),
+                    Text('성별', style: AppTextStyles.captionBold),
                     const SizedBox(height: 8),
                     Row(
                       children: [
                         _GenderChip(
                           label: '남아',
                           emoji: '👦',
-                          accent: AppColors.accentSky,
                           isSelected: _gender == 'MALE',
                           onTap: () => setState(() => _gender = 'MALE'),
                         ),
@@ -244,7 +287,6 @@ class _ChildEditScreenState extends ConsumerState<ChildEditScreen> {
                         _GenderChip(
                           label: '여아',
                           emoji: '👧',
-                          accent: AppColors.primary,
                           isSelected: _gender == 'FEMALE',
                           onTap: () => setState(() => _gender = 'FEMALE'),
                         ),
@@ -275,7 +317,7 @@ class _ChildEditScreenState extends ConsumerState<ChildEditScreen> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
               child: PrimaryButton(
                 text: '저장',
                 isLoading: _isLoading,
@@ -329,18 +371,16 @@ class _ChildEditScreenState extends ConsumerState<ChildEditScreen> {
   }
 }
 
+/// 성별 선택 — 색으로 구분하지 않고, 선택된 쪽만 잉크로 채운다.
 class _GenderChip extends StatelessWidget {
   final String label;
   final String? emoji;
-  // 선택 시 적용할 액센트 색 — 남아 sky / 여아 pink.
-  final Color accent;
   final bool isSelected;
   final VoidCallback onTap;
 
   const _GenderChip({
     required this.label,
     this.emoji,
-    required this.accent,
     required this.isSelected,
     required this.onTap,
   });
@@ -349,17 +389,16 @@ class _GenderChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
+      behavior: HitTestBehavior.opaque,
       child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        height: 40,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: isSelected
-              ? accent.withValues(alpha: 0.12)
-              : AppColors.surface,
-          borderRadius: BorderRadius.circular(10),
+          color: isSelected ? AppColors.ink : AppColors.surface,
+          borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: isSelected ? accent : AppColors.divider,
-            width: isSelected ? 1.5 : 1,
+            color: isSelected ? AppColors.ink : AppColors.line2,
           ),
         ),
         child: Row(
@@ -372,9 +411,8 @@ class _GenderChip extends StatelessWidget {
             Text(
               label,
               style: AppTextStyles.body2.copyWith(
-                color: isSelected ? accent : AppColors.textSecondary,
-                fontWeight:
-                    isSelected ? FontWeight.w600 : FontWeight.w400,
+                color: isSelected ? Colors.white : AppColors.ink,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
               ),
             ),
           ],

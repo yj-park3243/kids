@@ -65,11 +65,11 @@ class _DebugDataScreenState extends ConsumerState<DebugDataScreen> {
         cornerRadius: 16,
         callToActionTextStyle: NativeTemplateTextStyle(
           textColor: Colors.white,
-          backgroundColor: AppColors.primary,
+          backgroundColor: AppColors.ink,
         ),
-        primaryTextStyle: NativeTemplateTextStyle(textColor: AppColors.ink700),
+        primaryTextStyle: NativeTemplateTextStyle(textColor: AppColors.ink),
         secondaryTextStyle:
-            NativeTemplateTextStyle(textColor: AppColors.ink500),
+            NativeTemplateTextStyle(textColor: AppColors.ink2),
       ),
       listener: NativeAdListener(
         onAdLoaded: (_) {
@@ -136,11 +136,11 @@ class _DebugDataScreenState extends ConsumerState<DebugDataScreen> {
     ];
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: AppColors.paper,
       appBar: AppBar(
         title: const Text('디버그 데이터'),
-        backgroundColor: AppColors.surface,
-        foregroundColor: AppColors.ink900,
+        backgroundColor: AppColors.paper,
+        foregroundColor: AppColors.ink,
         elevation: 0,
       ),
       body: ListView(
@@ -166,9 +166,9 @@ class _DebugDataScreenState extends ConsumerState<DebugDataScreen> {
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.divider),
+        border: Border.all(color: AppColors.line),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -193,14 +193,14 @@ class _DebugDataScreenState extends ConsumerState<DebugDataScreen> {
               width: 130,
               child: Text(
                 kv.k,
-                style: AppTextStyles.caption.copyWith(color: AppColors.ink500),
+                style: AppTextStyles.caption.copyWith(color: AppColors.ink2),
               ),
             ),
             Expanded(
               child: SelectableText(
                 kv.v,
                 style: AppTextStyles.caption.copyWith(
-                  color: AppColors.ink900,
+                  color: AppColors.ink,
                   fontFamily: 'monospace',
                 ),
               ),
@@ -216,9 +216,9 @@ class _DebugDataScreenState extends ConsumerState<DebugDataScreen> {
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.divider),
+        border: Border.all(color: AppColors.line),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -235,7 +235,7 @@ class _DebugDataScreenState extends ConsumerState<DebugDataScreen> {
                 children: [
                   Text('#${e.key + 1}',
                       style: AppTextStyles.captionBold
-                          .copyWith(color: AppColors.primary700)),
+                          .copyWith(color: AppColors.ink)),
                   _kvRow(_KV('id', c.id ?? '-')),
                   _kvRow(_KV('nickname', c.nickname ?? '-')),
                   _kvRow(_KV('gender', c.gender ?? '-')),
@@ -257,9 +257,9 @@ class _DebugDataScreenState extends ConsumerState<DebugDataScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.divider),
+        border: Border.all(color: AppColors.line),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -273,7 +273,7 @@ class _DebugDataScreenState extends ConsumerState<DebugDataScreen> {
               child: Text(
                 ad == null ? '광고 로드 실패' : '광고 로딩 중...',
                 style: AppTextStyles.caption
-                    .copyWith(color: AppColors.ink500),
+                    .copyWith(color: AppColors.ink2),
               ),
             )
           else

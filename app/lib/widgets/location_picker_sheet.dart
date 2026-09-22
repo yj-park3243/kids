@@ -79,13 +79,15 @@ class _LocationPickerScreenState extends State<_LocationPickerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.paper,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.paper,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
-        title: Text(widget.title, style: AppTextStyles.sectionHead),
+        scrolledUnderElevation: 0,
+        title: Text(widget.title, style: AppTextStyles.screenTitle),
         leading: IconButton(
-          icon: const Icon(Icons.close_rounded, color: AppColors.ink900),
+          icon: const Icon(Icons.close_rounded, color: AppColors.ink),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -121,7 +123,7 @@ class _LocationPickerScreenState extends State<_LocationPickerScreen> {
                     child: Icon(
                       Icons.location_on,
                       size: 44,
-                      color: AppColors.primary,
+                      color: AppColors.ink,
                       shadows: const [
                         Shadow(
                             color: Colors.black26,
@@ -143,15 +145,25 @@ class _LocationPickerScreenState extends State<_LocationPickerScreen> {
                   TextField(
                     controller: _labelController,
                     style: AppTextStyles.body1,
+                    cursorColor: AppColors.ink,
                     decoration: InputDecoration(
                       hintText: '장소 이름 (예: ○○ 놀이터 정문)',
                       hintStyle:
-                          AppTextStyles.body1.copyWith(color: AppColors.ink300),
+                          AppTextStyles.body1.copyWith(color: AppColors.ink3),
                       filled: true,
-                      fillColor: AppColors.surfaceVariant,
+                      fillColor: AppColors.surface,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
+                        borderSide: const BorderSide(color: AppColors.line2),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.line2),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide:
+                            const BorderSide(color: AppColors.ink, width: 1.5),
                       ),
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 14, vertical: 12),

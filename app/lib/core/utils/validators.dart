@@ -56,19 +56,18 @@ class Validators {
     if (v.isEmpty) {
       return '제목을 입력해 주세요';
     }
-    if (v.length < 2 || v.length > 30) {
-      return '제목은 2~30자로 입력해 주세요';
+    if (v.length < 5 || v.length > 30) {
+      return '제목은 5~30자로 입력해 주세요';
     }
     return null;
   }
 
   static String? roomDescription(String? value) {
     final v = value?.trim() ?? '';
-    if (v.isEmpty) {
-      return '설명을 입력해 주세요';
-    }
-    if (v.length < 10 || v.length > 500) {
-      return '설명은 10~500자로 입력해 주세요';
+    // 설명은 선택 — 비워도 된다. 쓰면 500자까지.
+    if (v.isEmpty) return null;
+    if (v.length > 500) {
+      return '설명은 500자까지 쓸 수 있어요';
     }
     return null;
   }

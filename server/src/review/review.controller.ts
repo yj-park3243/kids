@@ -32,6 +32,15 @@ export class ReviewController {
     return this.reviewService.create(roomId, userId, dto);
   }
 
+  @Get('rooms/:roomId/reviews/mine')
+  @ApiOperation({ summary: '이 모임에서 내가 쓴 후기 목록 (재진입 시 수정용)' })
+  async getMine(
+    @CurrentUser('id') userId: string,
+    @Param('roomId') roomId: string,
+  ) {
+    return this.reviewService.getMineInRoom(roomId, userId);
+  }
+
   @Patch('reviews/:reviewId')
   @ApiOperation({ summary: '후기 수정 (7일 이내)' })
   async update(

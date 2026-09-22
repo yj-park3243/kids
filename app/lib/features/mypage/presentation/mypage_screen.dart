@@ -5,38 +5,20 @@ import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_constants.dart';
+import '../../../core/constants/app_radius.dart';
 import '../../../core/constants/app_text_styles.dart';
-import '../../../core/constants/child_traits.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../models/user.dart';
 import '../../../widgets/design/avatar.dart';
-import '../../../widgets/design/baby_avatar.dart';
 import '../../../widgets/design/design_chip.dart';
 import '../../../widgets/design/glass_card.dart';
-import '../../../widgets/design/accent_blobs.dart';
+import '../../../widgets/design/notebook.dart';
+import '../../../widgets/design/primary_button.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../review/presentation/widgets/growth_grade.dart';
-
-/// 기질 태그 카테고리별 색 — child_traits_selector 와 동일 팔레트.
-Color _traitColor(TraitCategory c) {
-  switch (c) {
-    case TraitCategory.energetic:
-      return AppColors.accentCoral;
-    case TraitCategory.composed:
-      return AppColors.accentLavender;
-    case TraitCategory.warm:
-      return AppColors.primary;
-    case TraitCategory.hobby:
-      return AppColors.accentLime;
-    case TraitCategory.assertive:
-      return AppColors.accentYellow;
-  }
-}
 
 class MyPageScreen extends ConsumerWidget {
   const MyPageScreen({super.key});
@@ -47,433 +29,141 @@ class MyPageScreen extends ConsumerWidget {
     final user = authState.user;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: AccentBlobsBackground(
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 110),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('마이페이지', style: AppTextStyles.screenTitle),
-                const SizedBox(height: 20),
-
-                // 계정 정지 배너 — SUSPENDED 계정만 노출.
-                if (user?.status == 'SUSPENDED') ...[
-                  GestureDetector(
-                    onTap: () => context.push('/appeal'),
-                    child: Container(
-                      width: double.infinity,
-                      margin: const EdgeInsets.only(bottom: 16),
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: AppColors.error.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                            color: AppColors.error.withValues(alpha: 0.4)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.gpp_bad_rounded,
-                              color: AppColors.error, size: 20),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              '계정이 정지되었습니다. 탭하여 정지 해제를 요청하세요.',
-                              style: AppTextStyles.body2.copyWith(
-                                color: AppColors.error,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          const Icon(Icons.chevron_right_rounded,
-                              color: AppColors.error),
-                        ],
-                      ),
-                    ),
+      backgroundColor: AppColors.paper,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // 앱바 — 제목 + 알림.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 12, 4),
+              child: Row(
+                children: [
+                  Expanded(child: Text('마이', style: AppTextStyles.screenTitle)),
+                  GlassIconButton(
+                    icon: Icons.notifications_none_rounded,
+                    iconColor: AppColors.ink,
+                    onTap: () => context.push('/notifications'),
                   ),
                 ],
-
-                // Profile glass card
-                GlassCard(
-                  tone: GlassTone.white,
-                  radius: 24,
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          InitialAvatar(
-                            label: user?.nickname ?? '?',
-                            size: 64,
-                            tone: AvatarTone.primary,
-                            ring: true,
-                            imageUrl: user?.profileImageUrl,
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  user?.nickname ?? '사용자',
-                                  style: AppTextStyles.cardTitle.copyWith(fontSize: 17),
-                                ),
-                                const SizedBox(height: 6),
-                                DesignChip(
-                                  label: '#KIDS-${_familyHash(user?.id)}',
-                                  tone: ChipTone.outline,
-                                  height: 22,
-                                ),
-                              ],
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: () => context.push('/profile-edit'),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.7),
-                                borderRadius: BorderRadius.circular(999),
-                                border: Border.all(
-                                  color: AppColors.glassBorder,
-                                  width: 0.5,
-                                ),
-                              ),
-                              child: Text(
-                                '편집',
-                                style: AppTextStyles.chip.copyWith(
-                                  color: AppColors.primary700,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (user != null) ...[
-                        const SizedBox(height: 14),
-                        _GrowthRow(
-                          score: user.mannerScore,
-                          noShowLevel: user.noShowLevel,
-                        ),
-                      ],
+              ),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 110),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 계정 정지 배너 — SUSPENDED 계정만 노출.
+                    if (user?.status == 'SUSPENDED') ...[
+                      _SuspendedBanner(onTap: () => context.push('/appeal')),
+                      const SizedBox(height: 14),
                     ],
-                  ),
-                ),
-                const SizedBox(height: 14),
 
-                // Children
-                if (user?.children != null && user!.children!.isNotEmpty)
-                  GlassCard(
-                    radius: 22,
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('등록된 아이', style: AppTextStyles.body1Bold),
-                        const SizedBox(height: 4),
-                        Text(
-                          '사진은 탭으로 빠르게 교체, 그 외는 편집을 눌러주세요',
-                          style: AppTextStyles.caption
-                              .copyWith(color: AppColors.ink500),
+                    _ProfileHeader(user: user),
+                    const SizedBox(height: 4),
+
+                    if (user != null) _GrowthCard(user: user),
+
+                    const SectionHeader(title: '우리 아이'),
+                    _ChildrenRow(children: user?.children ?? const []),
+
+                    const SectionHeader(title: '활동'),
+                    _MenuGroup(
+                      items: [
+                        _MenuItem(
+                          icon: Icons.favorite_border_rounded,
+                          label: '단골 부모',
+                          onTap: () => context.push('/follow/following'),
                         ),
-                        const SizedBox(height: 12),
-                        ...user.children!.asMap().entries.map((entry) {
-                          final idx = entry.key;
-                          final child = entry.value;
-                          final age = child.ageMonths ??
-                              AppDateUtils.calculateAgeMonths(
-                                  child.birthYear, child.birthMonth);
-                          final napLabel = napTimeLabel(child.napTime);
-                          final tags = <TemperamentTag>[
-                            for (final k in child.temperamentTags)
-                              for (final t in temperamentTags)
-                                if (t.key == k) t,
-                          ];
-                          final hasTraits =
-                              napLabel != null || tags.isNotEmpty;
-                          return Padding(
-                            padding: EdgeInsets.only(
-                              top: idx == 0 ? 0 : 14,
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    GestureDetector(
-                                      onTap: () => _editChildPhoto(
-                                          context, ref, child),
-                                      child: Stack(
-                                        clipBehavior: Clip.none,
-                                        children: [
-                                          BabyAvatar(
-                                            size: 40,
-                                            tone: child.gender == 'MALE'
-                                                ? BabyAvatarTone.lilac
-                                                : BabyAvatarTone.primary,
-                                            imageUrl: child.photoUrl,
-                                          ),
-                                          Positioned(
-                                            right: -2,
-                                            bottom: -2,
-                                            child: Container(
-                                              padding:
-                                                  const EdgeInsets.all(3),
-                                              decoration: BoxDecoration(
-                                                color: AppColors.primary,
-                                                shape: BoxShape.circle,
-                                                border: Border.all(
-                                                    color: Colors.white,
-                                                    width: 1.5),
-                                              ),
-                                              child: const Icon(
-                                                Icons.camera_alt_rounded,
-                                                size: 10,
-                                                color: Colors.white,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Wrap(
-                                        spacing: 6,
-                                        runSpacing: 4,
-                                        crossAxisAlignment:
-                                            WrapCrossAlignment.center,
-                                        children: [
-                                          Text(child.nickname,
-                                              style:
-                                                  AppTextStyles.body1Bold),
-                                          Text(
-                                            AppDateUtils.formatAgeMonths(age),
-                                            style: AppTextStyles.caption
-                                                .copyWith(
-                                              color: AppColors.primary700,
-                                            ),
-                                          ),
-                                          if (child.gender != null)
-                                            DesignChip(
-                                              label: child.gender == 'MALE'
-                                                  ? '남아'
-                                                  : '여아',
-                                              tone: child.gender == 'MALE'
-                                                  ? ChipTone.lilac
-                                                  : ChipTone.primaryGhost,
-                                              height: 22,
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                    GestureDetector(
-                                      onTap: () => context.push(
-                                          '/children/${child.id}/edit'),
-                                      child: Container(
-                                        padding:
-                                            const EdgeInsets.symmetric(
-                                                horizontal: 10,
-                                                vertical: 6),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white
-                                              .withValues(alpha: 0.7),
-                                          borderRadius:
-                                              BorderRadius.circular(999),
-                                          border: Border.all(
-                                            color: AppColors.glassBorder,
-                                            width: 0.5,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          '편집',
-                                          style: AppTextStyles.chip.copyWith(
-                                            color: AppColors.primary700,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                if (hasTraits) ...[
-                                  const SizedBox(height: 8),
-                                  Padding(
-                                    padding:
-                                        const EdgeInsets.only(left: 52),
-                                    child: Wrap(
-                                      spacing: 6,
-                                      runSpacing: 6,
-                                      children: [
-                                        if (napLabel != null)
-                                          DesignChip(
-                                            label: '낮잠 · $napLabel',
-                                            tone: ChipTone.outline,
-                                            height: 22,
-                                          ),
-                                        for (final tag in tags)
-                                          Container(
-                                            padding:
-                                                const EdgeInsets.symmetric(
-                                                    horizontal: 10,
-                                                    vertical: 3),
-                                            decoration: BoxDecoration(
-                                              color: _traitColor(tag.category)
-                                                  .withValues(alpha: 0.13),
-                                              borderRadius:
-                                                  BorderRadius.circular(11),
-                                              border: Border.all(
-                                                color: _traitColor(
-                                                        tag.category)
-                                                    .withValues(alpha: 0.4),
-                                              ),
-                                            ),
-                                            child: Text(
-                                              '${tag.emoji} ${tag.label}',
-                                              style: AppTextStyles.caption
-                                                  .copyWith(
-                                                color: AppColors.textPrimary,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          );
-                        }),
                       ],
                     ),
-                  ),
-                const SizedBox(height: 14),
 
-                _menuSection([
-                  _MenuItem(
-                    icon: Icons.edit_rounded,
-                    label: '프로필 수정',
-                    onTap: () => context.push('/profile-edit'),
-                  ),
-                  _MenuItem(
-                    icon: Icons.child_care_rounded,
-                    label: '아이 추가',
-                    onTap: () => context.push('/child-add'),
-                  ),
-                  _MenuItem(
-                    icon: Icons.notifications_none_rounded,
-                    label: '알림 설정',
-                    onTap: () => context.push('/notification-settings'),
-                  ),
-                  // TODO: register route /blocked-users → BlockedUsersScreen
-                  _MenuItem(
-                    icon: Icons.block_rounded,
-                    label: '차단한 유저',
-                    onTap: () => context.push('/blocked-users'),
-                  ),
-                ]),
-                const SizedBox(height: 14),
+                    const SectionHeader(title: '설정'),
+                    _MenuGroup(
+                      items: [
+                        _MenuItem(
+                          icon: Icons.edit_rounded,
+                          label: '프로필 수정',
+                          onTap: () => context.push('/profile-edit'),
+                        ),
+                        _MenuItem(
+                          icon: Icons.notifications_none_rounded,
+                          label: '알림 설정',
+                          onTap: () => context.push('/notification-settings'),
+                        ),
+                        // 인증을 마쳤으면 값만 보여주고 더 갈 곳이 없다.
+                        if (user?.isPhoneVerified ?? false)
+                          _MenuItem(
+                            icon: Icons.lock_outline_rounded,
+                            label: '본인 인증',
+                            value: '완료',
+                            valueColor: AppColors.sageInk,
+                          )
+                        else
+                          _MenuItem(
+                            icon: Icons.lock_outline_rounded,
+                            label: '본인 인증',
+                            value: '필요',
+                            onTap: () => context.push('/phone-verification'),
+                          ),
+                        _MenuItem(
+                          icon: Icons.block_rounded,
+                          label: '차단한 유저',
+                          onTap: () => context.push('/blocked-users'),
+                        ),
+                      ],
+                    ),
 
-                _menuSection([
-                  _MenuItem(
-                    icon: Icons.campaign_outlined,
-                    label: '공지사항',
-                    onTap: () => context.push('/notices'),
-                  ),
-                  _MenuItem(
-                    icon: Icons.mail_outline_rounded,
-                    label: '1:1 문의',
-                    onTap: () => context.push('/inquiry'),
-                  ),
-                  _MenuItem(
-                    icon: Icons.description_outlined,
-                    label: '이용약관',
-                    onTap: () => _openExternalUrl(
-                        'https://growtogether.kr/terms'),
-                  ),
-                  _MenuItem(
-                    icon: Icons.privacy_tip_outlined,
-                    label: '개인정보처리방침',
-                    onTap: () => _openExternalUrl(
-                        'https://growtogether.kr/privacy'),
-                  ),
-                ]),
-                const SizedBox(height: 14),
-
-                _menuSection([
-                  _MenuItem(
-                    icon: Icons.logout_rounded,
-                    label: '로그아웃',
-                    color: AppColors.primary,
-                    onTap: () => _logout(context, ref),
-                  ),
-                  _MenuItem(
-                    icon: Icons.delete_outline_rounded,
-                    label: '회원탈퇴',
-                    color: AppColors.error,
-                    onTap: () => _deleteAccount(context, ref),
-                  ),
-                ]),
-                const SizedBox(height: 18),
-                const _VersionFooter(),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _menuSection(List<_MenuItem> items) {
-    return GlassCard(
-      radius: 20,
-      padding: EdgeInsets.zero,
-      child: Column(
-        children: items.asMap().entries.map((entry) {
-          final index = entry.key;
-          final item = entry.value;
-          return Column(
-            children: [
-              InkWell(
-                onTap: item.onTap,
-                borderRadius: BorderRadius.vertical(
-                  top: index == 0 ? const Radius.circular(20) : Radius.zero,
-                  bottom: index == items.length - 1
-                      ? const Radius.circular(20)
-                      : Radius.zero,
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 15),
-                  child: Row(
-                    children: [
-                      Icon(item.icon,
-                          size: 20, color: item.color ?? AppColors.ink700),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          item.label,
-                          style: AppTextStyles.body1.copyWith(
-                            color: item.color ?? AppColors.ink900,
-                            fontWeight: FontWeight.w600,
+                    const SectionHeader(title: '고객센터'),
+                    _MenuGroup(
+                      items: [
+                        _MenuItem(
+                          icon: Icons.campaign_outlined,
+                          label: '공지사항',
+                          onTap: () => context.push('/notices'),
+                        ),
+                        _MenuItem(
+                          icon: Icons.mail_outline_rounded,
+                          label: '1:1 문의',
+                          onTap: () => context.push('/inquiries'),
+                        ),
+                        _MenuItem(
+                          icon: Icons.description_outlined,
+                          label: '이용약관',
+                          onTap: () =>
+                              _openExternalUrl('https://growtogether.kr/terms'),
+                        ),
+                        _MenuItem(
+                          icon: Icons.privacy_tip_outlined,
+                          label: '개인정보처리방침',
+                          onTap: () => _openExternalUrl(
+                            'https://growtogether.kr/privacy',
                           ),
                         ),
-                      ),
-                      const Icon(Icons.chevron_right_rounded,
-                          size: 20, color: AppColors.ink300),
-                    ],
-                  ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
+                    _MenuGroup(
+                      items: [
+                        _MenuItem(
+                          icon: Icons.logout_rounded,
+                          label: '로그아웃',
+                          color: AppColors.bad,
+                          onTap: () => _logout(context, ref),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    _VersionFooter(
+                      onDeleteAccount: () => _deleteAccount(context, ref),
+                    ),
+                  ],
                 ),
               ),
-              if (index < items.length - 1)
-                const Divider(
-                    height: 1, color: AppColors.divider, indent: 48, endIndent: 16),
-            ],
-          );
-        }).toList(),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -504,8 +194,7 @@ class MyPageScreen extends ConsumerWidget {
       dialogType: DialogType.error,
       animType: AnimType.scale,
       title: '회원탈퇴',
-      desc:
-          '정말로 탈퇴하시겠습니까?\n탈퇴 후 30일간 데이터가 보관되며, 이후 완전히 삭제됩니다.',
+      desc: '정말로 탈퇴하시겠습니까?\n탈퇴 후 30일간 데이터가 보관되며, 이후 완전히 삭제됩니다.',
       btnCancelText: '취소',
       btnOkText: '탈퇴',
       btnOkColor: AppColors.error,
@@ -519,34 +208,13 @@ class MyPageScreen extends ConsumerWidget {
         if (context.mounted) context.go('/login');
       } catch (e) {
         if (context.mounted) {
-          showTopToast(context, _deleteErrorMessage(e), backgroundColor: AppColors.error);
+          showTopToast(
+            context,
+            _deleteErrorMessage(e),
+            backgroundColor: AppColors.error,
+          );
         }
       }
-    }
-  }
-
-  /// 등록된 아이의 프로필 사진을 갤러리에서 다시 골라 교체한다.
-  void _editChildPhoto(
-      BuildContext context, WidgetRef ref, Child child) async {
-    final img = await ImagePicker().pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1280,
-      imageQuality: 85,
-    );
-    if (img == null) return;
-
-    try {
-      final photoUrl =
-          await ref.read(authRepositoryProvider).uploadImage(img.path);
-      await ref.read(authProvider.notifier).updateChild(
-            childId: child.id,
-            photoUrl: photoUrl,
-          );
-      if (!context.mounted) return;
-      showTopToast(context, '아이 사진을 변경했습니다');
-    } catch (e) {
-      if (!context.mounted) return;
-      showTopToast(context, '사진 변경에 실패했습니다', backgroundColor: AppColors.error);
     }
   }
 }
@@ -573,24 +241,415 @@ String _familyHash(String? id) {
   return h.length >= 4 ? h.substring(0, 4) : h.padLeft(4, '0');
 }
 
+Future<void> _openExternalUrl(String url) async {
+  final uri = Uri.parse(url);
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+}
+
+/// 정지된 계정에만 뜨는 안내 — 탭하면 이의신청 화면으로.
+class _SuspendedBanner extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _SuspendedBanner({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.bad.withValues(alpha: 0.08),
+          borderRadius: AppRadius.rMd,
+          border: Border.all(color: AppColors.bad.withValues(alpha: 0.35)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.gpp_bad_rounded, color: AppColors.bad, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                '계정이 정지되었습니다. 탭하여 정지 해제를 요청하세요.',
+                style: AppTextStyles.body2.copyWith(
+                  color: AppColors.bad,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              size: 18,
+              color: AppColors.bad,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 아바타 · 닉네임 · 가족 코드 · 편집.
+class _ProfileHeader extends StatelessWidget {
+  final User? user;
+
+  const _ProfileHeader({required this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    final region = [
+      user?.regionSigungu,
+      user?.regionDong,
+    ].whereType<String>().where((v) => v.isNotEmpty).join(' ');
+    final subtitle = region.isEmpty
+        ? '#KIDS-${_familyHash(user?.id)}'
+        : '#KIDS-${_familyHash(user?.id)} · $region';
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, bottom: 16),
+      child: Row(
+        children: [
+          InitialAvatar(
+            label: user?.nickname ?? '?',
+            size: 56,
+            imageUrl: user?.profileImageUrl,
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  user?.nickname ?? '사용자',
+                  style: AppTextStyles.screenTitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 3),
+                Text(subtitle, style: AppTextStyles.caption),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          GlassButton(
+            text: '편집',
+            compact: true,
+            onPressed: () => context.push('/profile-edit'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 쑥쑥 등급 카드 — 등급 pill · 다음 단계까지 남은 점수 · 진행바 · 5단계 눈금.
+class _GrowthCard extends StatelessWidget {
+  final User user;
+
+  const _GrowthCard({required this.user});
+
+  static const _stages = ['새싹', '떡잎', '어린나무', '큰나무', '숲'];
+
+  @override
+  Widget build(BuildContext context) {
+    final info = GrowthGradeInfo.fromScore(user.mannerScore);
+    final stageIndex = GrowthStage.values.indexOf(info.stage);
+    final remain = (info.nextThreshold - user.mannerScore).ceil();
+    final nextLabel = stageIndex + 1 < _stages.length
+        ? _stages[stageIndex + 1]
+        : null;
+
+    // 받은 후기 상세는 당분간 닫아 둔다 — 카드는 탭해도 이동하지 않는다.
+    return AppCard(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Pill(
+                label: '${info.emoji} 쑥쑥 ${info.label}',
+                // 강등 단계(새싹)는 초록을 빼고 회색으로 — growth_grade 와 같은 규칙.
+                tone: info.isDemoted ? PillTone.muted : PillTone.sage,
+              ),
+              const Spacer(),
+              if (nextLabel != null && remain > 0)
+                Text.rich(
+                  TextSpan(
+                    style: AppTextStyles.caption,
+                    children: [
+                      TextSpan(text: '$nextLabel까지 '),
+                      TextSpan(
+                        text: '$remain',
+                        style: AppTextStyles.hand.copyWith(fontSize: 17),
+                      ),
+                      const TextSpan(text: '점'),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: Container(
+              height: 8,
+              color: AppColors.fill,
+              child: FractionallySizedBox(
+                alignment: Alignment.centerLeft,
+                widthFactor: info.progressToNext.clamp(0.0, 1.0),
+                child: Container(color: info.color),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              for (var i = 0; i < _stages.length; i++)
+                Expanded(
+                  child: Text(
+                    _stages[i],
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.caption.copyWith(
+                      fontSize: 10.5,
+                      color: i == stageIndex ? info.color : AppColors.ink3,
+                      fontWeight: i == stageIndex
+                          ? FontWeight.w700
+                          : FontWeight.w500,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Text(
+                _noShowLabel(user.noShowLevel),
+                style: AppTextStyles.caption,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _noShowLabel(String? level) {
+    switch (level) {
+      case 'OCCASIONAL':
+        return '노쇼 가끔';
+      case 'FREQUENT':
+        return '노쇼 잦음';
+      default:
+        return '노쇼 없음';
+    }
+  }
+}
+
+/// 아이 알약 칩 목록 + '아이 추가' 점선 알약.
+class _ChildrenRow extends StatelessWidget {
+  final List<Child> children;
+
+  const _ChildrenRow({required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final child in children)
+          _ChildPill(
+            child: child,
+            onTap: () => context.push('/children/${child.id}/edit'),
+          ),
+        DashedBox(
+          radius: 999,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          onTap: () => context.push('/child-add'),
+          child: SizedBox(
+            height: 40,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.add_rounded, size: 16, color: AppColors.ink2),
+                const SizedBox(width: 6),
+                Text(
+                  '아이 추가',
+                  style: AppTextStyles.body2.copyWith(fontSize: 13.5),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ChildPill extends StatelessWidget {
+  final Child child;
+  final VoidCallback onTap;
+
+  const _ChildPill({required this.child, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final months =
+        child.ageMonths ??
+        AppDateUtils.calculateAgeMonths(child.birthYear, child.birthMonth);
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        height: 40,
+        padding: const EdgeInsets.only(left: 6, right: 14),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: AppColors.line),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            InitialAvatar(
+              label: child.nickname,
+              size: 28,
+              tone: InitialAvatar.toneFor(child.id),
+              imageUrl: child.photoUrl,
+            ),
+            const SizedBox(width: 8),
+            if (months < 0)
+              Text(
+                '${child.nickname} 출산예정',
+                style: AppTextStyles.body2.copyWith(fontSize: 13.5),
+              )
+            else
+              Text.rich(
+                TextSpan(
+                  style: AppTextStyles.body2.copyWith(fontSize: 13.5),
+                  children: [
+                    TextSpan(text: '${child.nickname} '),
+                    TextSpan(
+                      text: '$months',
+                      style: AppTextStyles.handLg.copyWith(
+                        color: AppColors.skyInk,
+                      ),
+                    ),
+                    const TextSpan(text: '개월'),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _MenuItem {
   final IconData icon;
   final String label;
+  final String? value;
+  final Color? valueColor;
   final Color? color;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   _MenuItem({
     required this.icon,
     required this.label,
+    this.value,
+    this.valueColor,
     this.color,
-    required this.onTap,
+    this.onTap,
   });
 }
 
-/// 마이페이지 하단 버전/빌드 번호 표시.
-/// 20회 탭하면 디버그 데이터 뷰어로 진입한다.
+/// 메뉴 묶음 — 흰 면 + 헤어라인, 행 사이 1px line.
+class _MenuGroup extends StatelessWidget {
+  final List<_MenuItem> items;
+
+  const _MenuGroup({required this.items});
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          for (var i = 0; i < items.length; i++) ...[
+            if (i > 0)
+              const Divider(height: 1, thickness: 1, color: AppColors.line),
+            _row(items[i], first: i == 0, last: i == items.length - 1),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _row(_MenuItem item, {required bool first, required bool last}) {
+    final fg = item.color ?? AppColors.ink;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: item.onTap,
+        borderRadius: BorderRadius.vertical(
+          top: first ? const Radius.circular(AppRadius.md) : Radius.zero,
+          bottom: last ? const Radius.circular(AppRadius.md) : Radius.zero,
+        ),
+        child: SizedBox(
+          height: 52,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Icon(item.icon, size: 20, color: item.color ?? AppColors.ink3),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    item.label,
+                    style: AppTextStyles.body1.copyWith(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: fg,
+                    ),
+                  ),
+                ),
+                if (item.value != null)
+                  Text(
+                    item.value!,
+                    style: AppTextStyles.caption.copyWith(
+                      color: item.valueColor ?? AppColors.ink3,
+                    ),
+                  ),
+                if (item.onTap != null) ...[
+                  const SizedBox(width: 8),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: AppColors.line2,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 마이페이지 하단 "버전 x.y.z · 회원탈퇴".
+/// 버전 쪽을 20회 탭하면 디버그 데이터 뷰어로 진입한다.
 class _VersionFooter extends StatefulWidget {
-  const _VersionFooter();
+  final VoidCallback onDeleteAccount;
+
+  const _VersionFooter({required this.onDeleteAccount});
 
   @override
   State<_VersionFooter> createState() => _VersionFooterState();
@@ -631,80 +690,30 @@ class _VersionFooterState extends State<_VersionFooter> {
     final info = _info;
     final label = info == null
         ? '버전 정보 로딩 중...'
-        : '${AppConstants.appName}  v${info.version} (build ${info.buildNumber})';
+        : '버전 ${info.version} (${info.buildNumber})';
     return Center(
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: _onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Text(
-            label,
-            style: AppTextStyles.caption.copyWith(color: AppColors.ink500),
-            textAlign: TextAlign.center,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-Future<void> _openExternalUrl(String url) async {
-  final uri = Uri.parse(url);
-  if (await canLaunchUrl(uri)) {
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
-}
-
-/// 쑥쑥 등급 + 노쇼 레벨 한 줄.
-class _GrowthRow extends StatelessWidget {
-  final double score;
-  final String? noShowLevel;
-
-  const _GrowthRow({required this.score, this.noShowLevel});
-
-  @override
-  Widget build(BuildContext context) {
-    final info = GrowthGradeInfo.fromScore(score);
-    return Row(
-      children: [
-        Text(info.emoji, style: const TextStyle(fontSize: 16)),
-        const SizedBox(width: 4),
-        Text(
-          '쑥쑥 ${info.label}',
-          style: AppTextStyles.captionBold.copyWith(color: info.color),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: LinearProgressIndicator(
-              value: info.progressToNext,
-              minHeight: 6,
-              backgroundColor: Colors.white.withValues(alpha: 0.6),
-              valueColor: AlwaysStoppedAnimation<Color>(info.color),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+              child: Text(label, style: AppTextStyles.caption),
             ),
           ),
-        ),
-        if (_noShowLabel(noShowLevel) != null) ...[
-          const SizedBox(width: 8),
-          Text(
-            _noShowLabel(noShowLevel)!,
-            style: AppTextStyles.caption.copyWith(color: AppColors.ink500),
+          Text('·', style: AppTextStyles.caption),
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: widget.onDeleteAccount,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+              child: Text('회원탈퇴', style: AppTextStyles.caption),
+            ),
           ),
         ],
-      ],
+      ),
     );
-  }
-
-  static String? _noShowLabel(String? level) {
-    switch (level) {
-      case 'OCCASIONAL':
-        return '노쇼 가끔';
-      case 'FREQUENT':
-        return '노쇼 잦음';
-      default:
-        return null;
-    }
   }
 }

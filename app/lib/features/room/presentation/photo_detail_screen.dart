@@ -1,13 +1,22 @@
+import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/network/api_error.dart';
 import '../../../models/room_photo.dart';
 import '../../../models/user.dart';
+import '../../../widgets/app_bar.dart';
+import '../../../widgets/design/avatar.dart';
+import '../../../widgets/design/design_chip.dart';
+import '../../../widgets/design/notebook.dart';
+import '../../../widgets/top_toast.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../data/photo_repository.dart';
 import '../providers/room_detail_provider.dart';
 
@@ -51,12 +60,8 @@ class _PhotoDetailScreenState extends ConsumerState<PhotoDetailScreen> {
     final uniqueChildren = allChildren.where((c) => seen.add(c.id)).toList();
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        title: const Text('사진'),
-      ),
+      backgroundColor: AppColors.paper,
+      appBar: const CustomAppBar(title: '사진'),
       body: PageView.builder(
         controller: _controller,
         itemCount: widget.photoIds.length,
@@ -140,9 +145,40 @@ class _PhotoPageState extends ConsumerState<_PhotoPage> {
     setState(() => _photo = p.copyWith(childIds: next));
     try {
       await ref.read(photoRepositoryProvider).updateTags(p.id, next);
-    } catch (_) {
+    } catch (e) {
       // 실패 시 복구
-      if (mounted) setState(() => _photo = p);
+      if (!mounted) return;
+      setState(() => _photo = p);
+      showTopToast(context, apiErrorMessage(e, fallback: '태그를 저장하지 못했어요'),
+          backgroundColor: AppColors.error);
+    }
+  }
+
+  Future<void> _deletePhoto(RoomPhoto p) async {
+    var ok = false;
+    await AwesomeDialog(
+      context: context,
+      dialogType: DialogType.warning,
+      animType: AnimType.scale,
+      title: '사진 삭제',
+      desc: '이 사진을 삭제할까요?\n댓글과 태그도 함께 사라져요.',
+      btnCancelText: '취소',
+      btnOkText: '삭제',
+      btnOkColor: AppColors.error,
+      btnCancelOnPress: () {},
+      btnOkOnPress: () => ok = true,
+    ).show();
+    if (!ok || !mounted) return;
+    try {
+      await ref.read(photoRepositoryProvider).delete(p.id);
+      if (!mounted) return;
+      showTopToast(context, '사진을 삭제했어요', backgroundColor: AppColors.success);
+      // 목록 화면이 복귀 시 다시 불러온다.
+      context.pop();
+    } catch (e) {
+      if (!mounted) return;
+      showTopToast(context, apiErrorMessage(e, fallback: '사진을 삭제하지 못했어요'),
+          backgroundColor: AppColors.error);
     }
   }
 
@@ -160,6 +196,10 @@ class _PhotoPageState extends ConsumerState<_PhotoPage> {
         _comments = [..._comments, c];
         _commentController.clear();
       });
+    } catch (e) {
+      if (!mounted) return;
+      showTopToast(context, apiErrorMessage(e, fallback: '댓글을 남기지 못했어요'),
+          backgroundColor: AppColors.error);
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -168,7 +208,8 @@ class _PhotoPageState extends ConsumerState<_PhotoPage> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+          child: CircularProgressIndicator(color: AppColors.ink));
     }
     if (_photo == null) {
       return Center(
@@ -176,146 +217,222 @@ class _PhotoPageState extends ConsumerState<_PhotoPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(Icons.broken_image_outlined,
-                size: 56, color: AppColors.textHint),
+                size: 56, color: AppColors.ink3),
             const SizedBox(height: 12),
             Text(
               _loadError ? '사진을 불러오지 못했어요' : '사진을 찾을 수 없어요',
-              style: AppTextStyles.body1.copyWith(color: AppColors.textSecondary),
+              style: AppTextStyles.body1.copyWith(color: AppColors.ink2),
             ),
             const SizedBox(height: 16),
             if (_loadError)
-              TextButton(onPressed: _load, child: const Text('다시 시도')),
+              TextButton(
+                onPressed: _load,
+                style: TextButton.styleFrom(foregroundColor: AppColors.ink),
+                child: const Text('다시 시도'),
+              ),
           ],
         ),
       );
     }
     final p = _photo!;
-    return ListView(
+    final mine = p.uploaderId != null &&
+        p.uploaderId == ref.watch(authProvider).user?.id;
+
+    return Stack(
       children: [
-        GestureDetector(
-          onTap: () => Navigator.of(context, rootNavigator: true).push(
-            PageRouteBuilder(
-              opaque: false,
-              barrierColor: Colors.black,
-              pageBuilder: (_, __, ___) =>
-                  _PhotoFullscreen(url: p.url, heroTag: 'photo-${p.id}'),
-            ),
-          ),
-          child: AspectRatio(
-            aspectRatio: 1,
-            child: Container(
-              color: Colors.black,
-              child: Hero(
-                tag: 'photo-${p.id}',
-                child: Image.network(p.url, fit: BoxFit.contain),
-              ),
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-              AppSpacing.screen, AppSpacing.lg, AppSpacing.screen, AppSpacing.xs),
-          child: Text(
-            '${p.uploaderNickname} · ${DateFormat('M월 d일 HH:mm').format(p.createdAt.toLocal())}',
-            style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
-          ),
-        ),
-        _ChildTagsEditor(
-          children: widget.roomChildren,
-          selected: p.childIds,
-          onToggle: _toggleTag,
-        ),
-        AppSpacing.gapLgV,
-        const Divider(height: 1, indent: AppSpacing.screen, endIndent: AppSpacing.screen),
-        AppSpacing.gapLgV,
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screen),
-          child: Text('댓글 ${_comments.length}', style: AppTextStyles.sectionHead),
-        ),
-        AppSpacing.gapSm,
-        if (_comments.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.screen, vertical: AppSpacing.md),
-            child: Text(
-              '아직 댓글이 없어요',
-              style: AppTextStyles.body2.copyWith(color: AppColors.textHint),
-            ),
-          )
-        else
-          ..._comments.map((c) => Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.screen, vertical: AppSpacing.sm),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(c.userNickname, style: AppTextStyles.body2Bold),
-                          AppSpacing.gapXxs,
-                          Text(
-                            c.content,
-                            style: AppTextStyles.body2.copyWith(height: 1.5),
-                          ),
-                          AppSpacing.gapXxs,
-                          Text(
-                            DateFormat('M월 d일 HH:mm').format(c.createdAt.toLocal()),
-                            style: AppTextStyles.caption
-                                .copyWith(color: AppColors.textHint),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+        Positioned.fill(
+          child: ListView(
+            children: [
+              GestureDetector(
+                onTap: () => Navigator.of(context, rootNavigator: true).push(
+                  PageRouteBuilder(
+                    opaque: false,
+                    barrierColor: Colors.black,
+                    pageBuilder: (_, __, ___) =>
+                        _PhotoFullscreen(url: p.url, heroTag: 'photo-${p.id}'),
+                  ),
                 ),
-              )),
-        const SizedBox(height: 100),
-      ],
-    )
-        .let((listView) => Stack(children: [
-              Positioned.fill(child: listView),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: SafeArea(
-                  top: false,
+                child: AspectRatio(
+                  aspectRatio: 1,
                   child: Container(
-                    color: AppColors.surface,
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _commentController,
-                            decoration: const InputDecoration(
-                              hintText: '댓글을 입력하세요',
-                              border: OutlineInputBorder(),
-                              isDense: true,
-                              contentPadding:
-                                  EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                            ),
-                            onSubmitted: (_) => _addComment(),
-                          ),
-                        ),
-                        IconButton(
-                          icon: _sending
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                )
-                              : const Icon(Icons.send_rounded, color: AppColors.primary),
-                          onPressed: _sending ? null : _addComment,
-                        ),
-                      ],
+                    color: AppColors.ink,
+                    child: Hero(
+                      tag: 'photo-${p.id}',
+                      child: Image.network(p.url, fit: BoxFit.contain),
                     ),
                   ),
                 ),
               ),
-            ]));
+              // 업로더 행 — 아바타 + 이름 + 시간, 본인이면 삭제.
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+                child: Row(
+                  children: [
+                    InitialAvatar(
+                      label: p.uploaderNickname,
+                      size: 32,
+                      tone: InitialAvatar.toneFor(
+                          p.uploaderId ?? p.uploaderNickname),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(p.uploaderNickname,
+                              style: AppTextStyles.body2Bold),
+                          Text(
+                            DateFormat('M월 d일 HH:mm')
+                                .format(p.createdAt.toLocal()),
+                            style: AppTextStyles.caption,
+                          ),
+                        ],
+                      ),
+                    ),
+                    // 업로더 본인만 삭제 가능 (서버도 같은 규칙).
+                    if (mine)
+                      GestureDetector(
+                        onTap: () => _deletePhoto(p),
+                        child: const Padding(
+                          padding: EdgeInsets.all(4),
+                          child: Icon(Icons.delete_outline_rounded,
+                              size: 20, color: AppColors.ink3),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              _ChildTagsEditor(
+                children: widget.roomChildren,
+                selected: p.childIds,
+                onToggle: _toggleTag,
+              ),
+              const DashedDivider(
+                  margin: EdgeInsets.symmetric(horizontal: 20, vertical: 8)),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                child: Text('댓글 ${_comments.length}',
+                    style: AppTextStyles.sectionHead),
+              ),
+              AppSpacing.gapSm,
+              if (_comments.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 20, vertical: AppSpacing.md),
+                  child: Text(
+                    '아직 댓글이 없어요',
+                    style: AppTextStyles.body2.copyWith(color: AppColors.ink3),
+                  ),
+                )
+              else
+                for (var i = 0; i < _comments.length; i++) ...[
+                  if (i > 0)
+                    const DashedDivider(
+                        margin: EdgeInsets.symmetric(horizontal: 20)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 13),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(_comments[i].userNickname,
+                            style: AppTextStyles.body2Bold),
+                        AppSpacing.gapXxs,
+                        Text(
+                          _comments[i].content,
+                          style: AppTextStyles.body2
+                              .copyWith(color: AppColors.ink, height: 1.5),
+                        ),
+                        AppSpacing.gapXxs,
+                        Text(
+                          DateFormat('M월 d일 HH:mm')
+                              .format(_comments[i].createdAt.toLocal()),
+                          style: AppTextStyles.caption,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              const SizedBox(height: 100),
+            ],
+          ),
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: Container(
+            decoration: const BoxDecoration(
+              color: AppColors.surface,
+              border: Border(top: BorderSide(color: AppColors.line)),
+            ),
+            padding: EdgeInsets.fromLTRB(
+                12, 8, 12, MediaQuery.of(context).padding.bottom + 8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: Container(
+                    constraints: const BoxConstraints(minHeight: 40),
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.fill,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: TextField(
+                      controller: _commentController,
+                      style: AppTextStyles.body1,
+                      cursorColor: AppColors.ink,
+                      // 서버 제한(500자)과 동일 — 넘기면 400 이 나고 아무 반응이 없었다.
+                      maxLength: 500,
+                      buildCounter: (_, {required currentLength, required isFocused, maxLength}) =>
+                          currentLength > 400
+                              ? Text('$currentLength/$maxLength',
+                                  style: AppTextStyles.caption)
+                              : null,
+                      decoration: InputDecoration(
+                        hintText: '댓글을 입력하세요',
+                        hintStyle: AppTextStyles.body1
+                            .copyWith(color: AppColors.ink3),
+                        border: InputBorder.none,
+                        isCollapsed: true,
+                        contentPadding:
+                            const EdgeInsets.symmetric(vertical: 11),
+                      ),
+                      onSubmitted: (_) => _addComment(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: _sending ? null : _addComment,
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: _sending ? AppColors.fill : AppColors.ink,
+                      shape: BoxShape.circle,
+                    ),
+                    child: _sending
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: AppColors.ink3),
+                          )
+                        : const Icon(Icons.send_rounded,
+                            color: Colors.white, size: 17),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -370,8 +487,7 @@ class _ChildTagsEditorState extends State<_ChildTagsEditor> {
     final sorted = _ordered;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-          AppSpacing.screen, AppSpacing.md, AppSpacing.screen, AppSpacing.md),
+      padding: const EdgeInsets.fromLTRB(20, AppSpacing.md, 20, AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -387,7 +503,7 @@ class _ChildTagsEditorState extends State<_ChildTagsEditor> {
                   _expanded
                       ? Icons.expand_less_rounded
                       : Icons.expand_more_rounded,
-                  color: AppColors.textSecondary,
+                  color: AppColors.ink3,
                 ),
               ],
             ),
@@ -397,7 +513,7 @@ class _ChildTagsEditorState extends State<_ChildTagsEditor> {
             if (sorted.isEmpty)
               Text(
                 '방 멤버의 아이 정보가 없어요',
-                style: AppTextStyles.body2.copyWith(color: AppColors.textHint),
+                style: AppTextStyles.body2.copyWith(color: AppColors.ink3),
               )
             else
               Wrap(
@@ -405,24 +521,11 @@ class _ChildTagsEditorState extends State<_ChildTagsEditor> {
                 runSpacing: AppSpacing.xs,
                 children: sorted.map((c) {
                   final picked = selectedSet.contains(c.id);
-                  return GestureDetector(
+                  return Pill(
+                    label: c.nickname,
+                    tone: picked ? PillTone.sky : PillTone.line,
+                    height: 32,
                     onTap: () => widget.onToggle(c.id),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-                      decoration: BoxDecoration(
-                        color: picked
-                            ? AppColors.primary
-                            : AppColors.surfaceVariant,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        c.nickname,
-                        style: AppTextStyles.body2Bold.copyWith(
-                          color: picked ? Colors.white : AppColors.textPrimary,
-                        ),
-                      ),
-                    ),
                   );
                 }).toList(),
               ),
@@ -431,10 +534,6 @@ class _ChildTagsEditorState extends State<_ChildTagsEditor> {
       ),
     );
   }
-}
-
-extension _LetExt<T> on T {
-  R let<R>(R Function(T) f) => f(this);
 }
 
 /// 사진 전체화면 — 핀치/더블탭 줌, 어디 탭하든 닫힘.

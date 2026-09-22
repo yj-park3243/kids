@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_shadows.dart';
 import '../../../../core/constants/app_text_styles.dart';
+import '../../../../widgets/top_toast.dart';
 import '../../providers/follow_provider.dart';
 
 /// 팔로우/언팔로우 토글 버튼.
@@ -33,7 +33,15 @@ class FollowButton extends ConsumerWidget {
       onTap: loading
           ? null
           : () async {
-              await ref.read(followToggleProvider(args).notifier).toggle();
+              final error =
+                  await ref.read(followToggleProvider(args).notifier).toggle();
+              if (error != null) {
+                if (context.mounted) {
+                  showTopToast(context, error,
+                      backgroundColor: AppColors.error);
+                }
+                return;
+              }
               final next = ref.read(followToggleProvider(args)).value;
               if (next != null) onChanged?.call(next);
             },
@@ -41,15 +49,13 @@ class FollowButton extends ConsumerWidget {
         duration: const Duration(milliseconds: 140),
         height: height,
         padding: const EdgeInsets.symmetric(horizontal: 16),
+        // 팔로우 = 잉크 채움(CTA), 팔로잉 = 흰 면 + 테두리 + 체크.
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(999),
-          gradient: following ? null : AppColors.primaryGradient,
-          color: following ? Colors.white.withValues(alpha: 0.7) : null,
+          color: following ? AppColors.surface : AppColors.ink,
           border: Border.all(
-            color: following ? AppColors.primary200 : Colors.transparent,
-            width: 0.8,
+            color: following ? AppColors.line2 : AppColors.ink,
           ),
-          boxShadow: following ? AppShadows.glass : AppShadows.primaryCta,
         ),
         child: Center(
           child: loading
@@ -58,7 +64,7 @@ class FollowButton extends ConsumerWidget {
                   height: 16,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: following ? AppColors.primary : Colors.white,
+                    color: following ? AppColors.ink : Colors.white,
                   ),
                 )
               : Row(
@@ -69,14 +75,13 @@ class FollowButton extends ConsumerWidget {
                           ? Icons.check_rounded
                           : Icons.person_add_alt_1_rounded,
                       size: 16,
-                      color: following ? AppColors.primary700 : Colors.white,
+                      color: following ? AppColors.ink : Colors.white,
                     ),
                     const SizedBox(width: 4),
                     Text(
                       following ? '팔로잉' : '팔로우',
                       style: AppTextStyles.chip.copyWith(
-                        color:
-                            following ? AppColors.primary700 : Colors.white,
+                        color: following ? AppColors.ink : Colors.white,
                       ),
                     ),
                   ],

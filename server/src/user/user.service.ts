@@ -150,6 +150,12 @@ export class UserService {
     // parentGender / isSingleParent 는 가입 후 수정 불가 — 요청에 섞여 들어와도 무시.
     const { parentGender: _pg, isSingleParent: _sp, ...patch } = dto as any;
     Object.assign(user, patch);
+    // 동네를 바꾸면 프로필 설정과 같은 폴백 좌표로 맞춘다 (이 DTO 엔 좌표가 없다).
+    if (dto.regionSido && dto.regionSigungu) {
+      const fb = fallbackCoord(dto.regionSido, dto.regionSigungu, dto.regionDong);
+      user.latitude = fb.lat;
+      user.longitude = fb.lng;
+    }
     const saved = await this.userRepository.save(user);
     return this.sanitizeUser(saved);
   }
@@ -199,6 +205,17 @@ export class UserService {
     const noShowLevel: 'NONE' | 'OCCASIONAL' | 'FREQUENT' =
       nsc < 1 ? 'NONE' : nsc < 3 ? 'OCCASIONAL' : 'FREQUENT';
 
+    let followerCount = 0;
+    try {
+      const rows = await this.userRepository.query(
+        `SELECT COUNT(*)::int AS c FROM follow WHERE target_user_id = $1`,
+        [userId],
+      );
+      followerCount = rows[0]?.c ?? 0;
+    } catch {
+      followerCount = 0;
+    }
+
     // 팔로우/차단 관계 (요청자 vs target) — 테이블 미존재 시 false fallback
     let isFollowing = false;
     let isBlocked = false;
@@ -245,6 +262,7 @@ export class UserService {
       mannerScore: Number(user.mannerScore),
       mannerTags,
       noShowLevel,
+      followerCount,
       isFollowing,
       isBlocked,
       createdAt: user.createdAt,

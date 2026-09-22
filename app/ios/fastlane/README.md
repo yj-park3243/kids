@@ -15,6 +15,14 @@ For _fastlane_ installation instructions, see [Installing _fastlane_](https://do
 
 ## iOS
 
+### ios status
+
+```sh
+[bundle exec] fastlane ios status
+```
+
+ASC 버전/빌드 상태 조회 (읽기 전용) — 심사 제출 전에 확인용
+
 ### ios check_app
 
 ```sh

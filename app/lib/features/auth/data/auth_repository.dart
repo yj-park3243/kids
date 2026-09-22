@@ -25,6 +25,17 @@ class AuthRepository {
   }
 
   // Email Login
+  /// KCP 본인인증으로 받은 단기 resetToken 으로 비밀번호 재설정.
+  Future<void> resetPassword({
+    required String resetToken,
+    required String newPassword,
+  }) async {
+    await _dio.post(ApiConstants.resetPassword, data: {
+      'resetToken': resetToken,
+      'newPassword': newPassword,
+    });
+  }
+
   Future<AuthResult> emailLogin({
     required String email,
     required String password,
@@ -122,6 +133,10 @@ class AuthRepository {
     return Child.fromJson(data);
   }
 
+  Future<void> deleteChild(String childId) async {
+    await _dio.delete('${ApiConstants.children}/$childId');
+  }
+
   /// 아이 기질/낮잠 항목만 갱신 — null/빈배열은 "비우기"로 명시적으로 전송한다.
   Future<Child> updateChildTraits({
     required String childId,
@@ -153,16 +168,22 @@ class AuthRepository {
     return User.fromJson(data);
   }
 
-  /// 내 프로필 수정 — 닉네임/프로필 사진/자기소개.
+  /// 내 프로필 수정 — 닉네임/프로필 사진/자기소개/동네.
   Future<User> updateProfile({
     String? nickname,
     String? profileImageUrl,
     String? introduction,
+    String? regionSido,
+    String? regionSigungu,
+    String? regionDong,
   }) async {
     final response = await _dio.patch(ApiConstants.userMe, data: {
       if (nickname != null) 'nickname': nickname,
       if (profileImageUrl != null) 'profileImageUrl': profileImageUrl,
       if (introduction != null) 'introduction': introduction,
+      if (regionSido != null) 'regionSido': regionSido,
+      if (regionSigungu != null) 'regionSigungu': regionSigungu,
+      if (regionDong != null) 'regionDong': regionDong,
     });
     final data = response.data['data'] ?? response.data;
     return User.fromJson(data);

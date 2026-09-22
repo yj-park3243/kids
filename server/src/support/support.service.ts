@@ -99,6 +99,22 @@ export class SupportService {
     }
   }
 
+  async getMyInquiries(userId: string) {
+    const rows = await this.inquiryRepo.find({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      subject: r.subject,
+      message: r.message,
+      reply: r.reply,
+      status: r.status,
+      createdAt: r.createdAt,
+      repliedAt: r.repliedAt,
+    }));
+  }
+
   async createInquiry(userId: string, dto: CreateInquiryDto) {
     const inquiry = await this.inquiryRepo.save(
       this.inquiryRepo.create({

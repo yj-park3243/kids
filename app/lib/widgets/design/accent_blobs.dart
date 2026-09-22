@@ -1,8 +1,11 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 
-/// 흰 베이스 + 분홍/코랄/라벤더 블러 블롭.
+/// 화면 배경 — 종이 한 장.
+///
+/// 이전에는 블러 블롭 4개를 깔았지만, 위에 놓인 모든 것이 흐려 보이는 가장 큰
+/// 원인이었다. 이름은 호환을 위해 남겼고 이제는 단색 [AppColors.paper] 다.
+/// 새 화면은 `Scaffold.backgroundColor` 기본값(paper)으로 충분하니 굳이 감싸지 않아도 된다.
 class AccentBlobsBackground extends StatelessWidget {
   final Widget child;
   final bool strong;
@@ -15,44 +18,6 @@ class AccentBlobsBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final base = strong ? 0.32 : 0.20;
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        Container(color: strong ? AppColors.backgroundSoft : AppColors.background),
-        Positioned(
-          top: -140,
-          left: -80,
-          child: _blob(420, AppColors.primary.withValues(alpha: base)),
-        ),
-        Positioned(
-          top: -100,
-          right: -120,
-          child: _blob(380, AppColors.accentCoral.withValues(alpha: base + 0.04)),
-        ),
-        Positioned(
-          bottom: -180,
-          left: 40,
-          child: _blob(420, AppColors.accentLavender.withValues(alpha: base)),
-        ),
-        Positioned(
-          bottom: -120,
-          right: -60,
-          child: _blob(320, AppColors.primaryDark.withValues(alpha: base - 0.04)),
-        ),
-        child,
-      ],
-    );
-  }
-
-  Widget _blob(double size, Color color) {
-    return ImageFiltered(
-      imageFilter: ImageFilter.blur(sigmaX: 80, sigmaY: 80),
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-      ),
-    );
+    return ColoredBox(color: AppColors.paper, child: child);
   }
 }

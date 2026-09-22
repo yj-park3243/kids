@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_radius.dart';
-import '../../core/constants/app_shadows.dart';
 import '../../core/constants/app_text_styles.dart';
 
 /// Primary CTA: 민트 그라디언트 + 흰 텍스트 + 민트 그림자.
@@ -21,10 +20,10 @@ class PrimaryButton extends StatefulWidget {
     this.onPressed,
     this.isLoading = false,
     this.isEnabled = true,
-    this.height = 54,
+    this.height = 52,
     this.width,
     this.icon,
-    this.radius = 18,
+    this.radius = 14,
   });
 
   @override
@@ -48,15 +47,10 @@ class _PrimaryButtonState extends State<PrimaryButton> {
         child: Container(
           width: widget.width ?? double.infinity,
           height: widget.height,
+          // 잉크 단색. 비활성은 회색 면 + 힌트색 글씨 (docs/09_UI_수첩안.md).
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(widget.radius),
-            gradient: enabled ? AppColors.primaryGradient : null,
-            color: enabled ? null : AppColors.primary200,
-            boxShadow: enabled ? AppShadows.primaryCta : null,
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.35),
-              width: 0.5,
-            ),
+            color: enabled ? AppColors.ink : AppColors.fill,
           ),
           child: Center(
             child: widget.isLoading
@@ -72,12 +66,16 @@ class _PrimaryButtonState extends State<PrimaryButton> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (widget.icon != null) ...[
-                        Icon(widget.icon, size: 20, color: Colors.white),
+                        Icon(widget.icon,
+                            size: 20,
+                            color: enabled ? Colors.white : AppColors.ink3),
                         const SizedBox(width: 8),
                       ],
                       Text(
                         widget.text,
-                        style: AppTextStyles.button.copyWith(color: Colors.white),
+                        style: AppTextStyles.button.copyWith(
+                          color: enabled ? Colors.white : AppColors.ink3,
+                        ),
                       ),
                     ],
                   ),
@@ -96,42 +94,53 @@ class GlassButton extends StatelessWidget {
   final double height;
   final double radius;
   final Color textColor;
+  /// null 이면 가로로 꽉 찬다. 카드 안 작은 버튼은 `compact: true`.
+  final double? width;
+  final bool compact;
 
   const GlassButton({
     super.key,
     required this.text,
     this.onPressed,
     this.icon,
-    this.height = 54,
-    this.radius = 18,
-    this.textColor = AppColors.primaryDark,
+    this.height = 52,
+    this.radius = 14,
+    this.textColor = AppColors.ink,
+    this.width,
+    this.compact = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final h = compact ? 38.0 : height;
+    final r = compact ? 11.0 : radius;
+    final style = compact ? AppTextStyles.buttonSmall : AppTextStyles.button;
     return InkWell(
-      borderRadius: BorderRadius.circular(radius),
+      borderRadius: BorderRadius.circular(r),
       onTap: onPressed,
       child: Container(
-        width: double.infinity,
-        height: height,
+        width: compact ? width : (width ?? double.infinity),
+        height: h,
+        // 고정 폭이 주어지면 안쪽 여백은 최소로 — 좁은 폭에서 글자가 넘치지 않게.
+        padding: EdgeInsets.symmetric(
+          horizontal: width != null ? 8 : (compact ? 14 : 20),
+        ),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(radius),
-          color: Colors.white.withValues(alpha: 0.7),
-          border: Border.all(color: AppColors.divider, width: 1),
-          boxShadow: AppShadows.glass,
+          borderRadius: BorderRadius.circular(r),
+          color: AppColors.surface,
+          border: Border.all(color: AppColors.line2, width: 1),
         ),
         child: Center(
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               if (icon != null) ...[
-                Icon(icon, size: 20, color: textColor),
-                const SizedBox(width: 8),
+                Icon(icon, size: compact ? 16 : 20, color: textColor),
+                SizedBox(width: compact ? 6 : 8),
               ],
               Text(
                 text,
-                style: AppTextStyles.button.copyWith(color: textColor),
+                style: style.copyWith(color: textColor),
               ),
             ],
           ),
@@ -170,9 +179,7 @@ class GlassIconButton extends StatelessWidget {
             height: size,
             decoration: BoxDecoration(
               borderRadius: AppRadius.rSm,
-              color: Colors.white.withValues(alpha: 0.7),
-              border: Border.all(color: AppColors.glassBorder, width: 0.5),
-              boxShadow: AppShadows.glass,
+              color: Colors.transparent,
             ),
             child: Icon(icon, size: 20, color: iconColor),
           ),
@@ -183,9 +190,10 @@ class GlassIconButton extends StatelessWidget {
               child: Container(
                 width: 8,
                 height: 8,
-                decoration: const BoxDecoration(
-                  color: AppColors.accentCoral,
+                decoration: BoxDecoration(
+                  color: AppColors.berry,
                   shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.paper, width: 1.5),
                 ),
               ),
             ),
